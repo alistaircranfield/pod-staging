@@ -181,6 +181,20 @@ td.col-A{background:var(--podA)} td.col-B{background:var(--podB)} td.col-C{backg
 .grouphead{font-size:.62rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);margin:.7rem 0 .1rem}
 .namecell{font-weight:600;white-space:nowrap;max-width:230px;overflow:hidden;text-overflow:ellipsis}
 .inactive td{opacity:.45}
+.skcell{max-width:340px}
+.spill{display:inline-block;border-radius:999px;padding:.1rem .5rem;font-size:.68rem;font-weight:700;margin:.1rem .25rem .1rem 0;white-space:nowrap;line-height:1.5}
+.spill.info{background:var(--hair);color:var(--muted);border:1px solid var(--line)}
+.muted-sm{color:var(--muted);font-size:.8rem}
+.datescell{white-space:nowrap}
+.datescell .dt{font-size:.72rem;padding:.2rem .3rem;width:8.4rem}
+.datescell .todash{color:var(--muted);margin:0 .25rem}
+.rowacts{white-space:nowrap;text-align:right}
+.rowbtn{font-size:.72rem;font-weight:700;padding:.28rem .6rem;border-radius:8px;border:1px solid var(--line);background:var(--card);cursor:pointer;margin-left:.3rem}
+.rowbtn.edit:hover{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+.rowbtn.del{color:var(--red);border-color:#f0c9c9}
+.rowbtn.del:hover{background:#fdecec}
+.infoi{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--muted);color:#fff;font-size:.6rem;font-style:italic;font-weight:800;margin-left:.35rem;cursor:help;vertical-align:middle}
+.checks label{align-items:center}
 /* fairness */
 .fair th{font-size:.6rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700}
 .fair th,.fair td{padding:.4rem .6rem;border-bottom:1px solid var(--hair);font-size:.82rem;text-align:center}
@@ -427,14 +441,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
       <div style="overflow-x:auto">
       <table id="staffTable">
         <thead><tr>
-          <th>Name</th><th>Grade</th>
-          <th><span class="colpill" style="background:#E6F1FB;color:#0C447C">Airway</span></th>
-          <th><span class="colpill" style="background:#EAF3DE;color:#27500A">Phone</span></th>
-          <th><span class="colpill" style="background:#FAEEDA;color:#633806">Ph sup</span></th>
-          <th><span class="colpill" style="background:#E1F5EE;color:#085041">Transfer</span></th>
-          <th><span class="colpill" style="background:#FBEAF0;color:#72243E">Supernum</span></th>
-          <th class="grp">Nights</th><th>FGH</th><th>FGH nights</th><th>FGH super</th>
-          <th>From</th><th>Until</th><th></th>
+          <th>Name</th><th>Grade</th><th>Skills</th><th>On the unit</th><th></th>
         </tr></thead>
         <tbody id="staffBody"></tbody>
       </table>
@@ -1136,6 +1143,14 @@ function loadData(d){
   if (!d || typeof d !== "object" || !Array.isArray(d.staff)) { uiAlert("That file doesn't look like a rota file. Look for " + DATA_FILE_NAME + " in the shared folder.", { title: "Wrong file" }); return; }
   data = d;
   data.weeks = data.weeks || {}; data.log = data.log || []; data.ignoredNames = data.ignoredNames || [];
+  // Migrate the old two-way phone skill into the new three: holder / supervisor / shadow.
+  for (const s of data.staff) {
+    if (s.phoneHolder === undefined) s.phoneHolder = !!s.phoneFull;
+    if (s.phoneShadow === undefined) s.phoneShadow = !!s.phoneSup;
+    if (s.phoneSupervisor === undefined) s.phoneSupervisor = false;
+    if (s.phoneSupervisor) s.phoneHolder = true;   // supervisor always counts as a holder
+    if (s.phoneHolder) s.phoneShadow = false;      // a holder isn't a learner
+  }
   for (const wk of Object.values(data.weeks)) {
     if (!("roster" in wk)) wk.roster = null;
     if (!wk.accepted) wk.accepted = [];
@@ -1236,17 +1251,25 @@ async function startUp(){
 }
 /* ================= STAFF TAB ================= */
 const FLAGS = [
-  ["airway","Airway trained","rule","#0C447C"],
-  ["phoneFull","Referral phone — unsupervised","rule","#27500A"],
-  ["phoneSup","Referral phone — supervised only","rule","#633806"],
-  ["transfer","Transfer trained","rule","#085041"],
-  ["neuro","Neuro trained","rule","#6A2C91"],
-  ["supernum","Supernumerary — never counted","rule","#72243E"],
-  ["nights","Works nights","info"],
-  ["fgh","FGH cover","info"],
-  ["fghNights","FGH nights","info"],
-  ["fghSuper","FGH supernumerary","info"],
+  ["airway","Airway trained","rule","#0C447C","Trained to manage the airway / intubate. Shows as an A badge, and the checks aim to spread airway cover across the pods and across nights."],
+  ["phoneHolder","Phone holder","rule","#27500A","Can carry the referral phone on their own, day or night."],
+  ["phoneSupervisor","Phone supervisor","rule","#1B5E20","Senior enough to supervise a learner on the phone. A supervisor automatically counts as a phone holder too."],
+  ["phoneShadow","Phone shadow (learning)","rule","#8A5A00","Still learning the phone — can only carry it on a day when a phone supervisor is also on, and never at night."],
+  ["transfer","Transfer trained","rule","#085041","Trained to escort transfers off the unit. The checks aim for enough transfer-trained cover on the day shift."],
+  ["neuro","Neuro trained","rule","#6A2C91","Neuro-trained — auto-fill aims to keep more of their shifts on Pods C & D."],
+  ["supernum","Supernumerary — never counted","rule","#72243E","Doesn't count towards pod numbers (e.g. supernumerary or purely learning)."],
+  ["nights","Works nights","info","","Available to be put on night shifts."],
+  ["fgh","FGH cover","info","","Covers Fairfield General."],
+  ["fghNights","FGH nights","info","","Covers Fairfield General at night."],
+  ["fghSuper","FGH supernumerary","info","","Supernumerary at Fairfield General."],
 ];
+// Supervisor automatically counts as a holder; a shadow is a learner who can't hold on their own.
+const canHoldPhone = s => !!(s && (s.phoneHolder || s.phoneSupervisor));
+const isPhoneSupervisor = s => !!(s && s.phoneSupervisor);
+const isPhoneShadow = s => !!(s && s.phoneShadow && !canHoldPhone(s));
+// Is a phone supervisor actually on this day (from the people allocated that day)?
+function supervisorOnDay(dayIds, exceptId){ return [...new Set(dayIds)].some(id => id !== exceptId && isPhoneSupervisor(staffById(id))); }
+const SKILL_SHORT = { airway:"Airway", phoneHolder:"Phone", phoneSupervisor:"Ph sup", phoneShadow:"Ph shadow", transfer:"Transfer", neuro:"Neuro", supernum:"Supernum", nights:"Nights", fgh:"FGH", fghNights:"FGH nts", fghSuper:"FGH sup" };
 
 function renderStaff(){
   const body = $("#staffBody");
@@ -1262,35 +1285,33 @@ function renderStaff(){
     const tr = el("tr", { class: active ? "" : "inactive" });
     tr.append(el("td", { class: "namecell", title: s.name }, s.name, !active ? el("span",{class:"pill expired"}," expired") : ""));
     tr.append(el("td", {}, s.grade ? el("span", { class: "pill grade" }, s.grade) : el("span", { class: "pill grade-empty" }, "no grade")));
-    for (const fdef of FLAGS) {
-      const key = fdef[0];
-      const td = el("td", fdef[0] === "nights" ? { class: "grp" } : {});
-      const cb = el("input", { type: "checkbox", style: fdef[2] === "rule" ? "accent-color:" + fdef[3] : "" });
-      cb.checked = !!s[key];
-      cb.onchange = () => { s[key] = cb.checked; if (key==="phoneFull" && cb.checked) s.phoneSup = false; if (key==="phoneSup" && cb.checked) s.phoneFull = false; logEntry("Edited skills: " + s.name); markDirty(); renderStaff(); renderWeek(); };
-      td.append(cb); tr.append(td);
-    }
-    const st = el("input", { type: "date" }); st.value = s.start || "";
+    // Skills as compact read-only pills — tick them in the person's card (Edit).
+    const skcell = el("td", { class: "skcell" });
+    for (const f of FLAGS) if (f[2] === "rule" && s[f[0]]) skcell.append(el("span", { class: "spill", style: "background:" + f[3] + "16;color:" + f[3] + ";border:1px solid " + f[3] + "40", title: f[4] || f[1] }, SKILL_SHORT[f[0]] || f[1]));
+    for (const f of FLAGS) if (f[2] === "info" && s[f[0]]) skcell.append(el("span", { class: "spill info", title: f[4] || f[1] }, SKILL_SHORT[f[0]] || f[1]));
+    if (!skcell.children.length) skcell.append(el("span", { class: "muted-sm" }, "—"));
+    tr.append(skcell);
+    const st = el("input", { type: "date", class: "dt", title: "First day on the unit (blank = already here)" }); st.value = s.start || "";
     st.onchange = () => { s.start = st.value || null; markDirty(); renderStaff(); renderWeek(); };
-    const en = el("input", { type: "date" }); en.value = s.end || "";
+    const en = el("input", { type: "date", class: "dt", title: "Last day on the unit (blank = ongoing)" }); en.value = s.end || "";
     en.onchange = () => { s.end = en.value || null; markDirty(); renderStaff(); renderWeek(); };
-    tr.append(el("td", {}, st), el("td", {}, en));
-    tr.append(el("td", {},
-      el("button", { class: "mini", title: "Edit", onclick: () => staffModal(s) }, "✎"),
-      el("button", { class: "mini", title: "Remove", onclick: async () => {
-        if (!(await uiConfirm("Past rotas keep their name; they just leave the pick-lists.", { title: "Remove " + s.name + "?", okLabel: "Remove", danger: true }))) return;
+    tr.append(el("td", { class: "datescell" }, st, el("span", { class: "todash" }, "→"), en));
+    tr.append(el("td", { class: "rowacts" },
+      el("button", { class: "rowbtn edit", title: "Edit this person's details", onclick: () => staffModal(s) }, "Edit"),
+      el("button", { class: "rowbtn del", title: "Remove from the pick-lists", onclick: async () => {
+        if (!(await uiConfirm("This removes " + s.name + " from the staff list and future pick-lists. Rotas already saved keep their name. This can't be undone from here.", { title: "Delete " + s.name + "?", okLabel: "Delete", cancelLabel: "Keep", danger: true }))) return;
         data.staff = data.staff.filter(x => x.id !== s.id);
-        logEntry("Removed staff: " + s.name); markDirty(); renderStaff(); renderWeek();
-      }}, "✕")
+        logEntry("Deleted staff: " + s.name); markDirty(); renderStaff(); renderWeek();
+      }}, "Delete")
     ));
     body.append(tr);
   }
-  if (!body.children.length) body.append(el("tr",{}, el("td",{colspan:"12",class:"empty"}, "No staff yet — click “+ Add person”.")));
+  if (!body.children.length) body.append(el("tr",{}, el("td",{colspan:"5",class:"empty"}, "No staff yet — click “+ Add person”.")));
 }
 
 function staffModal(s){
   const isNew = !s;
-  s = s || { id: uid(), name:"", grade:"", airway:false, phoneFull:false, phoneSup:false, nights:false, fgh:false, transfer:false, supernum:false, start:null, end:null, active:true, aliases:[] };
+  s = s || { id: uid(), name:"", grade:"", airway:false, phoneHolder:false, phoneSupervisor:false, phoneShadow:false, nights:false, fgh:false, transfer:false, supernum:false, start:null, end:null, active:true, aliases:[] };
   const m = $("#modal");
   m.innerHTML = "";
   m.append(el("h3", {}, isNew ? "Add person" : "Edit " + s.name));
@@ -1310,7 +1331,9 @@ function staffModal(s){
     for (const fdef of flags) {
       const cb = el("input", { type: "checkbox", style: fdef[2] === "rule" ? "accent-color:" + fdef[3] : "" });
       cb.checked = !!s[fdef[0]]; cbs[fdef[0]] = cb;
-      box.append(el("label", {}, cb, fdef[1]));
+      const lbl = el("label", {}, cb, fdef[1]);
+      if (fdef[4]) lbl.append(el("span", { class: "infoi", title: fdef[4] }, "i"));
+      box.append(lbl);
     }
     return box;
   };
@@ -1318,8 +1341,14 @@ function staffModal(s){
   m.append(mkChecks(FLAGS.filter(x => x[2] === "rule")));
   m.append(el("div", { class: "grouphead", style: "color:var(--muted)" }, "Rota information"));
   m.append(mkChecks(FLAGS.filter(x => x[2] === "info")));
-  cbs.phoneFull.onchange = () => { if (cbs.phoneFull.checked) cbs.phoneSup.checked = false; };
-  cbs.phoneSup.onchange = () => { if (cbs.phoneSup.checked) cbs.phoneFull.checked = false; };
+  // Phone skills interlock: supervisor implies holder; a holder/supervisor can't also be a learner.
+  cbs.phoneSupervisor.onchange = () => { if (cbs.phoneSupervisor.checked) { cbs.phoneHolder.checked = true; cbs.phoneShadow.checked = false; } };
+  cbs.phoneHolder.onchange = () => { if (cbs.phoneHolder.checked) cbs.phoneShadow.checked = false; else cbs.phoneSupervisor.checked = false; };
+  cbs.phoneShadow.onchange = () => { if (cbs.phoneShadow.checked) { cbs.phoneHolder.checked = false; cbs.phoneSupervisor.checked = false; } };
+  // FGH: either they cover FGH (day/night) or they're supernumerary there — not both.
+  cbs.fghSuper.onchange = () => { if (cbs.fghSuper.checked) { cbs.fgh.checked = false; cbs.fghNights.checked = false; } };
+  cbs.fgh.onchange = () => { if (cbs.fgh.checked) cbs.fghSuper.checked = false; };
+  cbs.fghNights.onchange = () => { if (cbs.fghNights.checked) cbs.fghSuper.checked = false; };
   m.append(el("div", { class: "modalbtns" },
     el("button", { class: "btn sec", onclick: closeModal }, "Cancel"),
     el("button", { class: "btn", onclick: () => {
@@ -1654,16 +1683,13 @@ function obsChip(day, o, di){
   c.addEventListener("dragend", () => { c.classList.remove("dragging"); document.body.classList.remove("person-dragging"); dragEndedAt = Date.now(); });
   return c;
 }
-// The daytime referral-phone holder always works a long day, so force their shift to LD wherever
-// they sit (in a pod, or via a bench override if they're not placed yet).
-function forceHolderLD(day, id){
-  let inPod = false;
-  for (const p of PODS){ const a = day.pods[p].assign.find(x => x.id === id); if (a){ a.shift = "LD"; inPod = true; } }
-  if (!inPod){
-    day.extras = day.extras || [];
-    const e = day.extras.find(x => x.id === id);
-    if (e){ e.kind = "day"; e.code = "LD"; } else day.extras.push({ id, kind: "day", code: "LD" });
-  }
+// The daytime referral-phone holder should work a long day. We never change their shift — this just
+// returns their current shift so we can WARN (overridably) when the phone goes to a short-day person.
+function holderShift(day, id){
+  for (const p of PODS){ const a = day.pods[p].assign.find(x => x.id === id); if (a) return a.shift || "SD"; }
+  const di = getWeek(currentWeekKey).days.indexOf(day);
+  if (di >= 0){ const pl = poolFor(day, addDays(currentWeekKey, di)); if (pl[id]) return poolState(pl[id]); }
+  return null;
 }
 async function assignPhoneTo(day, type, s){
   if (type === "shadow") {
@@ -1671,12 +1697,18 @@ async function assignPhoneTo(day, type, s){
     day.shadow = day.shadow || [];
     if (!day.shadow.includes(s.id)) day.shadow.push(s.id);
   } else if (type === "day") {
-    if (!s.phoneFull && !s.phoneSup && !(await uiConfirm(s.name + " isn't marked as phone-qualified on the staff list.", { title: "Give them the phone anyway?", okLabel: "Give phone", danger: true }))) { tapPhone = null; renderWeek(); return; }
+    const dayIds = dayAllAssigned(day);
+    // Not phone-trained at all?
+    if (!canHoldPhone(s) && !isPhoneShadow(s) && !(await uiConfirm(s.name + " isn't marked with any phone skill on the staff list.", { title: "Give them the phone anyway?", okLabel: "Give phone", danger: true }))) { tapPhone = null; renderWeek(); return; }
+    // A learner (shadow) can only carry it if a supervisor is on today.
+    if (isPhoneShadow(s) && !supervisorOnDay(dayIds, s.id) && !(await uiConfirm(s.name + " is still learning the phone and no phone supervisor is on today. Give them the phone anyway?", { title: "No supervisor on today", okLabel: "Give phone anyway", danger: true }))) { tapPhone = null; renderWeek(); return; }
+    // The phone holder should be on a long day — warn if they aren't, but allow override.
+    const hs = holderShift(day, s.id);
+    if (hs && hs !== "LD" && !(await uiConfirm(s.name + " is on a short day. The referral-phone holder should be on a long day (LD). Give them the phone anyway?", { title: "Phone holder isn't a long day", okLabel: "Give phone anyway", danger: true }))) { tapPhone = null; renderWeek(); return; }
     day.phone = s.id;
     day.shadow = (day.shadow || []).filter(x => x !== s.id);
-    forceHolderLD(day, s.id);
   } else {
-    if (!s.phoneFull && !(await uiConfirm(s.name + " isn't a full phone-holder, which nights require.", { title: "Give them the night phone anyway?", okLabel: "Give phone", danger: true }))) { tapPhone = null; renderWeek(); return; }
+    if (!canHoldPhone(s) && !(await uiConfirm(s.name + " isn't a qualified phone holder. The night phone needs a holder — a learner can't hold it at night. Give them the night phone anyway?", { title: "Night phone needs a holder", okLabel: "Give phone anyway", danger: true }))) { tapPhone = null; renderWeek(); return; }
     day.night.phone = s.id;
   }
   tapPhone = null;
@@ -1765,7 +1797,7 @@ const GRADE_RANK = { CON: -1, ICM: 0, ST: 1, SCF: 2, Anaes: 3, ACCP: 4, ACCS: 5,
 // under-grant and let someone tick a box than to over-grant airway/phone). Edit freely.
 const GRADE_DEFAULT_SKILLS = {
   ST:   ["airway", "transfer"],   // anaesthesia trainees
-  SCF:  ["phoneFull"],
+  SCF:  ["phoneHolder"],
   ACCP: ["transfer"],
   ACCS: [],
 };
@@ -1977,11 +2009,8 @@ function checkDay(day, dateISO, di, wk){
   else {
     const ph = staffById(day.phone);
     if (!ph) H("Phone holder is not on the staff list.");
-    else if (!ph.phoneFull && !ph.phoneSup) H(ph.name + " is not phone-qualified.");
-    else if (ph.phoneSup && !ph.phoneFull) {
-      const fullPresent = [...new Set(dayIds)].some(id => id !== ph.id && staffById(id)?.phoneFull);
-      if (!fullPresent) H(ph.name + " holds the phone under supervision — but no full phone-holder is on the day shift to support them.");
-    }
+    else if (!canHoldPhone(ph) && !isPhoneShadow(ph)) H(ph.name + " isn't phone-trained.");
+    else if (isPhoneShadow(ph) && !supervisorOnDay(dayIds, ph.id)) H(ph.name + " is still learning the phone — no phone supervisor is on today to oversee them.");
     if (ph && !isActiveOn(ph, dateISO)) H(ph.name + " is outside their start/end dates on this day.");
     if (ph) {
       let holderShift = null;
@@ -1992,7 +2021,7 @@ function checkDay(day, dateISO, di, wk){
   }
   if (day.night.phone) {
     const nph = staffById(day.night.phone);
-    if (nph && !nph.phoneFull) H("Night phone: " + nph.name + " must be a fully qualified phone-holder (supervised holders are days only).");
+    if (nph && !canHoldPhone(nph)) H("Night phone: " + nph.name + " must be a qualified phone holder (a learner can't hold the night phone).");
     if (nph && !nph.nights) H("Night phone: " + nph.name + " is not flagged as able to work nights.");
     if (nph && !day.night.AB.includes(day.night.phone) && !day.night.CDE.includes(day.night.phone)) H("At night the phone holder also covers a pod — place " + nph.name + " in A & B or C, D & E.");
   } else H("No night phone holder allocated.");
@@ -2492,7 +2521,7 @@ function showImportPreview(parsed, box){
       const key = normName(u.p.forenames + " " + u.p.surname);
       if (!u.choice) { if (!data.ignoredNames.includes(key)) data.ignoredNames.push(key); continue; }
       if (u.choice === "__new__") {
-        const s = { id: uid(), name: u.p.forenames.split(" ")[0] + " " + u.p.surname, grade: gradeFromText(u.p.gradeText), airway: /(-|–) ?A/i.test(Object.values(u.p.duties).join(" ")) || Object.values(u.p.duties).some(c => /airway/i.test(c)), phoneFull: false, phoneSup: false, nights: false, fgh: false, transfer: false, supernum: false, start: null, end: null, active: true, aliases: [key] };
+        const s = { id: uid(), name: u.p.forenames.split(" ")[0] + " " + u.p.surname, grade: gradeFromText(u.p.gradeText), airway: /(-|–) ?A/i.test(Object.values(u.p.duties).join(" ")) || Object.values(u.p.duties).some(c => /airway/i.test(c)), phoneHolder: false, phoneSupervisor: false, phoneShadow: false, nights: false, fgh: false, transfer: false, supernum: false, start: null, end: null, active: true, aliases: [key] };
         applyGradeSkills(s); // default skills for their grade (e.g. ST → airway+transfer, ACCP → transfer)
         data.staff.push(s); put(s.id, u.p); added++;
       } else {
@@ -2709,19 +2738,40 @@ function historicCount(fn){
   for (const w of Object.values(data.weeks)) w.days.forEach(dd => { const id = fn(dd); if (id) n[id] = (n[id] || 0) + 1; });
   return n;
 }
+// Like historicCount but only counts days that fall within each person's own time on the unit, so
+// fairness balances across the weeks they're actually here — not an all-time average that would
+// unfairly dump duties on someone who's only just arrived or about to leave.
+function historicCountWindow(getId){
+  const n = {};
+  for (const [key, w] of Object.entries(data.weeks)) w.days.forEach((dd, di) => {
+    const id = getId(dd); if (!id) return;
+    const s = staffById(id);
+    if (!s || isActiveOn(s, addDays(key, di))) n[id] = (n[id] || 0) + 1;
+  });
+  return n;
+}
+function phoneHistWindow(){ return historicCountWindow(dd => dd.phone); }
 function autoFillDay(wk, di){
   const day = wk.days[di];
   const dateISO = addDays(currentWeekKey, di);
   const pool = poolFor(day, dateISO);
   const assigned = assignedIds(day);
   const dayIds = Object.keys(pool).filter(id => pool[id].kind === "day");
-  // --- day phone ---
+  // --- day phone: only a long-day holder, spread across the week so it's not the same person daily ---
   if (!day.phone) {
-    const phoneHist = historicCount(dd => dd.phone);
-    const prevPhone = di > 0 ? wk.days[di-1].phone : null;
-    const cands = dayIds.map(staffById).filter(s => s && s.phoneFull)
-      .sort((a,b) => ((a.id === prevPhone) - (b.id === prevPhone)) || ((phoneHist[a.id] || 0) - (phoneHist[b.id] || 0)) || a.name.localeCompare(b.name));
-    if (cands.length) { day.phone = cands[0].id; day.phoneSup = null; forceHolderLD(day, cands[0].id); }
+    const phoneHist = phoneHistWindow();   // historic holds within each person's time on the unit
+    const weekPhone = {};                  // holds already this week, to rotate
+    for (let k = 0; k < di; k++){ const pid = wk.days[k].phone; if (pid) weekPhone[pid] = (weekPhone[pid] || 0) + 1; }
+    const cands = dayIds.map(staffById).filter(s => s && canHoldPhone(s) && poolState(pool[s.id]) === "LD")
+      .sort((a,b) => ((weekPhone[a.id] || 0) - (weekPhone[b.id] || 0)) || ((phoneHist[a.id] || 0) - (phoneHist[b.id] || 0)) || a.name.localeCompare(b.name));
+    if (cands.length) { day.phone = cands[0].id; day.phoneSup = null; }
+  }
+  // --- auto-assign a learner to shadow the phone, if one's here and a supervisor is on ---
+  if (day.phone && !(day.shadow || []).length && dayIds.some(id => isPhoneSupervisor(staffById(id)))) {
+    const shadowHist = historicCount(dd => (dd.shadow || [])[0]);
+    const learners = dayIds.map(staffById).filter(s => s && isPhoneShadow(s) && s.id !== day.phone)
+      .sort((a,b) => ((shadowHist[a.id] || 0) - (shadowHist[b.id] || 0)) || a.name.localeCompare(b.name));
+    if (learners.length) { day.shadow = day.shadow || []; day.shadow.push(learners[0].id); }
   }
   // --- pods ---
   const unplaced = dayIds.filter(id => !assigned.has(id));
@@ -2766,7 +2816,7 @@ function autoFillDay(wk, di){
   if (!day.night.phone) {
     const nHist = historicCount(dd => dd.night.phone);
     const prevN = di > 0 ? wk.days[di-1].night.phone : null;
-    const cands = nightIds.map(staffById).filter(s => s && s.phoneFull)
+    const cands = nightIds.map(staffById).filter(s => s && canHoldPhone(s))
       .sort((a,b) => ((a.id === prevN) - (b.id === prevN)) || ((nHist[a.id] || 0) - (nHist[b.id] || 0)) || a.name.localeCompare(b.name));
     if (cands.length) day.night.phone = cands[0].id;
   }
