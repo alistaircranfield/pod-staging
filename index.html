@@ -83,6 +83,17 @@ td.daylabel .d{font-weight:700;font-size:1.05rem;letter-spacing:-.01em}
 .statusdot.soft{background:#e6b84c}
 .statusdot.ok{background:#7fc99a;cursor:default}
 .statusdot.none{background:#e2e4e8;cursor:default}
+.fixday{margin-top:.4rem;display:inline-flex;align-items:center;gap:.25rem;font-size:.6rem;font-weight:700;background:var(--accent-bg);color:var(--accent);border:0;border-radius:8px;padding:.22rem .5rem;cursor:pointer;font-family:inherit}
+.fixday:hover{background:#dbe1fb}
+.fixsub{font-size:.85rem;color:var(--muted);margin:-.2rem 0 .8rem}
+.fixlist,.fixweek{display:flex;flex-direction:column;gap:.4rem}
+.fixrow{display:flex;gap:.6rem;align-items:flex-start;border:0.5px solid var(--line);border-radius:10px;padding:.5rem .7rem}
+.fixrow-ic{color:var(--muted);margin-top:1px;flex:0 0 auto;display:inline-flex}
+.fixrow-t{font-weight:600;font-size:.88rem}
+.fixrow-r{font-size:.75rem;color:var(--muted)}
+.fixnote{display:flex;gap:.4rem;align-items:flex-start;font-size:.78rem;color:var(--muted);margin-top:.7rem}
+.fixday-h{font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:.7rem 0 -.05rem}
+.fixweek .fixday-h:first-child{margin-top:0}
 .w{display:flex;gap:.45rem;align-items:flex-start;margin:.22rem 0;font-size:.79rem}
 .w.hard{color:var(--red)} .w.soft{color:var(--amber)}
 .w .tag{font-size:.58rem;font-weight:800;border-radius:5px;padding:.06rem .32rem;flex-shrink:0;margin-top:.1rem}
@@ -130,9 +141,9 @@ body.phone-dragging .chip{outline:1.5px dashed #b9c3ee;outline-offset:1px}
 .chip.fgh{cursor:default;background:#fbfbf9;color:var(--muted);border:1px dotted #d5d8de;box-shadow:none}
 .chip.fgh .tagx{background:var(--hair);color:var(--muted)}
 button:focus-visible,a:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.viewonly #btnSave,.viewonly #btnUndo,.viewonly #btnRedo,.viewonly #btnWho,.viewonly #btnPublish,.viewonly #btnAutoFill,.viewonly #btnDone{display:none}
+.viewonly #btnSave,.viewonly #btnUndo,.viewonly #btnRedo,.viewonly #btnWho,.viewonly #btnPublish,.viewonly #btnAutoFill,.viewonly #btnFixWeek,.viewonly #btnDone{display:none}
 body.viewmode .x,body.viewmode .ptoken,body.viewmode .trayadd,body.viewmode .addbtn,body.viewmode .mini,
-body.viewmode #btnSave,body.viewmode #btnUndo,body.viewmode #btnRedo,body.viewmode #btnWho,body.viewmode #btnAutoFill,body.viewmode #saveState,body.viewmode #btnDone{display:none}
+body.viewmode #btnSave,body.viewmode #btnUndo,body.viewmode #btnRedo,body.viewmode #btnWho,body.viewmode #btnAutoFill,body.viewmode #btnFixWeek,body.viewmode #saveState,body.viewmode #btnDone{display:none}
 body:not(.viewmode) #btnEdit{display:none}
 body.viewmode .conssel{pointer-events:none;appearance:none;-webkit-appearance:none}
 body.viewmode .conssel:not(.has){display:none}
@@ -418,6 +429,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
       <button class="btn sec" id="btnToday" style="font-size:.78rem;padding:.35rem .7rem">This week</button>
       <span class="spacer"></span>
       <button class="btn sec" id="btnAutoFill" style="font-size:.78rem;padding:.35rem .7rem" title="Distribute everyone on each day's bench into pods, as fairly as possible. Keeps anyone you've already placed.">Auto-fill week</button>
+      <button class="btn sec" id="btnFixWeek" style="font-size:.78rem;padding:.35rem .7rem" title="Correct every day that has issues with the fewest changes — you see the plan before it's applied.">Fix week</button>
       <span class="spacer"></span>
     </div>
     <div id="summaryBanner"></div>
@@ -2007,6 +2019,10 @@ function renderDayRow(day, di, dateISO, issues){
   });
   const dlInner = el("div", { class: "dl-inner" }, el("div", { class: "dn" }, DAYNAMES[di].slice(0,3).toUpperCase()), el("div", { class: "d" }, fmtDate(dateISO)), el("div", {}, badge));
   const dl = el("td", { class: "daylabel" }, dlInner);
+  if (canEdit() && (hard || soft) && !isEmpty) {
+    dlInner.append(el("button", { class: "fixday", title: "Correct this day with the fewest changes", onclick: () => fixDayDialog(di) },
+      el("span", { html: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l6-6M14 5l5 5M12.5 6.5l5 5M9 9l6 6"/></svg>' }), "Fix"));
+  }
   if (!day.phone) dlInner.append(el("div", {}, phoneToken(di, "day")));
   else if (!assigned.has(day.phone) && !pool[day.phone]) {
     const s = staffById(day.phone);
@@ -3076,6 +3092,157 @@ async function autoFillWeek(){
   else toast("Week filled — check the dots, then adjust anything you disagree with");
 }
 
+/* ================= FIX A DAY (minimal-change repair after sickness / swaps) =================
+   Works on a clone, makes the fewest moves needed to clear the day's rule breaks (and any aim that
+   costs no extra move), and returns the proposed changes for a preview. Nothing is applied until the
+   user hits Apply, and Undo reverses it. */
+function planDayFix(di){
+  const wk = getWeek(currentWeekKey);
+  const dateISO = addDays(currentWeekKey, di);
+  const orig = wk.days[di];
+  const day = JSON.parse(JSON.stringify(orig));
+  const pool = poolFor(day, dateISO);
+  const sn = id => { const s = staffById(id); if (!s) return id; const p = s.name.split(" "); return (p[0] || "") + (p.length > 1 ? " " + p[p.length-1] : ""); };
+  const countsIn = id => { const s = staffById(id); return !!s && !s.supernum; };
+  const podOf = id => PODS.find(p => day.pods[p].assign.some(a => a.id === id));
+  const podCount = p => day.pods[p].assign.filter(a => a.id && countsIn(a.id)).length;
+  const podLDs = p => day.pods[p].assign.filter(a => a.id && a.shift === "LD").length;
+  const dayIds = Object.keys(pool).filter(id => pool[id].kind === "day");
+  const isLDpool = id => pool[id] && poolState(pool[id]) === "LD";
+  const minFor = p => p === "E" ? 1 : 2;
+  const unresolved = [];
+  const placedNow = () => new Set(PODS.flatMap(p => day.pods[p].assign.map(a => a.id)).filter(Boolean));
+  let guard = 0;
+
+  // 1) Day phone — must be a long-day holder (not a learner)
+  const ph = day.phone && staffById(day.phone);
+  const holderOK = ph && canHoldPhone(ph) && !isPhoneShadow(ph) && (day.pods[podOf(day.phone)] ? day.pods[podOf(day.phone)].assign.find(a => a.id === day.phone).shift === "LD" : isLDpool(day.phone));
+  if (!holderOK) {
+    const phoneHist = phoneHistWindow(), ldAvail = ldAvailWindow();
+    const rate = id => (phoneHist[id] || 0) / ((ldAvail[id] || 0) + 1);
+    const weekPhone = {}; for (let k = 0; k < di; k++){ const pid = wk.days[k].phone; if (pid) weekPhone[pid] = (weekPhone[pid] || 0) + 1; }
+    const cands = dayIds.map(staffById).filter(s => s && canHoldPhone(s) && isLDpool(s.id))
+      .sort((a,b) => ((weekPhone[a.id]||0)-(weekPhone[b.id]||0)) || (rate(a.id)-rate(b.id)) || a.name.localeCompare(b.name));
+    if (cands.length) { day.phone = cands[0].id; day.phoneSup = null; }
+    else unresolved.push("No long-day phone holder is rostered.");
+  }
+
+  // 2) Bring every pod up to its minimum by moving spares from the most over-staffed pod (or the bench)
+  for (const p of PODS) {
+    while (podCount(p) < minFor(p) && guard++ < 80) {
+      const needLD = podLDs(p) === 0;
+      const donors = PODS.filter(q => q !== p && podCount(q) > minFor(q)).sort((a,b) => (podCount(b)-minFor(b)) - (podCount(a)-minFor(a)));
+      let moved = false;
+      for (const q of donors) {
+        const people = day.pods[q].assign.filter(a => a.id && countsIn(a.id));
+        let a = needLD ? people.find(x => x.shift === "LD" && podLDs(q) > 1) : null;
+        if (!a) a = people.find(x => x.shift !== "LD") || people[0];
+        if (a) { day.pods[q].assign = day.pods[q].assign.filter(x => x !== a); day.pods[p].assign.push({ id: a.id, shift: a.shift }); moved = true; break; }
+      }
+      if (!moved) {
+        const bench = dayIds.filter(id => !placedNow().has(id));
+        const b = (needLD && bench.find(isLDpool)) || bench[0];
+        if (b) { day.pods[p].assign.push({ id: b, shift: isLDpool(b) ? "LD" : "SD" }); moved = true; }
+      }
+      if (!moved) { unresolved.push("Pod " + p + " can't reach " + minFor(p) + " — not enough people rostered."); break; }
+    }
+  }
+
+  // 3) Every non-empty pod needs a long-day person — swap one in where one can be spared
+  for (const p of PODS) {
+    if (podCount(p) >= 1 && podLDs(p) === 0 && guard++ < 120) {
+      const donor = PODS.find(q => q !== p && podLDs(q) > 1);
+      if (donor) {
+        const ld = day.pods[donor].assign.find(a => a.shift === "LD");
+        const sd = day.pods[p].assign.find(a => a.shift !== "LD");
+        day.pods[donor].assign = day.pods[donor].assign.filter(x => x !== ld);
+        day.pods[p].assign.push({ id: ld.id, shift: "LD" });
+        if (sd) { day.pods[p].assign = day.pods[p].assign.filter(x => x !== sd); day.pods[donor].assign.push({ id: sd.id, shift: sd.shift }); }
+      } else unresolved.push("Pod " + p + " has no long-day person and none can be spared.");
+    }
+  }
+
+  // 4) Night phone — a qualified holder, covering a night pod
+  const nightIds = Object.keys(pool).filter(id => pool[id].kind === "night");
+  const nOK = day.night.phone && canHoldPhone(staffById(day.night.phone));
+  if (!nOK && nightIds.length) {
+    const nHist = historicCount(dd => dd.night.phone);
+    const prevN = di > 0 ? wk.days[di-1].night.phone : null;
+    const cands = nightIds.map(staffById).filter(s => s && canHoldPhone(s)).sort((a,b) => ((a.id===prevN)-(b.id===prevN)) || ((nHist[a.id]||0)-(nHist[b.id]||0)) || a.name.localeCompare(b.name));
+    if (cands.length) { day.night.phone = cands[0].id; if (!day.night.AB.includes(cands[0].id) && !day.night.CDE.includes(cands[0].id)) day.night.CDE.push(cands[0].id); }
+  }
+
+  // ---- Describe the diff (what actually changed vs the original) ----
+  const changes = [];
+  const origPod = id => PODS.find(p => orig.pods[p].assign.some(a => a.id === id));
+  if (orig.phone !== day.phone && day.phone) changes.push({ icon: "phone", text: "Phone → " + sn(day.phone), reason: "Long day, fair rotation" });
+  const ids = new Set([...PODS.flatMap(p => day.pods[p].assign.map(a=>a.id)), ...PODS.flatMap(p => orig.pods[p].assign.map(a=>a.id))].filter(Boolean));
+  for (const id of ids) {
+    const b = origPod(id), a = podOf(id);
+    if (b && a && b !== a) changes.push({ icon: "move", text: "Move " + sn(id) + " — Pod " + b + " → Pod " + a, reason: "" });
+    else if (!b && a) changes.push({ icon: "plus", text: "Add " + sn(id) + " to Pod " + a, reason: "From the bench" });
+  }
+  if (orig.night.phone !== day.night.phone && day.night.phone) changes.push({ icon: "phone", text: "Night phone → " + sn(day.night.phone), reason: "" });
+  return { changes, fixed: day, unresolved: [...new Set(unresolved)] };
+}
+function applyFixedDay(di, fixed){
+  getWeek(currentWeekKey).days[di] = fixed;
+  logEntry("Fixed " + DAYNAMES[di] + " " + fmtDate(addDays(currentWeekKey, di)) + " (minimal changes)");
+  markDirty(); renderWeek();
+}
+function fixIcon(kind){
+  const p = kind === "phone" ? "M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"
+    : kind === "plus" ? "M12 5v14M5 12h14" : "M5 12h14M13 6l6 6-6 6";
+  return '<svg viewBox="0 0 24 24" width="16" height="16" fill="' + (kind==="phone"?"currentColor":"none") + '" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="' + p + '"/></svg>';
+}
+function fixChangeRow(c){
+  return el("div", { class: "fixrow" },
+    el("span", { class: "fixrow-ic", html: fixIcon(c.icon) }),
+    el("div", {}, el("div", { class: "fixrow-t" }, c.text), c.reason ? el("div", { class: "fixrow-r" }, c.reason) : null));
+}
+function fixDayDialog(di){
+  const plan = planDayFix(di);
+  const m = $("#modal"); m.innerHTML = "";
+  m.append(el("h3", {}, "Fix " + DAYNAMES[di] + " " + fmtDate(addDays(currentWeekKey, di))));
+  if (!plan.changes.length) {
+    m.append(el("p", { style: "color:var(--muted);font-size:.9rem" }, plan.unresolved.length ? "Nothing can be moved to fix this automatically — " + plan.unresolved[0] : "Nothing to change — the day already passes the rules."));
+    m.append(el("div", { class: "dlg-btns" }, el("button", { class: "btn", onclick: closeModal }, "Close")));
+    $("#modalBg").style.display = "flex"; return;
+  }
+  m.append(el("p", { class: "fixsub" }, "The fewest changes to clear the issues — everyone else stays put."));
+  const list = el("div", { class: "fixlist" }); plan.changes.forEach(c => list.append(fixChangeRow(c))); m.append(list);
+  if (plan.unresolved.length) m.append(el("div", { class: "fixnote" }, el("span", { html: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/></svg>' }), plan.unresolved.join(" ")));
+  m.append(el("div", { class: "dlg-btns" },
+    el("button", { class: "btn ghost", onclick: closeModal }, "Cancel"),
+    el("button", { class: "btn", onclick: () => { applyFixedDay(di, plan.fixed); closeModal(); toast("Fixed " + DAYNAMES[di].slice(0,3) + " — Undo reverses it"); } }, "Apply " + plan.changes.length + " change" + (plan.changes.length>1?"s":""))));
+  $("#modalBg").style.display = "flex";
+}
+async function fixWeekDialog(){
+  const wk = getWeek(currentWeekKey);
+  const plans = [];
+  wk.days.forEach((day, di) => {
+    const issues = checkDay(day, addDays(currentWeekKey, di), di, wk);
+    if (!issues.some(i => i.hard || (!i.info && !i.empty))) return;   // only days with something to fix
+    const plan = planDayFix(di);
+    if (plan.changes.length) plans.push({ di, plan });
+  });
+  const m = $("#modal"); m.innerHTML = "";
+  m.append(el("h3", {}, "Fix the week"));
+  if (!plans.length) { m.append(el("p", { style: "color:var(--muted);font-size:.9rem" }, "Nothing to fix automatically this week.")); m.append(el("div", { class: "dlg-btns" }, el("button", { class: "btn", onclick: closeModal }, "Close"))); $("#modalBg").style.display = "flex"; return; }
+  const total = plans.reduce((n,x) => n + x.plan.changes.length, 0);
+  m.append(el("p", { class: "fixsub" }, "The fewest changes across " + plans.length + " day" + (plans.length>1?"s":"") + " to clear the issues."));
+  const wrap = el("div", { class: "fixweek" });
+  for (const { di, plan } of plans) {
+    wrap.append(el("div", { class: "fixday-h" }, DAYNAMES[di] + " " + fmtDate(addDays(currentWeekKey, di))));
+    plan.changes.forEach(c => wrap.append(fixChangeRow(c)));
+  }
+  m.append(wrap);
+  m.append(el("div", { class: "dlg-btns" },
+    el("button", { class: "btn ghost", onclick: closeModal }, "Cancel"),
+    el("button", { class: "btn", onclick: () => { for (const { di, plan } of plans) getWeek(currentWeekKey).days[di] = plan.fixed; logEntry("Fixed " + plans.length + " day(s) this week (minimal changes)"); markDirty(); renderWeek(); closeModal(); toast("Week tidied — Undo reverses it"); } }, "Apply " + total + " change" + (total>1?"s":""))));
+  $("#modalBg").style.display = "flex";
+}
+
 /* ================= PASSWORD GATE (Staff page) ================= */
 async function sha256(s){
   try {
@@ -3195,6 +3362,7 @@ $("#btnPrevWeek").onclick = () => { currentWeekKey = addDays(currentWeekKey, -7)
 $("#btnNextWeek").onclick = () => { currentWeekKey = addDays(currentWeekKey, 7); renderWeek(); };
 $("#btnToday").onclick = () => { currentWeekKey = mondayOf(todayISO()); renderWeek(); };
 $("#btnAutoFill").onclick = autoFillWeek;
+$("#btnFixWeek").onclick = fixWeekDialog;
 $("#btnAddStaff").onclick = () => staffModal(null);
 $("#showInactive").onchange = renderStaff;
 $("#modalBg").onclick = e => { if (e.target.id === "modalBg") closeModal(); };
