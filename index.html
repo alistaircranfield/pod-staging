@@ -1662,8 +1662,23 @@ function poolFor(day, dateISO){
   const map = {};
   for (const [id, v] of Object.entries(r)) if ((v.kind === "day" || v.kind === "night") && staffById(id)) map[id] = { kind: v.kind, code: v.code, extra: false };
   for (const e of (day.extras || [])) if (staffById(e.id)) map[e.id] = { kind: e.kind, code: e.code || null, extra: true };
+  // People taken off this day (off sick, or added in error) drop out of the bench and every count.
+  for (const id of (day.removed || [])) delete map[id];
   return map;
 }
+// Take someone off a single day (sickness / wrong entry). Rostered people go on a per-day "off" list
+// so they vanish from the bench and the checks; manually-added extras are simply dropped.
+function takeOffDay(day, di, id){
+  const p = poolFor(day, addDays(currentWeekKey, di))[id];
+  if (p && p.extra) { day.extras = (day.extras || []).filter(x => x.id !== id); }
+  else { day.removed = day.removed || []; if (!day.removed.includes(id)) day.removed.push(id); }
+  removeAssign(day, id);                        // clear any pod / night placement
+  if (day.phone === id) day.phone = null;
+  if (day.night.phone === id) day.night.phone = null;
+  day.shadow = (day.shadow || []).filter(x => x !== id);
+  logEntry((staffById(id) ? staffById(id).name : id) + " taken off " + dayShort(di));
+}
+function putBackOnDay(day, id){ day.removed = (day.removed || []).filter(x => x !== id); }
 function assignedIds(day){
   return new Set([day.phone, day.night.phone, ...day.shadow, ...day.night.AB, ...day.night.CDE,
     ...PODS.flatMap(p => day.pods[p].assign.map(a => a.id))].filter(Boolean));
@@ -1697,7 +1712,7 @@ function chip(s, opts){
   const short = s.name.split(" ");
   c.append((short[0] || "") + (short.length > 1 ? " " + short[short.length-1] : ""));
   if (s.airway) c.append(el("span", { class: "awdot", title: "Airway trained" }, "A"));
-  if (opts.onRemove) c.append(el("button", { class: "x", title: "Remove", onclick: e => { e.stopPropagation(); opts.onRemove(); } }, "✕"));
+  if (opts.onRemove) c.append(el("button", { class: "x", title: opts.removeTitle || "Remove", onclick: e => { e.stopPropagation(); opts.onRemove(); } }, "✕"));
   if (tapPick && tapPick.id === s.id && tapPick.di === opts.di) c.classList.add("selected");
   if (tapPhone && day && tapPhone.di === opts.di) c.classList.add("phonehover");
   c.addEventListener("click", async e => {
@@ -1955,14 +1970,16 @@ function renderDayRow(day, di, dateISO, issues){
     const p = pool[id];
     tray.append(chip(staffById(id), { di, day, tag: poolState(p),
       tagClick: () => cycleShift(day, id, pool),
-      onRemove: p.extra ? () => { day.extras = day.extras.filter(x => x.id !== id); markDirty(); renderWeek(); } : null }));
+      removeTitle: "Take off this day (off sick / added by mistake)",
+      onRemove: () => { takeOffDay(day, di, id); markDirty(); renderWeek(); } }));
   }
   if (nightIds.length) tray.append(el("div", { class: "tray-sec" }, "Night"));
   for (const id of nightIds.sort((a,b) => seniority(staffById(a)) - seniority(staffById(b)) || staffById(a).name.localeCompare(staffById(b).name))) {
     const p = pool[id];
     tray.append(chip(staffById(id), { di, day, tag: "N",
       tagClick: () => cycleShift(day, id, pool),
-      onRemove: p.extra ? () => { day.extras = day.extras.filter(x => x.id !== id); markDirty(); renderWeek(); } : null }));
+      removeTitle: "Take off this day (off sick / added by mistake)",
+      onRemove: () => { takeOffDay(day, di, id); markDirty(); renderWeek(); } }));
   }
   tray.append(el("div", { class: "hint trayhint" }, "Drop here to un-assign"));
   const addSel = el("select", { class: "trayadd", title: "Add someone to this day" });
@@ -1979,8 +1996,9 @@ function renderDayRow(day, di, dateISO, issues){
       return;
     }
     day.extras = day.extras || [];
-    day.extras.push({ id: v, kind: "day" });
-    logEntry(staffById(v).name + " added to bench (" + dayShort(di) + ")");
+    // If they were taken off earlier, "adding" them just un-removes them; otherwise it's a genuine extra.
+    if ((day.removed || []).includes(v)) { putBackOnDay(day, v); logEntry(staffById(v).name + " put back on " + dayShort(di)); }
+    else { day.extras.push({ id: v, kind: "day" }); logEntry(staffById(v).name + " added to bench (" + dayShort(di) + ")"); }
     markDirty(); renderWeek();
   };
   const obsUn = (day.obs || []).filter(o => !o.pod);
