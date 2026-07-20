@@ -292,7 +292,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
 .imp-unmatched select{flex:1}
 .daypills{display:none;gap:.4rem;overflow-x:auto;flex-wrap:nowrap;padding:.1rem 0 .7rem;-webkit-overflow-scrolling:touch;touch-action:pan-x;overscroll-behavior-x:contain;scrollbar-width:none}
 .daypills::-webkit-scrollbar{display:none}
-.daypill{border:0.5px solid var(--line);background:var(--card);border-radius:10px;padding:.4rem .75rem;font-weight:600;font-size:.8rem;display:flex;gap:.4rem;align-items:center;white-space:nowrap;cursor:pointer;font-family:inherit}
+.daypill{flex:0 0 auto;border:0.5px solid var(--line);background:var(--card);border-radius:10px;padding:.4rem .75rem;font-weight:600;font-size:.8rem;display:flex;gap:.4rem;align-items:center;white-space:nowrap;cursor:pointer;font-family:inherit}
 .daypill.active{background:var(--ink);color:#fff;border-color:var(--ink)}
 .daypill .statusdot{margin:0;width:8px;height:8px;cursor:pointer}
 @media (max-width:820px){
@@ -2147,7 +2147,7 @@ function renderDayRow(day, di, dateISO, issues){
       const s = staffById(x.id);
       const short = s.name.split(" ");
       const c = el("span", { class: "chip", style: "cursor:default", title: s.name + " — at Fairfield today (from the Optima roster)" },
-        el("span", { class: "tagx" }, x.tag), (short[0] || "") + (short.length > 1 ? " " + short[short.length-1] : ""));
+        el("span", { class: "tagx " + x.tag }, x.tag), (short[0] || "") + (short.length > 1 ? " " + short[short.length-1] : ""));
       if (s.airway) c.append(el("span", { class: "awdot", title: "Airway trained" }, "A"));
       list.append(c);
     }
@@ -3208,6 +3208,25 @@ window.addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y" && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); if (canEdit()) redo(); }
   if (e.key === "Escape" && (tapPick || tapPhone)) { tapPick = null; tapPhone = null; renderWeek(); }
 });
+// Mobile: swipe left/right across the day to move between days — so you can go straight through to the
+// weekend without tapping each pill. (A swipe on the day strip itself still just scrolls the strip.)
+(function(){
+  let sx = 0, sy = 0, tracking = false;
+  document.addEventListener("touchstart", e => {
+    tracking = false;
+    if (!isMobile() || document.body.classList.contains("person-dragging")) return;
+    const t = e.target;
+    if (!t || !t.closest || !t.closest("#weekGrid") || t.closest(".daypills")) return;  // only over the day card
+    const p = e.touches[0]; sx = p.clientX; sy = p.clientY; tracking = true;
+  }, { passive: true });
+  document.addEventListener("touchend", e => {
+    if (!tracking) return; tracking = false;
+    const p = e.changedTouches[0]; const dx = p.clientX - sx, dy = p.clientY - sy;
+    if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.5) return;   // needs a clear sideways swipe
+    const nd = Math.min(6, Math.max(0, mobileDay + (dx < 0 ? 1 : -1)));   // swipe left = next day
+    if (nd !== mobileDay) { mobileDay = nd; renderWeek(); }
+  }, { passive: true });
+})();
 function applyEnvClasses(){ document.body.classList.toggle("viewonly", VIEW_ONLY && !relayUrl()); }
 applyEnvClasses();
 startUp();
