@@ -34,8 +34,12 @@ aside button.smallb{opacity:.85}
 .spacer{flex:1}
 .hbtn{background:var(--ink);color:#fff;border:0;border-radius:12px;padding:.52rem 1rem;font-weight:600;font-size:.82rem;cursor:pointer;font-family:inherit}
 .hbtn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.hbtn:disabled{opacity:.35;cursor:default;pointer-events:none}
 .hbtn:hover{filter:brightness(.95)}
 #saveState{font-size:.72rem;font-weight:600;padding:.25rem .65rem;border-radius:999px}
+.demopill{font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8a5a00;background:#fdf3e0;border:1px solid #f0dfc0;padding:.2rem .5rem;border-radius:999px;margin-left:.6rem;vertical-align:middle}
+body:not(.demo) .demopill{display:none}
+body:not(.demo) #btnResetDemo{display:none}
 #saveState.saved{color:var(--green);background:var(--green-bg)} #saveState.unsaved{color:var(--red);background:var(--red-bg)} #saveState.saving{color:var(--amber);background:var(--amber-bg)}
 main{padding:.6rem 1.6rem 4rem;max-width:1550px}
 .card{background:var(--card);border:0.5px solid var(--line);border-radius:18px;padding:1.1rem 1.3rem;margin-bottom:1rem}
@@ -80,6 +84,9 @@ td.daylabel .d{font-weight:700;font-size:1.05rem;letter-spacing:-.01em}
 #summaryBanner{display:inline-flex;align-items:center;gap:.4rem;background:#fff;border:0.5px solid rgba(29,31,36,.05);box-shadow:0 1px 3px rgba(29,31,36,.10);border-radius:999px;padding:.35rem .45rem;font-weight:600;font-size:.78rem;color:var(--ink);margin-bottom:.75rem}
 .statchip{background:#f7f7f5;border:0.5px solid #ececea;border-radius:10px;padding:.26rem .6rem;font-weight:600;color:var(--ink);display:inline-flex;align-items:center;gap:.4rem;font-size:.74rem;white-space:nowrap}
 .statchip .sd{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.statchip.clickable{cursor:pointer;font-family:inherit;transition:background .12s,border-color .12s}
+.statchip.clickable:hover{background:#f0f0ed;border-color:#dcdcd8}
+.statchip.clickable:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
 #summaryBanner .viewlink{border:0;background:var(--hair);border-radius:999px;padding:.28rem .75rem;color:var(--ink);font-weight:600;font-size:.72rem;cursor:pointer;font-family:inherit}
 #summaryBanner .viewlink:hover{background:#e6e6e2}
 .chk-day{font-size:.62rem;font-weight:800;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin:.9rem 0 .25rem}
@@ -116,9 +123,9 @@ body.phone-dragging .chip{outline:1.5px dashed #b9c3ee;outline-offset:1px}
 .chip.fgh{cursor:default;background:#fbfbf9;color:var(--muted);border:1px dotted #d5d8de;box-shadow:none}
 .chip.fgh .tagx{background:var(--hair);color:var(--muted)}
 button:focus-visible,a:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.viewonly #btnSave,.viewonly #btnUndo,.viewonly #btnWho,.viewonly #btnPublish,.viewonly #btnAutoFill,.viewonly #btnDone{display:none}
+.viewonly #btnSave,.viewonly #btnUndo,.viewonly #btnRedo,.viewonly #btnWho,.viewonly #btnPublish,.viewonly #btnAutoFill,.viewonly #btnDone{display:none}
 body.viewmode .x,body.viewmode .ptoken,body.viewmode .trayadd,body.viewmode .addbtn,body.viewmode .mini,
-body.viewmode #btnSave,body.viewmode #btnUndo,body.viewmode #btnWho,body.viewmode #btnAutoFill,body.viewmode #saveState,body.viewmode #btnDone{display:none}
+body.viewmode #btnSave,body.viewmode #btnUndo,body.viewmode #btnRedo,body.viewmode #btnWho,body.viewmode #btnAutoFill,body.viewmode #saveState,body.viewmode #btnDone{display:none}
 body:not(.viewmode) #btnEdit{display:none}
 body.viewmode .conssel{pointer-events:none;appearance:none;-webkit-appearance:none}
 body.viewmode .conssel:not(.has){display:none}
@@ -330,7 +337,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
 </style>
 </head>
 <body>
-<div id="staticFallback"><!--STATIC_START--><div style="font-family:Inter,Segoe UI,system-ui,sans-serif;max-width:1150px;margin:0 auto;padding:18px;color:#17181c"><div style="font-size:11px;letter-spacing:.1em;color:#8a8f98">CRITICAL CARE UNIT</div><div style="font-size:24px;font-weight:700;margin:2px 0">Pod Allocator</div><div style="font-size:12px;color:#8a8f98;margin-bottom:10px">Read-only view · bold = long day · ☎ = phone · to edit, open this file from the synced folder</div><div style="font-size:16px;font-weight:700;margin:16px 0 6px">6 Jul – 12 Jul 2026</div><table style="border-collapse:collapse;width:100%;font-size:12px"><tr><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98"></th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">PHONE</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD A</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD B</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD C</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD D</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD E</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">NIGHT</th></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Mon</b> 6 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Jack Roddy<div style="font-size:10px;color:#8a8f98">sup: Joel Ukpor</div></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Choudhry</div><b>Mohamed Elnagar</b><br>Cathryn Latham<br>Daniela Santos</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ford</div><b>Obinna Stanley Oduna</b><br>Ben Wilkinson<br><b>Hasnat Sulehri</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Dias</div><b>Alice Ring</b><br>Jack Roddy ☎<br><b>Sarah Hill</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Habeichi</div><b>Joel Ukpor</b><br>Asim Khan</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Horner</div><b>Nellie Johnson</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">David Garwood ☎<br>Abduljelili Balogun<br>Kieran Cave<br>Tom Curtis<br>Beth Howard</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Tue</b> 7 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Joel Ukpor</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Choudhry</div><b>Mohamed Elnagar</b><br>Obinna Stanley Oduna<br>Daniela Santos</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ford</div>Sarah Hill<br>Hasnat Sulehri<br>Ben Wilkinson</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Dias</div><b>Nellie Johnson</b><br>Alice Ring</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Horner</div><b>Cathryn Latham</b><br>Asim Khan</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">KB</div><b>Jack Roddy</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">David Garwood ☎<br>Abduljelili Balogun<br>Kieran Cave<br>Tom Curtis<br>Beth Howard</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Wed</b> 8 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Joel Ukpor</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Choudhry</div>Asim Khan<br>Mohamed Elnagar<br>Obinna Stanley Oduna<br>Daniela Santos</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Hodd</div><b>Cathryn Latham</b><br>Hasnat Sulehri<br>Ben Wilkinson<br>Sarah Hill</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">CMAB</div><b>Nellie Johnson</b><br>Alice Ring</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Horner</div><b>Joel Ukpor</b> ☎</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Mahmood</div><b>Jack Roddy</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">David Garwood ☎<br>Abduljelili Balogun<br>Kieran Cave<br>Tom Curtis<br>Beth Howard</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Thu</b> 9 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Joel Ukpor</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Wallace</div>Asim Khan<br>Mohamed Elnagar<br>Obinna Stanley Oduna<br>Daniela Santos</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Fudge</div><b>Cathryn Latham</b><br>Hasnat Sulehri<br>Ben Wilkinson<br>Sarah Hill</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">CMAB</div><b>Nellie Johnson</b><br>Alice Ring</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Baiou</div><b>Joel Ukpor</b> ☎</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Thomas</div><b>Jack Roddy</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">David Garwood ☎<br>Abduljelili Balogun<br>Kieran Cave<br>Tom Curtis<br>Beth Howard</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Fri</b> 10 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Joel Ukpor</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Wallace</div>Asim Khan<br>Mohamed Elnagar<br>Obinna Stanley Oduna<br>Daniela Santos</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Fudge</div><b>Cathryn Latham</b><br>Hasnat Sulehri<br>Ben Wilkinson<br>Sarah Hill</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Thomas</div><b>Nellie Johnson</b><br>Alice Ring</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Baiou</div><b>Joel Ukpor</b> ☎</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Wright</div><b>Jack Roddy</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">David Garwood ☎<br>Abduljelili Balogun<br>Kieran Cave<br>Tom Curtis<br>Beth Howard</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Sat</b> 11 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Joel Ukpor</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Wallace</div>Asim Khan<br>Mohamed Elnagar<br>Obinna Stanley Oduna<br>Daniela Santos</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Fudge</div><b>Cathryn Latham</b><br>Hasnat Sulehri<br>Ben Wilkinson<br>Sarah Hill</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">CMAB</div><b>Nellie Johnson</b><br>Alice Ring</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">CMAB</div><b>Joel Ukpor</b> ☎</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Wallace</div><b>Jack Roddy</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">David Garwood ☎<br>Abduljelili Balogun<br>Kieran Cave<br>Tom Curtis<br>Beth Howard</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Sun</b> 12 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Joel Ukpor</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Wallace</div>Asim Khan<br>Mohamed Elnagar<br>Obinna Stanley Oduna<br>Daniela Santos</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Fudge</div><b>Cathryn Latham</b><br>Hasnat Sulehri<br>Ben Wilkinson<br>Sarah Hill</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Baiou</div><b>Nellie Johnson</b><br>Alice Ring</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Baiou</div><b>Joel Ukpor</b> ☎</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Fudge</div><b>Jack Roddy</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">David Garwood ☎<br>Abduljelili Balogun<br>Kieran Cave<br>Tom Curtis<br>Beth Howard</td></tr></table><div style="font-size:16px;font-weight:700;margin:16px 0 6px">13 Jul – 19 Jul 2026</div><table style="border-collapse:collapse;width:100%;font-size:12px"><tr><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98"></th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">PHONE</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD A</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD B</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD C</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD D</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD E</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">NIGHT</th></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Mon</b> 13 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">KB</div><b>Abduljelili Balogun</b><br>Alice Ring<br>Alistair Leggett</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Wright</div><b>Alaaeldin Abdelrahman</b><br>Bassam Ali</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ghrew</div><b>Ben Wilkinson</b><br>Abdallah Khalil</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">McNiven</div><b>Asim Khan</b><br>Abdousalam Alhiyali</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Choudhry</div><b>Beth Howard</b><br>Arif Suleiman</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">—</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Tue</b> 14 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Choudhry</div><b>Abduljelili Balogun</b><br>Ahmed Mahawish<br>Alice Ring</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">BW</div><b>Alaaeldin Abdelrahman</b><br>Bassam Ali</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Mahmood</div><b>Abdallah Khalil</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Godbole</div><b>Asim Khan</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Habeichi</div><b>Arif Suleiman</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">—</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Wed</b> 15 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Dias</div><b>Abduljelili Balogun</b><br>Ahmed Mahawish<br>Alistair Leggett</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Coffin</div><b>Alaaeldin Abdelrahman</b><br>Bassam Ali</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Habeichi</div><b>Ben Wilkinson</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Godbole</div><b>Abdousalam Alhiyali</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Harris</div><b>Arif Suleiman</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">—</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Thu</b> 16 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Dias</div><b>Georgina Sutcliffe</b><br>Abduljelili Balogun<br>Ahmed Mahawish</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Coffin</div><b>Alaaeldin Abdelrahman</b><br>Furkan Zurel</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Habeichi</div><b>Hasnat Sulehri</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Thomas</div><b>Abdousalam Alhiyali</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">KB</div><b>Daniela Santos</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">—</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Fri</b> 17 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">KB</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Coffin</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ghrew</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Thomas</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Dias</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">—</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Sat</b> 18 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Dias</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Dias</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ghrew</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Thomas</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ghrew</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">—</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Sun</b> 19 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Coffin</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Coffin</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ghrew</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Thomas</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Thomas</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">—</td></tr></table><div style="font-size:16px;font-weight:700;margin:16px 0 6px">20 Jul – 26 Jul 2026</div><table style="border-collapse:collapse;width:100%;font-size:12px"><tr><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98"></th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">PHONE</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD A</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD B</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD C</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD D</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD E</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">NIGHT</th></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Mon</b> 20 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">David Garwood</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Horner</div><b>David Garwood</b> ☎<br><b>Sarah Rahim</b><br>Abduljelili Balogun</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Hodd</div><b>Ella Snowden</b><br>Lin Dong<br>Jack Roddy</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Baiou</div><b>Abdallah Khalil</b><br>Nellie Johnson<br>Mohamed Elnagar</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Khokhar</div><b>Reham Almahli</b><br>Asim Khan<br>Punithan Annamalai</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">McNiven</div><b>Daniela Santos</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">Georgina Sutcliffe<br>Marwa Gdido<br>Ahmed Mahawish<br>Niall Edwards<br>Bassam Ali</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Tue</b> 21 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">David Garwood</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Roberts</div><b>Arif Suleiman</b><br><b>Dan Gill</b><br>David Garwood ☎<br>Sarah Rahim</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">McNiven</div><b>John Finnerty</b><br><b>Jack Roddy</b><br>Louise Hall</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Baiou</div><b>Mohamed Elnagar</b><br><b>Ben Wilkinson</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Khokhar</div><b>Asim Khan</b><br>Reham Almahli</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Wallace</div><b>Punithan Annamalai</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">Georgina Sutcliffe<br>Marwa Gdido<br>Ahmed Mahawish<br>Niall Edwards<br>Bassam Ali</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Wed</b> 22 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Lin Dong</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">PF</div><b>Arif Suleiman</b><br><b>Tom Curtis</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">McNiven</div><b>Lin Dong</b> ☎<br>John Finnerty<br>Jack Roddy</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Choudhry</div><b>Abdallah Khalil</b><br>Kieran Cave</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Wallace</div><b>Dan Gill</b><br>Alaaeldin Abdelrahman</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ford</div><b>Louise Hall</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">Whaj Lee ☎<br>Obinna Stanley Oduna<br>Abduljelili Balogun<br>Reham Almahli<br>Sarah Hill</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Thu</b> 23 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Jamiu Aliu</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Naisbitt</div><b>David Garwood</b><br>Hashir Abdullah</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ford</div><b>Lin Dong</b><br>Furkan Zurel</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Choudhry</div><b>Ben Wilkinson</b><br>Jamiu Aliu ☎</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Mahmood</div><b>Jack Roddy</b><br>Ryan McKeown</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">ANC</div><b>Louise Hall</b><br>Daniela Santos</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">Whaj Lee ☎<br>Obinna Stanley Oduna<br>Abduljelili Balogun<br>Reham Almahli<br>Sarah Hill</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Fri</b> 24 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Jamiu Aliu</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Naisbitt</div><b>Mohamed Elnagar</b><br>Mahmoud Gaballah</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ford</div><b>Ella Snowden</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">ANC</div><b>Kieran Cave</b><br>Jamiu Aliu ☎</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Coffin</div><b>Punithan Annamalai</b><br><b>Ryan McKeown</b><br>Alaaeldin Abdelrahman</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Mahmood</div><b>Furkan Zurel</b><br>Daniela Santos</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">Abdallah Khalil ☎<br>Kevin Gregson<br>Nellie Johnson</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Sat</b> 25 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">David Garwood</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Naisbitt</div><b>Lin Dong</b><br>David Garwood ☎</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Naisbitt</div><b>John Finnerty</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">ANC</div><b>Mohamed Elnagar</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Mahmood</div><b>Jack Roddy</b><br>Asim Khan</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">ANC</div><b>Niall Edwards</b><br>Furkan Zurel</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">Abdallah Khalil ☎<br>Emma Parkin<br>Kevin Gregson<br>Nellie Johnson</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Sun</b> 26 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Whaj Lee</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ford</div><b>David Garwood</b><br>Whaj Lee ☎</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ford</div><b>John Finnerty</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">ANC</div>Lin Dong<br>Mohamed Elnagar</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Mahmood</div><b>Asim Khan</b><br>Jack Roddy</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Mahmood</div><b>Furkan Zurel</b><br>Niall Edwards</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">Abdallah Khalil ☎<br>Kevin Gregson<br>Nellie Johnson</td></tr></table></div><!--STATIC_END--></div>
+<div id="staticFallback"><!--STATIC_START--><!--STATIC_END--></div>
 <div id="layout" style="display:none">
 <aside>
   <div class="logo">CCU</div>
@@ -345,13 +352,16 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
 <div id="content">
 <div id="topbar">
   <h1 id="pageTitle">Pod Allocator</h1>
+  <span class="demopill" title="Private sandbox — nothing here touches the live rota. Changes save only on this device.">Demo</span>
   <div class="spacer"></div>
+  <button class="hbtn ghost" id="btnResetDemo" style="font-size:.72rem;padding:.35rem .7rem" title="Clear your changes and reload the sample data">Reset demo</button>
   <button class="hbtn ghost" id="btnWho" style="font-size:.75rem;padding:.35rem .7rem;color:var(--muted)" title="Changes are logged under this name — click to change who's editing"></button>
   <span id="saveState"></span>
   <button class="hbtn" id="btnEdit">Edit</button>
   <button class="hbtn ghost" id="btnDone" title="Back to read-only view">Done</button>
   <button class="hbtn ghost" id="btnUndo" title="Undo last change (Ctrl+Z)">↩ Undo</button>
-  <button class="hbtn ghost" id="btnSave" title="Saves automatically — this is just belt and braces">Save</button>
+  <button class="hbtn ghost" id="btnRedo" title="Redo (Ctrl+Y / Ctrl+Shift+Z)">↪ Redo</button>
+  <button class="hbtn ghost" id="btnSave" style="opacity:.7;font-size:.75rem" title="Everything saves on its own — this only forces an immediate save">Save now</button>
   <button class="hbtn" id="btnPublish" title="Save a read-only copy of this week for printing or posting in Teams chat">Print copy</button>
 </div>
 <main>
@@ -530,7 +540,7 @@ let data = null;
 let fileHandle = null;
 let dirty = false;
 let currentWeekKey = null;
-let undoStack = [], lastState = null;
+let undoStack = [], redoStack = [], lastState = null;
 let autosaveTimer = null;
 let tapPick = null, tapPhone = null;
 let dragEndedAt = 0;
@@ -755,6 +765,7 @@ async function enterEditInner(){
   updateWhoBtn();
   updateSaveState("unsaved");
   renderAll();
+  updateUndoRedoButtons();
   resetIdle();
   startLockHeartbeat();
   saveFile(true); // push the lock to the shared copy now so others are warned quickly
@@ -773,7 +784,11 @@ let _rk = _cfg.get("r"), _sk = _cfg.get("s");
 // Keep the flow keys out of the address bar, history, bookmarks and referrer headers: read them
 // once from the opening link, keep them only for this tab, then strip them from the visible URL.
 try {
-  if (_rk && _sk) {
+  if (window.__POD_DEMO === true) {
+    // Demo build: never adopt the live flow keys, even on a device that has opened the real app
+    // before (its podR/podS would otherwise make the demo pull the live rota). Stay fully sandboxed.
+    _rk = null; _sk = null;
+  } else if (_rk && _sk) {
     // Remember the keys on this device (localStorage, not just this tab) so reloads, new tabs and
     // bookmarks of the plain URL keep working — then strip the keys from the visible URL/history.
     localStorage.setItem("podR", _rk);
@@ -786,12 +801,18 @@ try {
 } catch(e){}
 const READ_URL = _rk || "__READ_URL__";
 const SAVE_URL = _sk || "__SAVE_URL__";
-const HOSTED = /^https:\/\//.test(READ_URL) && /^https:\/\//.test(SAVE_URL);
+const HOSTED = window.__POD_DEMO !== true && /^https:\/\//.test(READ_URL) && /^https:\/\//.test(SAVE_URL);
 const relayUrl = () => HOSTED ? SAVE_URL : ((data && data.relayUrl) || "");
 const SELF_FETCHABLE = /^https?:$/.test(location.protocol);
 // Opened as a local file (e.g. a OneDrive-synced copy): save straight to that file via the
 // File System Access API — OneDrive then syncs it back. Don't use the network relay here.
 const LOCAL_FILE = location.protocol === "file:";
+// DEMO mode: a shareable sandbox (hosted so a colleague can trial it on any device, including a phone).
+// It saves into THIS browser's own storage instead of a file or the live rota — edits persist per-device
+// and nothing ever reaches the real SharePoint copy. Switched on only when the demo build sets
+// window.__POD_DEMO before this script runs; every normal build leaves it off.
+const DEMO = (typeof window !== "undefined" && window.__POD_DEMO === true);
+const DEMO_KEY = "podDemoData";
 async function readSelf(){
   if (HOSTED) {
     try {
@@ -864,6 +885,7 @@ async function relaySave(silent){
   if (await staleBlocked(cur, silent)) return;
   conflictToastShown = false;
   updateSaveState("saving");
+  const savingSig = rotaSig(data);            // exactly what we're about to send
   data.savedAt = new Date().toISOString();
   data.savedBy = editorName();
   // Hosted mode writes the data object straight to pod-data.json; local relay mode posts the whole page.
@@ -876,10 +898,18 @@ async function relaySave(silent){
   // Claim this version straight away so a manual Save pressed during the (slow) verify below
   // doesn't mistake our own just-saved copy for someone else's newer one.
   loadedSavedAt = data.savedAt;
-  dirty = false;
-  updateSaveState("saved");
+  // Only declare it saved if nothing changed while the save was in flight. If the user kept editing,
+  // those edits stay pending and the next (already-scheduled) save stores them — the pill keeps
+  // reading "Saving…" until everything they've typed is genuinely up.
+  if (rotaSig(data) === savingSig) {
+    dirty = false;
+    updateSaveState("saved");
+  } else {
+    updateSaveState("saving");
+    scheduleAutosave();
+  }
   // If we can read our own file back (same origin — true in Teams/SharePoint and on a web host),
-  // confirm the new copy actually landed, just for the toast wording.
+  // confirm the new copy actually landed.
   let verified = false;
   if (SELF_FETCHABLE) {
     for (let i = 0; i < 6 && !verified; i++) {
@@ -888,9 +918,10 @@ async function relaySave(silent){
       if (now && now.savedAt === data.savedAt) verified = true;
     }
   }
-  if (!silent) toast(verified ? "Saved to the shared rota" : "Save sent — updating for everyone shortly");
+  if (!silent && verified) toast("Saved to the shared rota");
 }
 async function syncLatest(){
+  if (DEMO) return false;                     // the demo is self-contained; nothing to sync to
   if (!data || EDIT_MODE || dirty) return false;
   const cur = await readMaster();
   if (cur && cur.savedAt && cur.savedAt !== loadedSavedAt) {
@@ -964,18 +995,21 @@ function markDirty(){
   const snap = JSON.stringify(data);
   // Only add an undo point when the snapshot actually changed — stops lock heartbeats and repeat
   // calls piling up identical snapshots (which made one Undo click look like it did nothing).
-  if (lastState !== null && lastState !== snap) { undoStack.push(lastState); if (undoStack.length > 80) undoStack.shift(); }
+  if (lastState !== null && lastState !== snap) {
+    undoStack.push(lastState); if (undoStack.length > 80) undoStack.shift();
+    // A genuine new edit branches history, so the redo trail no longer applies. Only clear it when
+    // the visible rota actually changed — not on lock-heartbeat metadata ticks, which would otherwise
+    // wipe out redo the moment you paused after an undo.
+    try { if (redoStack.length && rotaSig(JSON.parse(lastState)) !== rotaSig(data)) redoStack = []; } catch(e){ redoStack = []; }
+  }
   lastState = snap;
   dirty = true;
   updateSaveState("unsaved");
   scheduleAutosave();
+  updateUndoRedoButtons();
 }
-function undo(){
-  // Skip snapshots whose rota content matches the current one, so every Undo click visibly changes something.
-  const cur = rotaSig(data);
-  let snap = null;
-  while (undoStack.length) { const s = undoStack.pop(); if (rotaSig(JSON.parse(s)) !== cur) { snap = s; break; } }
-  if (snap === null) { toast("Nothing to undo"); return; }
+// Apply a history snapshot without recording it as a fresh edit.
+function applyHistory(snap){
   suppressDirty = true;
   try {
     data = JSON.parse(snap);
@@ -985,22 +1019,59 @@ function undo(){
     renderAll();
   } finally { suppressDirty = false; }
   scheduleAutosave();
+  updateUndoRedoButtons();
+}
+function undo(){
+  // Skip snapshots whose rota content matches the current one, so every Undo click visibly changes something.
+  const cur = rotaSig(data);
+  let snap = null;
+  while (undoStack.length) { const s = undoStack.pop(); if (rotaSig(JSON.parse(s)) !== cur) { snap = s; break; } }
+  if (snap === null) { toast("Nothing to undo"); updateUndoRedoButtons(); return; }
+  redoStack.push(JSON.stringify(data));       // remember the present so Redo can return to it
+  applyHistory(snap);
   toast("Undone");
+}
+function redo(){
+  const cur = rotaSig(data);
+  let snap = null;
+  while (redoStack.length) { const s = redoStack.pop(); if (rotaSig(JSON.parse(s)) !== cur) { snap = s; break; } }
+  if (snap === null) { toast("Nothing to redo"); updateUndoRedoButtons(); return; }
+  undoStack.push(JSON.stringify(data));
+  applyHistory(snap);
+  toast("Redone");
+}
+function hasHistory(stack){
+  const cur = rotaSig(data);
+  for (const s of stack) { try { if (rotaSig(JSON.parse(s)) !== cur) return true; } catch(e){ return true; } }
+  return false;
+}
+function updateUndoRedoButtons(){
+  const u = $("#btnUndo"), r = $("#btnRedo");
+  if (u) u.disabled = !hasHistory(undoStack);
+  if (r) r.disabled = !hasHistory(redoStack);
 }
 function updateSaveState(state){
   const elx = $("#saveState");
   if (!data) { elx.textContent = ""; return; }
   if (VIEW_ONLY && !relayUrl()) { elx.textContent = "Read-only view"; elx.className = "saving"; return; }
-  if (state === "saving") { elx.textContent = "Saving…"; elx.className = "saving"; }
-  else if (state === "failed") { elx.textContent = "Save failed — click Save"; elx.className = "unsaved"; }
-  else if (state === "unsaved") { elx.textContent = (fileHandle || relayUrl()) ? "Saving shortly…" : "Not saved yet"; elx.className = "unsaved"; }
-  else { elx.textContent = "All changes saved"; elx.className = "saved"; }
+  const canSave = fileHandle || relayUrl() || DEMO;
+  // Two honest states: it's either being saved, or it's saved. "unsaved" with somewhere to save to
+  // means a save is imminent, so it reads "Saving…" too — the user never has to wonder or press a button.
+  if (state === "saving" || (state === "unsaved" && canSave)) { elx.textContent = "Saving…"; elx.className = "saving"; }
+  else if (state === "failed") { elx.textContent = "Couldn't save — click Save"; elx.className = "unsaved"; }
+  else if (state === "unsaved") { elx.textContent = "Not saved yet"; elx.className = "unsaved"; }
+  else {
+    const t = data.savedAt ? new Date(data.savedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "";
+    elx.textContent = "Saved ✓" + (t ? " " + t : ""); elx.className = "saved";
+  }
 }
 function scheduleAutosave(){
   const viaFile = fileHandle && FS_OK;
-  if (!viaFile && !relayUrl()) return;
+  if (!viaFile && !relayUrl() && !DEMO) return;
   clearTimeout(autosaveTimer);
-  autosaveTimer = setTimeout(() => saveFile(true), viaFile ? 1500 : 4000);
+  // Short debounce: "Saving…" already shows instantly on the change; this just coalesces a burst of
+  // edits (e.g. dragging several people) into one network save rather than one per change.
+  autosaveTimer = setTimeout(() => saveFile(true), viaFile ? 500 : 600);
 }
 
 /* ================= FILE OPEN / SAVE (+ remembered handle) ================= */
@@ -1074,6 +1145,18 @@ async function saveFile(silent){
 }
 async function saveFileInner(silent){
   if (!data) return;
+  // Demo sandbox: keep it entirely on this device (browser storage). No file picker, no network, no
+  // live rota — works the same on a phone as on a laptop, and edits survive a reload.
+  if (DEMO) {
+    const savingSig = rotaSig(data);
+    data.savedAt = new Date().toISOString();
+    data.savedBy = editorName();
+    try { localStorage.setItem(DEMO_KEY, JSON.stringify(data)); } catch(e){}
+    loadedSavedAt = data.savedAt;
+    if (rotaSig(data) === savingSig) { dirty = false; updateSaveState("saved"); }
+    else { updateSaveState("saving"); scheduleAutosave(); }
+    return;
+  }
   pruneOldWeeks();
   dropEmptyWeeks();
   if (!fileHandle && relayUrl() && !LOCAL_FILE) { await relaySave(silent); return; }
@@ -1107,12 +1190,15 @@ async function saveFileInner(silent){
       } catch(e){ /* empty or unreadable file — proceed */ }
       conflictToastShown = false;
       updateSaveState("saving");
+      const savingSig = rotaSig(data);
       data.savedAt = new Date().toISOString();
       data.savedBy = editorName();
       const w = await fileHandle.createWritable();
       await w.write(serializeDocument()); await w.close();
       loadedSavedAt = data.savedAt;
-      dirty = false; updateSaveState("saved");
+      // Only clear the dirty flag if no edits arrived mid-write; otherwise let the pending autosave finish the job.
+      if (rotaSig(data) === savingSig) { dirty = false; updateSaveState("saved"); }
+      else { updateSaveState("saving"); scheduleAutosave(); }
       if (!silent) toast("Saved to " + fileHandle.name);
     } catch(e){
       if (e.name === "AbortError") { updateSaveState("unsaved"); return; }
@@ -1169,7 +1255,7 @@ function loadData(d){
   }
   dirty = false;
   loadedSavedAt = d.savedAt || null;
-  undoStack = []; lastState = JSON.stringify(data);
+  undoStack = []; redoStack = []; lastState = JSON.stringify(data);
   pruneOldWeeks();
   currentWeekKey = mondayOf(todayISO());
   $("#welcome").style.display = "none";
@@ -1211,10 +1297,16 @@ async function startUp(){
   // Deployed page opened without its keys (the bare web address, or a bookmark of the stripped
   // link on a device that's never used the Teams link) — guide them rather than showing the
   // local-file "brand-new empty file" screen, which isn't relevant to the hosted version.
-  if (!HOSTED && !LOCAL_FILE && SELF_FETCHABLE && READ_URL === "__READ_URL__" && !window.ROTA_DATA) {
+  if (!DEMO && !HOSTED && !LOCAL_FILE && SELF_FETCHABLE && READ_URL === "__READ_URL__" && !window.ROTA_DATA) {
     document.body.classList.add("viewmode");
     await uiAlert("This page needs to be opened from the “Pod Allocations” link in your Teams General folder (Files → General). That link carries the secure connection to the live rota — the plain web address on its own can't load it.", { title: "Open it from Teams" });
     return;
+  }
+  // Demo: prefer this device's own saved sandbox copy over the shipped starter data, so a colleague's
+  // changes survive a reload.
+  if (DEMO) {
+    document.body.classList.add("demo");
+    try { const s = localStorage.getItem(DEMO_KEY); if (s) window.ROTA_DATA = JSON.parse(s); } catch(e){}
   }
   const hasEmbedded = window.ROTA_DATA && typeof window.ROTA_DATA === "object" && Array.isArray(window.ROTA_DATA.staff);
   // 1) Render embedded data straight away — the screen is never blank, even if IndexedDB is blocked or slow.
@@ -1485,12 +1577,19 @@ function renderWeek(){
   const soft = real.filter(i => !i.hard && !i.info).length + weekIssues.length;
   banner.className = "";
   banner.innerHTML = "";
-  const statChip = (color, text) => el("span", { class: "statchip" }, el("span", { class: "sd", style: "background:" + color }), text);
-  if (hard) banner.append(statChip("#E24B4A", hard + " issue" + (hard>1?"s":"")));
-  if (soft) banner.append(statChip("#e6b84c", soft + " aim" + (soft>1?"s":"")));
+  // The issue/aim chips are the way in to the detail — click the red chip to see the issues, the
+  // amber chip to see the aims. No separate "Details" button needed.
+  const statChip = (color, text, onclick) => {
+    const attrs = onclick
+      ? { class: "statchip clickable", role: "button", tabIndex: 0, title: "Click to see the detail",
+          onclick, onkeydown: e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onclick(); } } }
+      : { class: "statchip" };
+    return el(onclick ? "button" : "span", attrs, el("span", { class: "sd", style: "background:" + color }), text);
+  };
+  if (hard) banner.append(statChip("#E24B4A", hard + " issue" + (hard>1?"s":""), () => checksDialog()));
+  if (soft) banner.append(statChip("#e6b84c", soft + " aim" + (soft>1?"s":""), () => checksDialog()));
   if (!hard && !soft) banner.append(statChip("#7fc99a", "All checks pass"));
   const right = el("span", { style: "margin-left:auto;display:inline-flex;gap:.35rem" });
-  if (real.length || weekIssues.length || (wk.accepted || []).length) right.append(el("button", { class: "viewlink", onclick: () => checksDialog() }, "Details"));
   right.append(el("button", { class: "viewlink", title: "What the symbols mean", onclick: keyDialog }, "Key"));
   banner.append(right);
   const wbEl = document.querySelector(".weekbar");
@@ -2751,6 +2850,23 @@ function historicCountWindow(getId){
   return n;
 }
 function phoneHistWindow(){ return historicCountWindow(dd => dd.phone); }
+// How many long-days each person has actually been available (rostered LD) within their own time on
+// the unit. Used to turn phone-holding into a fair RATE, so a newcomer isn't treated as "behind"
+// everyone just because they've had fewer days here — which used to front-load the phone onto them.
+function ldAvailWindow(){
+  const n = {};
+  for (const w of Object.values(data.weeks)) {
+    if (!w.roster) continue;
+    for (const [dateISO, r] of Object.entries(w.roster)) {
+      for (const [id, v] of Object.entries(r)) {
+        const s = staffById(id);
+        if (!s || !isActiveOn(s, dateISO)) continue;
+        if (v.kind === "day" && v.code && v.code.toUpperCase().startsWith("LD")) n[id] = (n[id] || 0) + 1;
+      }
+    }
+  }
+  return n;
+}
 function autoFillDay(wk, di){
   const day = wk.days[di];
   const dateISO = addDays(currentWeekKey, di);
@@ -2760,10 +2876,14 @@ function autoFillDay(wk, di){
   // --- day phone: only a long-day holder, spread across the week so it's not the same person daily ---
   if (!day.phone) {
     const phoneHist = phoneHistWindow();   // historic holds within each person's time on the unit
-    const weekPhone = {};                  // holds already this week, to rotate
+    const ldAvail = ldAvailWindow();       // long-days each person has actually been available for
+    // Fair share = holds per long-day they could have held. A newcomer with few days here is judged on
+    // the same rate as everyone else, not made to "catch up" a raw tally. +1 damps tiny denominators.
+    const phoneRate = id => (phoneHist[id] || 0) / ((ldAvail[id] || 0) + 1);
+    const weekPhone = {};                  // holds already this week, to rotate within the week first
     for (let k = 0; k < di; k++){ const pid = wk.days[k].phone; if (pid) weekPhone[pid] = (weekPhone[pid] || 0) + 1; }
     const cands = dayIds.map(staffById).filter(s => s && canHoldPhone(s) && poolState(pool[s.id]) === "LD")
-      .sort((a,b) => ((weekPhone[a.id] || 0) - (weekPhone[b.id] || 0)) || ((phoneHist[a.id] || 0) - (phoneHist[b.id] || 0)) || a.name.localeCompare(b.name));
+      .sort((a,b) => ((weekPhone[a.id] || 0) - (weekPhone[b.id] || 0)) || (phoneRate(a.id) - phoneRate(b.id)) || a.name.localeCompare(b.name));
     if (cands.length) { day.phone = cands[0].id; day.phoneSup = null; }
   }
   // --- auto-assign a learner to shadow the phone, if one's here and a supervisor is on ---
@@ -2804,6 +2924,9 @@ function autoFillDay(wk, di){
         if (p === "E") score -= 8; // unit keeps airway-trained off Pod E unless there's no other option
         else score += airwayIn[p] === 0 ? 5 : -4 * airwayIn[p];
       }
+      // Neuro-trained lean towards Pods C & D (the neuro pods) — a nudge, not a rule, so it still
+      // yields to keeping the pods evenly sized. Aims for roughly two-thirds of their shifts on C/D.
+      if (s.neuro && (p === "C" || p === "D")) score += 3;
       if (score > bestScore) { bestScore = score; bestP = p; }
     }
     day.pods[bestP].assign.push({ id, shift: isLD ? "LD" : "SD" });
@@ -2959,6 +3082,13 @@ updateWhoBtn();
 $("#btnSave").onclick = () => saveFile(false);
 $("#btnPublish").onclick = publishWeek;
 $("#btnUndo").onclick = undo;
+$("#btnRedo").onclick = redo;
+$("#btnResetDemo").onclick = async () => {
+  if (await uiConfirm("Clear your changes and reload the demo with the original sample data?", { title: "Reset demo?", okLabel: "Reset", danger: true })) {
+    try { localStorage.removeItem(DEMO_KEY); } catch(e){}
+    location.reload();
+  }
+};
 initImportPage();
 $("#btnPrevWeek").onclick = () => { currentWeekKey = addDays(currentWeekKey, -7); renderWeek(); };
 $("#btnNextWeek").onclick = () => { currentWeekKey = addDays(currentWeekKey, 7); renderWeek(); };
@@ -2973,7 +3103,8 @@ window.addEventListener("beforeunload", e => { if (dirty && !fileHandle) { e.pre
 window.addEventListener("keydown", e => {
   if (e.key === "Escape" && !document.querySelector(".dlg-bg") && $("#modalBg").style.display === "flex") { closeModal(); return; }
   if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); if (canEdit()) saveFile(false); }
-  if ((e.ctrlKey || e.metaKey) && e.key === "z" && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); if (canEdit()) undo(); }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); if (canEdit()) { e.shiftKey ? redo() : undo(); } }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y" && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); if (canEdit()) redo(); }
   if (e.key === "Escape" && (tapPick || tapPhone)) { tapPick = null; tapPhone = null; renderWeek(); }
 });
 function applyEnvClasses(){ document.body.classList.toggle("viewonly", VIEW_ONLY && !relayUrl()); }
