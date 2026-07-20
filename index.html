@@ -799,8 +799,8 @@ try {
     _sk = _sk || localStorage.getItem("podS");
   }
 } catch(e){}
-const READ_URL = _rk || "__READ_URL__";
-const SAVE_URL = _sk || "__SAVE_URL__";
+const READ_URL = _rk || "https://default9a12677ec2e94deba58aee1c59ac01.61.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/16/workflows/6d80d900834f4a17973d5cabbe609120/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=xAVUZT8hE36x_P-nKP5doIek47V08TjG2scwNhGNOWw";
+const SAVE_URL = _sk || "https://default9a12677ec2e94deba58aee1c59ac01.61.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/18/workflows/00eb0c8f29064e9983bff278b699c339/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=NtOolJAtf5NsHeYDyNQG9HHwdZpL9QoLaoukSG20KmY";
 const HOSTED = window.__POD_DEMO !== true && /^https:\/\//.test(READ_URL) && /^https:\/\//.test(SAVE_URL);
 const relayUrl = () => HOSTED ? SAVE_URL : ((data && data.relayUrl) || "");
 const SELF_FETCHABLE = /^https?:$/.test(location.protocol);
