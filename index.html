@@ -1587,7 +1587,7 @@ function renderWeek(){
     grid.append(el("div", { class: "card empty" }, "Add your staff on the Staff list tab first."));
     return;
   }
-  banner.style.display = "block";
+  banner.style.display = "";   // let CSS decide — shown while editing, hidden in read-only view
   const wk = getWeek(currentWeekKey);
   const anyUnplaced = wk.days.some((day, di) => {
     const pool = poolFor(day, addDays(currentWeekKey, di));
