@@ -148,6 +148,15 @@ table.rota:not(:has(td.tray .chip)) td.tray .trayadd::after{content:"+";font-siz
 table.rota:not(:has(td.tray .chip)) td.tray .trayhint{font-size:0;padding:.4rem .2rem}
 table.rota:not(:has(td.tray .chip)) td.tray .trayhint::after{content:"drop";font-size:.55rem}
 .tray-sec{font-size:.56rem;font-weight:800;color:#a7adb5;text-transform:uppercase;letter-spacing:.08em;margin:.35rem 0 .1rem}
+.fghwrap{margin-top:.5rem}
+.fghtoggle{font-size:.56rem;font-weight:800;color:#a7adb5;text-transform:uppercase;letter-spacing:.06em;background:none;border:0;padding:.15rem 0;cursor:pointer;display:inline-flex;align-items:center;gap:.28rem;font-family:inherit;line-height:1.2;text-align:left}
+.fghtoggle::before{content:"\25B8";font-size:.62rem}
+.fghwrap.open .fghtoggle::before{content:"\25BE"}
+.fghtoggle:hover{color:#6e6e73}
+.fghlist{display:none;flex-direction:column;gap:.25rem;margin-top:.3rem}
+.fghwrap.open .fghlist{display:flex}
+.fchip{display:inline-flex;align-items:center;gap:.3rem;background:#fbfbf9;color:var(--muted);border:1px dotted #d5d8de;border-radius:9px;padding:.2rem .45rem;font-size:.7rem;white-space:nowrap;box-shadow:none;width:fit-content}
+.fchip .tagx{background:var(--hair);color:var(--muted)}
 .zone{min-height:24px;border-radius:9px}
 .zone.dragover{outline:2px dashed var(--accent);outline-offset:-2px;background:var(--accent-bg)!important}
 .zone .hint{color:#c4c8cd;font-size:.66rem;padding:.15rem .2rem}
@@ -517,6 +526,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
 <div id="modalBg"><div id="modal"></div></div>
 <div id="toast"></div>
 
+<script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
 "use strict";
@@ -795,12 +805,14 @@ try {
     localStorage.setItem("podS", _sk);
     history.replaceState(null, "", location.pathname + location.search);
   } else {
-    _rk = _rk || localStorage.getItem("podR");
-    _sk = _sk || localStorage.getItem("podS");
+    // Priority: opening #hash link → a small keys file loaded alongside the page (window.__POD_KEYS,
+    // set by k.js on the live host so the plain address just works) → keys remembered on this device.
+    _rk = _rk || (window.__POD_KEYS && window.__POD_KEYS.r) || localStorage.getItem("podR");
+    _sk = _sk || (window.__POD_KEYS && window.__POD_KEYS.s) || localStorage.getItem("podS");
   }
 } catch(e){}
-const READ_URL = _rk || "https://default9a12677ec2e94deba58aee1c59ac01.61.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/16/workflows/6d80d900834f4a17973d5cabbe609120/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=xAVUZT8hE36x_P-nKP5doIek47V08TjG2scwNhGNOWw";
-const SAVE_URL = _sk || "https://default9a12677ec2e94deba58aee1c59ac01.61.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/18/workflows/00eb0c8f29064e9983bff278b699c339/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=NtOolJAtf5NsHeYDyNQG9HHwdZpL9QoLaoukSG20KmY";
+const READ_URL = _rk || "__READ_URL__";
+const SAVE_URL = _sk || "__SAVE_URL__";
 const HOSTED = window.__POD_DEMO !== true && /^https:\/\//.test(READ_URL) && /^https:\/\//.test(SAVE_URL);
 const relayUrl = () => HOSTED ? SAVE_URL : ((data && data.relayUrl) || "");
 const SELF_FETCHABLE = /^https?:$/.test(location.protocol);
@@ -2006,15 +2018,23 @@ function renderDayRow(day, di, dateISO, issues){
     tray.append(el("div", { class: "tray-sec" }, "Observers"));
     for (const o of obsUn) tray.append(obsChip(day, o, di));
   }
+  // People at Fairfield today are here only for information (they can't be allocated to a pod here).
+  // Keep them out of the way: a small collapsed toggle that doesn't count as a bench chip, so it never
+  // holds the "To allocate" column open. Click to reveal the names.
   const fgh = fghFor(dateISO);
   if (fgh.length) {
-    tray.append(el("div", { class: "tray-sec" }, "Fairfield"));
+    const wrap = el("div", { class: "fghwrap" });
+    const toggle = el("button", { class: "fghtoggle", title: "At Fairfield today (from the Optima roster) — click to show/hide",
+      onclick: e => { e.stopPropagation(); wrap.classList.toggle("open"); } }, "Fairfield · " + fgh.length);
+    const list = el("div", { class: "fghlist" });
     for (const x of fgh) {
       const s = staffById(x.id);
       const short = s.name.split(" ");
-      tray.append(el("span", { class: "chip fgh", title: s.name + " — at Fairfield today (from the Optima roster)" },
+      list.append(el("span", { class: "fchip", title: s.name + " — at Fairfield today" },
         el("span", { class: "tagx" }, x.tag), (short[0] || "") + (short.length > 1 ? " " + short[short.length-1] : "")));
     }
+    wrap.append(toggle, list);
+    tray.append(wrap);
   }
   addSel.disabled = !canEdit();
   tray.append(addSel);
