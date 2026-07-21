@@ -1907,9 +1907,9 @@ async function assignPhoneTo(day, type, s){
     if (!canHoldPhone(s) && !isPhoneShadow(s) && !(await uiConfirm(s.name + " isn't marked with any phone skill on the staff list.", { title: "Give them the phone anyway?", okLabel: "Give phone", danger: true }))) { tapPhone = null; renderWeek(); return; }
     // A learner (shadow) can only carry it if a supervisor is on today.
     if (isPhoneShadow(s) && !supervisorOnDay(dayIds, s.id) && !(await uiConfirm(s.name + " is still learning the phone and no phone supervisor is on today. Give them the phone anyway?", { title: "No supervisor on today", okLabel: "Give phone anyway", danger: true }))) { tapPhone = null; renderWeek(); return; }
-    // The phone holder should be on a long day — warn if they aren't, but allow override.
+    // The phone holder must be on a long day — this is a hard rule, no override.
     const hs = holderShift(day, s.id);
-    if (hs && hs !== "LD" && !(await uiConfirm(s.name + " is on a short day. The referral-phone holder should be on a long day (LD). Give them the phone anyway?", { title: "Phone holder isn't a long day", okLabel: "Give phone anyway", danger: true }))) { tapPhone = null; renderWeek(); return; }
+    if (hs && hs !== "LD") { await uiAlert(s.name + " is on a short day, so can't hold the referral phone — the phone holder must be on a long day (LD). Switch them to a long day first, or give the phone to someone who's already LD.", { title: "Phone holder must be a long day" }); tapPhone = null; renderWeek(); return; }
     day.phone = s.id;
     day.shadow = (day.shadow || []).filter(x => x !== s.id);
   } else {
@@ -2024,6 +2024,8 @@ function cycleShift(day, id, pool){
   const e = day.extras.find(x => x.id === id);
   if (e) { e.kind = next.kind; e.code = next.code; }
   else day.extras.push({ id, kind: next.kind, code: next.code });
+  // The day phone holder must be on a long day — if we've just moved them off it, take the phone off them.
+  if (day.phone === id && next.code !== "LD") { day.phone = null; toast("Phone taken off " + staffById(id).name + " — a long day is needed to hold it"); }
   markDirty(); renderWeek();
 }
 function renderDayRow(day, di, dateISO, issues){
@@ -2146,7 +2148,9 @@ function renderDayRow(day, di, dateISO, issues){
         tagClick: async () => {
           const next = a.shift === "LD" ? "SD" : "LD";
           if (!(await uiConfirm(staffById(a.id).name + ": " + (next === "LD" ? "standard day → long day (8–8)?" : "long day → standard day (8–4)?"), { title: "Change shift?", okLabel: "Change to " + next }))) return;
-          a.shift = next; logEntry(staffById(a.id).name + ": " + (next === "LD" ? "SD → LD" : "LD → SD") + " (" + dayShort(di) + ")"); markDirty(); renderWeek();
+          a.shift = next; logEntry(staffById(a.id).name + ": " + (next === "LD" ? "SD → LD" : "LD → SD") + " (" + dayShort(di) + ")");
+          if (day.phone === a.id && next !== "LD") { day.phone = null; toast("Phone taken off " + staffById(a.id).name + " — a long day is needed to hold it"); }
+          markDirty(); renderWeek();
         },
         onRemove: () => { pod.assign = pod.assign.filter(x => x !== a); logEntry("Removed " + staffById(a.id).name + " from Pod " + p + " (" + dayShort(di) + ")"); markDirty(); renderWeek(); } }));
     }
@@ -2261,7 +2265,7 @@ function checkDay(day, dateISO, di, wk){
       let holderShift = null;
       for (const p of PODS){ const a = day.pods[p].assign.find(x => x.id === ph.id); if (a){ holderShift = a.shift; break; } }
       if (holderShift == null) { const pl = poolFor(day, dateISO); holderShift = pl[ph.id] ? poolState(pl[ph.id]) : null; }
-      if (holderShift && holderShift !== "LD") S(ph.name + " holds the phone but isn't on a long day — the phone holder should be LD.");
+      if (holderShift && holderShift !== "LD") H(ph.name + " holds the phone but is on a short day — the phone holder must be on a long day.");
     }
   }
   if (day.night.phone) {
@@ -3056,6 +3060,9 @@ function autoFillDay(wk, di){
     const cands = dayIds.map(staffById).filter(s => s && canHoldPhone(s) && poolState(pool[s.id]) === "LD" && s.id !== day.phone)
       .sort((a,b) => ((weekPhone[a.id] || 0) - (weekPhone[b.id] || 0)) || (phoneRate(a.id) - phoneRate(b.id)) || a.name.localeCompare(b.name));
     if (cands.length) { day.phone = cands[0].id; day.phoneSup = null; }
+    // The phone holder must never be on a short day. If the current holder is SD and there's no long-day
+    // holder to take it, leave it unassigned (flagged) rather than leaving it with a short-day person.
+    else if (holderShift === "SD") { day.phone = null; day.phoneSup = null; }
   }
   // --- auto-assign a learner to shadow the phone, if one's here and a supervisor is on ---
   if (day.phone && !(day.shadow || []).length && dayIds.some(id => isPhoneSupervisor(staffById(id)))) {
