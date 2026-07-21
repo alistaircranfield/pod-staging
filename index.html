@@ -1565,6 +1565,36 @@ function fghFor(dateISO){
     .map(([id, v]) => ({ id, tag: /night/i.test(v.code) ? "N" : (/LD/i.test(v.code) ? "LD" : "SD") }))
     .sort((a,b) => staffById(a.id).name.localeCompare(staffById(b.id).name));
 }
+// --- Fairfield as a proper, editable column ---------------------------------------------------------
+// Who's at Fairfield today = the roster names (minus any taken off) + any added, with per-person shift
+// overrides. Kept as its own helpers so the column can be dragged into, removed from and shift-toggled
+// exactly like the pods.
+function fghShiftFor(day, id, base){ return (day.fghShift && day.fghShift[id]) || base; }
+function fghMembers(day, dateISO){
+  const removed = new Set(day.fghRemoved || []);
+  const seen = new Set();
+  const out = [];
+  for (const x of fghFor(dateISO)) { if (removed.has(x.id) || seen.has(x.id)) continue; seen.add(x.id); out.push({ id: x.id, tag: fghShiftFor(day, x.id, x.tag), roster: true }); }
+  for (const x of (day.fghExtras || [])) { if (!staffById(x.id) || seen.has(x.id)) continue; seen.add(x.id); out.push({ id: x.id, tag: fghShiftFor(day, x.id, x.tag), roster: false }); }
+  return out;
+}
+function inFairfield(day, dateISO, id){
+  if ((day.fghExtras || []).some(x => x.id === id)) return true;
+  return !(day.fghRemoved || []).includes(id) && fghFor(dateISO).some(x => x.id === id);
+}
+function addToFairfield(day, dateISO, id, tag){
+  removeAssign(day, id);                                        // pull them off any pod / night first
+  if (day.phone === id) day.phone = null;
+  day.fghRemoved = (day.fghRemoved || []).filter(x => x !== id); // un-remove if they'd been taken off
+  const wasRoster = fghFor(dateISO).some(x => x.id === id);
+  if (!wasRoster && !(day.fghExtras || []).some(x => x.id === id)) { day.fghExtras = day.fghExtras || []; day.fghExtras.push({ id, tag: tag || "LD" }); }
+}
+function removeFromFairfield(day, dateISO, id){
+  if ((day.fghExtras || []).some(x => x.id === id)) day.fghExtras = day.fghExtras.filter(x => x.id !== id);
+  else { day.fghRemoved = day.fghRemoved || []; if (!day.fghRemoved.includes(id)) day.fghRemoved.push(id); }
+  if (day.fghShift) delete day.fghShift[id];
+}
+function toggleFghShift(day, id, curTag){ const next = curTag === "LD" ? "SD" : curTag === "SD" ? "N" : "LD"; day.fghShift = day.fghShift || {}; day.fghShift[id] = next; }
 function personLabel(s){
   let marks = "";
   if (s.airway) marks += " · A";
@@ -1784,6 +1814,8 @@ function removeAssign(day, id, opts){
   day.night.AB = day.night.AB.filter(x => x !== id);
   day.night.CDE = day.night.CDE.filter(x => x !== id);
   for (const p of PODS) day.pods[p].assign = day.pods[p].assign.filter(a => a.id !== id);
+  // Moving someone into a pod / bench / night also takes them out of Fairfield, so they're never in two places.
+  if (!(opts && opts.keepFgh)) { try { const dd = getWeek(currentWeekKey).days.indexOf(day); if (dd >= 0){ const iso = addDays(currentWeekKey, dd); if (inFairfield(day, iso, id)) removeFromFairfield(day, iso, id); } } catch(e){} }
 }
 const SUP_SVG = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"/><circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/></svg>';
 const PHONE_SVG = '<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style="vertical-align:-1px"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>';
@@ -2060,8 +2092,8 @@ function renderDayRow(day, di, dateISO, issues){
     if (type === "day") { day.phone = null; logEntry("Phone cleared (" + dayShort(di) + ")"); }
     else if (type === "night") { day.night.phone = null; logEntry("Night phone cleared (" + dayShort(di) + ")"); }
   });
-  const dayIds = Object.keys(pool).filter(id => pool[id].kind === "day" && !assigned.has(id));
-  const nightIds = Object.keys(pool).filter(id => pool[id].kind === "night" && !assigned.has(id));
+  const dayIds = Object.keys(pool).filter(id => pool[id].kind === "day" && !assigned.has(id) && !inFairfield(day, dateISO, id));
+  const nightIds = Object.keys(pool).filter(id => pool[id].kind === "night" && !assigned.has(id) && !inFairfield(day, dateISO, id));
   if (dayIds.length) tray.append(el("div", { class: "tray-sec" }, "Day"));
   for (const id of dayIds.sort(benchSort(pool))) {
     const p = pool[id];
@@ -2199,25 +2231,26 @@ function renderDayRow(day, di, dateISO, issues){
     idListEditor(nsup, dateISO, day.night.super, s => s.supernum, "super");
   }
   tr.append(night);
-  /* ---- Fairfield (own column, right of nights; a card below on mobile) — from Optima, plus any added ---- */
-  const fghExtra = (day.fghExtras || []).filter(x => staffById(x.id)).map(x => ({ id: x.id, tag: x.tag, added: true }));
-  const fgh = fghFor(dateISO).concat(fghExtra);
-  // In edit mode the column always shows (even when empty) so there's somewhere to add a Fairfield name.
-  const fghCell = el("td", { class: "fghtd" + (fgh.length || canEdit() ? "" : " empty") });
-  if (fgh.length || canEdit()) {
+  /* ---- Fairfield: a proper column like the pods — drag people in/out, remove, and toggle shift ---- */
+  const fghList = fghMembers(day, dateISO);
+  // In edit mode the column always shows (even when empty) so it can be dragged into / added to.
+  const fghCell = el("td", { class: "fghtd" + (fghList.length || canEdit() ? "" : " empty") });
+  makeZone(fghCell, di, id => { addToFairfield(day, dateISO, id); logEntry(staffById(id).name + " → Fairfield (" + dayShort(di) + ")"); markDirty(); renderWeek(); });
+  if (fghList.length || canEdit()) {
     const wrap = el("div", { class: "fghwrap open" });   // its own column, so show the names by default
     const list = el("div", { class: "fghlist" });
-    for (const x of fgh) {
-      const s = staffById(x.id);
-      const short = s.name.split(" ");
-      const c = el("span", { class: "chip", style: "cursor:default", title: s.name + (x.added ? " — added to Fairfield" : " — at Fairfield today (from the Optima roster)") },
-        el("span", { class: "tagx " + x.tag }, x.tag), (short[0] || "") + (short.length > 1 ? " " + short[short.length-1] : ""));
-      if (s.airway) c.append(el("span", { class: "awdot", title: "Airway trained" }, "A"));
-      if (x.added && canEdit()) c.append(el("button", { class: "x", title: "Remove", onclick: e => { e.stopPropagation(); day.fghExtras = (day.fghExtras || []).filter(y => y.id !== x.id); logEntry("Removed " + s.name + " from Fairfield (" + dayShort(di) + ")"); markDirty(); renderWeek(); } }, "✕"));
-      list.append(c);
+    for (const x of fghList) {
+      const s = staffById(x.id); if (!s) continue;
+      list.append(chip(s, { di, day, tag: x.tag,
+        tagClick: () => { toggleFghShift(day, x.id, x.tag); logEntry(s.name + " (Fairfield) shift → " + fghShiftFor(day, x.id, x.tag) + " (" + dayShort(di) + ")"); markDirty(); renderWeek(); },
+        removeTitle: "Remove from Fairfield",
+        onRemove: () => { removeFromFairfield(day, dateISO, x.id); logEntry("Removed " + s.name + " from Fairfield (" + dayShort(di) + ")"); markDirty(); renderWeek(); } }));
     }
     wrap.append(list);
-    if (canEdit()) wrap.append(el("button", { class: "fghadd", title: "Add a locum / bank / NHSp name to Fairfield for this day", onclick: () => adhocDialog(di, "", "fairfield") }, "+ Add to Fairfield"));
+    if (canEdit()) {
+      wrap.append(el("div", { class: "hint trayhint" }, "Drag here for Fairfield"));
+      wrap.append(el("button", { class: "fghadd", title: "Add a locum / bank / NHSp name to Fairfield for this day", onclick: () => adhocDialog(di, "", "fairfield") }, "+ locum / bank"));
+    }
     fghCell.append(wrap);
   }
   tr.append(fghCell);
@@ -3044,7 +3077,8 @@ function autoFillDay(wk, di){
   const dateISO = addDays(currentWeekKey, di);
   const pool = poolFor(day, dateISO);
   const assigned = assignedIds(day);
-  const dayIds = Object.keys(pool).filter(id => pool[id].kind === "day");
+  // Fairfield people never get auto-allocated to a pod — they only come from the Allocate roster + manual moves.
+  const dayIds = Object.keys(pool).filter(id => pool[id].kind === "day" && !inFairfield(day, dateISO, id));
   // --- day phone: only a long-day holder, spread across the week so it's not the same person daily ---
   // Reassign if unset OR if the current holder is on a short day and a long-day holder is available
   // (an SD holder can slip in from the imported roster — the phone should sit with a long day if we have one).
@@ -3196,7 +3230,7 @@ function planDayFix(di){
   const podOf = id => PODS.find(p => day.pods[p].assign.some(a => a.id === id));
   const podCount = p => day.pods[p].assign.filter(a => a.id && countsIn(a.id)).length;
   const podLDs = p => day.pods[p].assign.filter(a => a.id && a.shift === "LD").length;
-  const dayIds = Object.keys(pool).filter(id => pool[id].kind === "day");
+  const dayIds = Object.keys(pool).filter(id => pool[id].kind === "day" && !inFairfield(day, dateISO, id));
   const isLDpool = id => pool[id] && poolState(pool[id]) === "LD";
   const minFor = p => p === "E" ? 1 : 2;
   const unresolved = [];
