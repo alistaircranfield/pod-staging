@@ -185,6 +185,8 @@ table.rota:not(:has(td.tray .chip)) td.tray .trayhint::after{content:"drop";font
 .seg{display:flex;gap:.3rem}
 .segbtn{flex:1;font-size:.78rem;font-weight:600;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:.5rem .3rem;cursor:pointer;font-family:inherit}
 .segbtn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.fghadd{margin-top:.4rem;width:100%;font-size:.66rem;font-weight:600;background:var(--card);color:var(--muted);border:1px dashed var(--line);border-radius:8px;padding:.35rem .3rem;cursor:pointer;font-family:inherit}
+.fghadd:hover{color:var(--accent);border-color:var(--accent)}
 .fghwrap{margin-top:.5rem}
 .fghtoggle{font-size:.56rem;font-weight:800;color:#a7adb5;text-transform:uppercase;letter-spacing:.06em;background:none;border:0;padding:.15rem 0;cursor:pointer;display:inline-flex;align-items:center;gap:.28rem;font-family:inherit;line-height:1.2;text-align:left}
 .fghtoggle::before{content:"\25B8";font-size:.62rem}
@@ -2196,8 +2198,9 @@ function renderDayRow(day, di, dateISO, issues){
   /* ---- Fairfield (own column, right of nights; a card below on mobile) — from Optima, plus any added ---- */
   const fghExtra = (day.fghExtras || []).filter(x => staffById(x.id)).map(x => ({ id: x.id, tag: x.tag, added: true }));
   const fgh = fghFor(dateISO).concat(fghExtra);
-  const fghCell = el("td", { class: "fghtd" + (fgh.length ? "" : " empty") });
-  if (fgh.length) {
+  // In edit mode the column always shows (even when empty) so there's somewhere to add a Fairfield name.
+  const fghCell = el("td", { class: "fghtd" + (fgh.length || canEdit() ? "" : " empty") });
+  if (fgh.length || canEdit()) {
     const wrap = el("div", { class: "fghwrap open" });   // its own column, so show the names by default
     const list = el("div", { class: "fghlist" });
     for (const x of fgh) {
@@ -2210,6 +2213,7 @@ function renderDayRow(day, di, dateISO, issues){
       list.append(c);
     }
     wrap.append(list);
+    if (canEdit()) wrap.append(el("button", { class: "fghadd", title: "Add a locum / bank / NHSp name to Fairfield for this day", onclick: () => adhocDialog(di, "", "fairfield") }, "+ Add to Fairfield"));
     fghCell.append(wrap);
   }
   tr.append(fghCell);
@@ -3038,7 +3042,10 @@ function autoFillDay(wk, di){
   const assigned = assignedIds(day);
   const dayIds = Object.keys(pool).filter(id => pool[id].kind === "day");
   // --- day phone: only a long-day holder, spread across the week so it's not the same person daily ---
-  if (!day.phone) {
+  // Reassign if unset OR if the current holder is on a short day and a long-day holder is available
+  // (an SD holder can slip in from the imported roster — the phone should sit with a long day if we have one).
+  const holderShift = day.phone ? (currentAssignShift(day, day.phone) || (pool[day.phone] ? poolState(pool[day.phone]) : null)) : null;
+  if (!day.phone || holderShift === "SD") {
     const phoneHist = phoneHistWindow();   // historic holds within each person's time on the unit
     const ldAvail = ldAvailWindow();       // long-days each person has actually been available for
     // Fair share = holds per long-day they could have held. A newcomer with few days here is judged on
@@ -3046,7 +3053,7 @@ function autoFillDay(wk, di){
     const phoneRate = id => (phoneHist[id] || 0) / ((ldAvail[id] || 0) + 1);
     const weekPhone = {};                  // holds already this week, to rotate within the week first
     for (let k = 0; k < di; k++){ const pid = wk.days[k].phone; if (pid) weekPhone[pid] = (weekPhone[pid] || 0) + 1; }
-    const cands = dayIds.map(staffById).filter(s => s && canHoldPhone(s) && poolState(pool[s.id]) === "LD")
+    const cands = dayIds.map(staffById).filter(s => s && canHoldPhone(s) && poolState(pool[s.id]) === "LD" && s.id !== day.phone)
       .sort((a,b) => ((weekPhone[a.id] || 0) - (weekPhone[b.id] || 0)) || (phoneRate(a.id) - phoneRate(b.id)) || a.name.localeCompare(b.name));
     if (cands.length) { day.phone = cands[0].id; day.phoneSup = null; }
   }
@@ -3308,13 +3315,13 @@ function addAdhocPerson(di, name, shift, dest){
   logEntry("Added " + name + " (locum/bank) — " + (dest === "fairfield" ? "Fairfield" : dest === "night" ? "night team" : "to allocate") + " (" + dayShort(di) + ")");
   markDirty(); renderWeek();
 }
-function adhocDialog(di, prefillName){
+function adhocDialog(di, prefillName, presetDest){
   const m = $("#modal"); m.innerHTML = "";
-  m.append(el("h3", {}, "Add a one-off person"));
+  m.append(el("h3", {}, presetDest === "fairfield" ? "Add someone to Fairfield" : "Add a one-off person"));
   m.append(el("p", { class: "fixsub" }, "For a locum, bank or NHSp name that isn't on the staff list — just for this day."));
   const nameIn = el("input", { type: "text", placeholder: "e.g. Dr Okafor (locum)", style: "width:100%" }); nameIn.value = prefillName || "";
   m.append(el("label", { class: "adlbl" }, "Name"), nameIn);
-  let shift = "LD", dest = "bench";
+  let shift = "LD", dest = presetDest || "bench";
   const seg = (opts, cur, set) => { const wrap = el("div", { class: "seg" }); opts.forEach(([v,l]) => { const b = el("button", { class: "segbtn" + (v===cur()?" on":""), onclick: () => { set(v); wrap.querySelectorAll(".segbtn").forEach(x=>x.classList.remove("on")); b.classList.add("on"); } }, l); wrap.append(b); }); return wrap; };
   m.append(el("label", { class: "adlbl" }, "Shift"), seg([["LD","Long day"],["SD","Short day"],["N","Night"]], () => shift, v => shift = v));
   m.append(el("label", { class: "adlbl" }, "Add to"), seg([["bench","To allocate"],["night","Night team"],["fairfield","Fairfield"]], () => dest, v => dest = v));
