@@ -166,16 +166,20 @@ table.rota:not(:has(td.tray .chip)) td.tray .trayadd::after{content:"+";font-siz
 table.rota:not(:has(td.tray .chip)) td.tray .trayhint{font-size:0;padding:.4rem .2rem}
 table.rota:not(:has(td.tray .chip)) td.tray .trayhint::after{content:"drop";font-size:.55rem}
 .tray-sec{font-size:.56rem;font-weight:800;color:#a7adb5;text-transform:uppercase;letter-spacing:.08em;margin:.35rem 0 .1rem}
-.addmenu-wrap{margin-top:.4rem}
-.addplus{width:26px;height:26px;padding:0;font-size:1rem;line-height:1;background:var(--card);color:var(--muted);border:1px solid var(--line);border-radius:8px;cursor:pointer;font-family:inherit}
-.addplus:hover{color:var(--accent);border-color:var(--accent)}
-.addpanel{display:none;margin-top:.35rem}
-.addmenu-wrap.panelopen .addplus{display:none}
-.addmenu-wrap.panelopen .addpanel{display:block}
-.addpanel .trayadd{margin-top:0;width:100%}
-.addmini-row{display:flex;gap:.3rem;margin-top:.3rem}
-.addmini{flex:1;font-size:.64rem;font-weight:600;background:var(--card);color:var(--muted);border:1px solid var(--line);border-radius:7px;padding:.32rem .2rem;cursor:pointer;font-family:inherit;white-space:nowrap}
-.addmini:hover{color:var(--accent);border-color:var(--accent)}
+.addmenu-wrap{margin-top:.4rem;position:relative}
+.addplus{display:flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;background:var(--card);color:var(--muted);border:1px solid var(--line);border-radius:9px;cursor:pointer;font-family:inherit}
+.addplus:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-bg)}
+.addico{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.addpop{display:none;position:absolute;z-index:60;top:0;left:0;width:200px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(15,23,42,.18);padding:6px;text-align:left}
+.addmenu-wrap.panelopen .addpop{display:block}
+.addsearch-field{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:8px;padding:.42rem .55rem;color:var(--muted)}
+.addsearch-field:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
+.addsearch-input{border:0;outline:0;background:none;width:100%;min-width:0;font-size:.82rem;color:var(--ink);font-family:inherit;padding:0}
+.addpop-sep{height:1px;background:var(--line);margin:6px 4px}
+.addpop-item{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:.5rem .55rem;font-size:.8rem;color:var(--ink);cursor:pointer;font-family:inherit}
+.addpop-item .addico{color:var(--muted)}
+.addpop-item:hover{background:var(--accent-bg);color:var(--accent)}
+.addpop-item:hover .addico{color:var(--accent)}
 .adlbl{display:block;font-size:.72rem;color:var(--muted);margin:.7rem 0 .3rem;font-weight:600}
 .adnote{font-size:.72rem;color:var(--muted);margin-top:.5rem}
 .seg{display:flex;gap:.3rem}
@@ -2076,13 +2080,18 @@ function renderDayRow(day, di, dateISO, issues){
     tray.append(el("div", { class: "tray-sec" }, "Observers"));
     for (const o of obsUn) tray.append(obsChip(day, o, di));
   }
-  // Add-person control: the column stays collapsed to a single ＋ when empty. Tapping ＋ opens a name
-  // search (the everyday case) with the rarely-used locum and observer options tucked underneath.
+  // Add-person control: the column stays collapsed to a single ＋. Tapping ＋ opens a floating popover
+  // with a name search (the everyday case) plus locum/bank and observer rows underneath.
   if (canEdit()) {
+    const icon = p => el("span", { class: "addico", html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>' });
+    const I_SEARCH = '<circle cx="11" cy="11" r="7"/><path d="M20.5 20.5 17 17"/>';
+    const I_PLUS = '<path d="M12 5v14M5 12h14"/>';
+    const I_LOCUM = '<circle cx="9" cy="8" r="3.4"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M18.5 8v6M15.5 11h6"/>';
+    const I_OBS = '<path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="2.6"/>';
     const dlId = "staffdl-" + di;
     const dlEl = el("datalist", { id: dlId });
     for (const s of activeStaff(dateISO).filter(s => !pool[s.id] && s.grade !== "CON" && !s.adhoc)) dlEl.append(el("option", { value: s.name }));
-    const addIn = el("input", { class: "trayadd", list: dlId, placeholder: "Type a name…", title: "Type a staff name — or a locum/bank name not on the list" });
+    const addIn = el("input", { class: "addsearch-input", list: dlId, placeholder: "Type a name…", title: "Type a staff name — or a locum/bank name not on the list" });
     const wrap = el("div", { class: "addmenu-wrap" });
     const close = () => wrap.className = "addmenu-wrap";
     addIn.onchange = () => {
@@ -2097,19 +2106,20 @@ function renderDayRow(day, di, dateISO, issues){
     };
     addIn.onkeydown = e => { if (e.key === "Escape") { addIn.value = ""; close(); } };
     addIn.onblur = () => { if (!addIn.value.trim()) setTimeout(() => { if (!wrap.contains(document.activeElement)) close(); }, 150); };
-    const locBtn = el("button", { class: "addmini", title: "A locum, bank or NHSp name that isn't on the staff list", onclick: () => { close(); adhocDialog(di); } }, "+ Locum");
-    const obsBtn = el("button", { class: "addmini", title: "An observer / student — shown but never counted", onclick: async () => { close();
+    const field = el("div", { class: "addsearch-field" }, icon(I_SEARCH), addIn);
+    const locBtn = el("button", { class: "addpop-item", title: "A locum, bank or NHSp name that isn't on the staff list", onclick: () => { close(); adhocDialog(di); } }, icon(I_LOCUM), "Locum / bank");
+    const obsBtn = el("button", { class: "addpop-item", title: "An observer / student — shown but never counted", onclick: async () => { close();
       const r = await uiPrompt("Observers appear on the rota but are never counted in any numbers.", { title: "Add an observer / student", okLabel: "Add", placeholder: "Name", placeholder2: "Role — e.g. medical student, work experience" });
       if (r && r[0] && r[0].trim()) { day.obs = day.obs || []; day.obs.push({ oid: uid(), name: r[0].trim(), role: (r[1] || "").trim(), pod: null }); logEntry("Observer added: " + r[0].trim() + " (" + dayShort(di) + ")"); markDirty(); renderWeek(); }
-    } }, "+ Observer");
-    const panel = el("div", { class: "addpanel" }, dlEl, addIn, el("div", { class: "addmini-row" }, locBtn, obsBtn));
+    } }, icon(I_OBS), "Observer / student");
+    const pop = el("div", { class: "addpop" }, field, el("div", { class: "addpop-sep" }), locBtn, obsBtn);
     const plus = el("button", { class: "addplus", title: "Add someone to this day", "aria-label": "Add someone", onclick: e => {
       e.stopPropagation();
       const open = wrap.classList.contains("panelopen");
       document.querySelectorAll(".addmenu-wrap").forEach(w => w.className = "addmenu-wrap");
       if (!open) { wrap.className = "addmenu-wrap panelopen"; setTimeout(() => addIn.focus(), 0); }
-    } }, "＋");
-    wrap.append(plus, panel);
+    } }, icon(I_PLUS));
+    wrap.append(plus, dlEl, pop);
     tray.append(wrap);
   }
   tr.append(tray);
