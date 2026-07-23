@@ -1440,6 +1440,7 @@ const FLAGS = [
   ["phoneShadow","Phone shadow (learning)","rule","#8A5A00","Still learning the phone — can only carry it on a day when a phone supervisor is also on, and never at night."],
   ["transfer","Transfer trained","rule","#085041","Trained to escort transfers off the unit. The checks aim for enough transfer-trained cover on the day shift."],
   ["neuro","Neuro trained","rule","#6A2C91","Neuro-trained — auto-fill aims to keep more of their shifts on Pods C & D."],
+  ["neurology","Neurology resident (C/D only)","rule","#4A1B0C","Neurology resident — only ever rostered to Pod C or D, and not counted in pod numbers (supernumerary). Set manually; doesn't come from Allocate."],
   ["supernum","Supernumerary — never counted","rule","#72243E","Doesn't count towards pod numbers (e.g. supernumerary or purely learning)."],
   ["nights","Works nights","info","","Available to be put on night shifts."],
   ["fgh","FGH cover","info","","Covers Fairfield General."],
@@ -3115,8 +3116,14 @@ function autoFillDay(wk, di){
   }
   const totalPeople = PODS.reduce((n,p) => n + counts[p], 0) + unplaced.length;
   const base = Math.floor(totalPeople / 5), remCount = totalPeople % 5;
+  // Spare people (the remainder) go to A–D, never E — but rotate WHICH of A–D gets the extra by day and
+  // week so no single pod (previously always A) ends up consistently bigger over time.
+  const AD = ["A", "B", "C", "D"];
+  const wkOrd = Math.floor((Date.parse(currentWeekKey) || 0) / 6048e5);
+  const startOff = (((di + wkOrd) % 4) + 4) % 4;
+  const remPods = new Set(AD.slice(startOff).concat(AD.slice(0, startOff)).slice(0, Math.min(remCount, 4)));
   const target = {};
-  PODS.forEach((p, i) => target[p] = base + (i < remCount ? 1 : 0)); // remainder lands on A–D before E
+  PODS.forEach(p => target[p] = base + (remPods.has(p) ? 1 : 0));
   const order = [...unplaced].sort((a,b) => {
     const A = pool[a], B = pool[b];
     const la = poolState(A) === "LD" ? 0 : 1, lb = poolState(B) === "LD" ? 0 : 1;
@@ -3129,7 +3136,7 @@ function autoFillDay(wk, di){
     const prior = priorPodFor(id, wk, di);
     let bestP = null, bestScore = -Infinity;
     for (const p of PODS) {
-      let score = (target[p] - counts[p]) * 3 - Math.max(0, counts[p] - target[p]) * 50;
+      let score = (target[p] - counts[p]) * 3 - Math.max(0, counts[p] - target[p]) * 50 - counts[p] * 0.05;
       if (isLD && !hasLD[p]) score += 8;
       if (prior === p) score += 6;
       if (s.airway) {
@@ -3138,16 +3145,22 @@ function autoFillDay(wk, di){
       }
       // Neuro-trained lean towards Pods C & D (the neuro pods) — a nudge, not a rule, so it still
       // yields to keeping the pods evenly sized. Aims for roughly two-thirds of their shifts on C/D.
-      if (s.neuro && (p === "C" || p === "D")) score += 3;
+      if (s.neuro && (p === "C" || p === "D")) score += 2.5;
+      // Long days fill A–D before E: E is always the pod that misses out on a long day when they're
+      // short, so never give E a long-day resident while any A–D pod still has none.
+      if (isLD && p === "E" && PODS.filter(q => q !== "E").some(q => !hasLD[q])) score -= 1000;
       // Keep Pod E the smallest — never put someone there if it would make E bigger than another pod,
-      // so any spare cover goes A → B → C → D before E.
-      if (p === "E" && counts.E + 1 > Math.min(...PODS.filter(q => q !== "E").map(q => counts[q]))) score -= 40;
+      // so any spare cover goes A → B → C → D before E. Decisive penalty so E is never the largest.
+      if (p === "E" && counts.E + 1 > Math.min(...PODS.filter(q => q !== "E").map(q => counts[q]))) score -= 1000;
       if (score > bestScore) { bestScore = score; bestP = p; }
     }
     day.pods[bestP].assign.push({ id, shift: isLD ? "LD" : "SD" });
-    counts[bestP]++;
-    if (isLD) hasLD[bestP] = true;
-    if (s.airway) airwayIn[bestP]++;
+    // Supernumeraries don't count towards pod numbers, LD cover, or airway cover — they're learning/extra.
+    if (countsInNumbers(id)) {
+      counts[bestP]++;
+      if (isLD) hasLD[bestP] = true;
+      if (s.airway) airwayIn[bestP]++;
+    }
   }
   // Phone holder should sit in the busiest pod — they're tied up on calls, so put them where there's
   // the most cover. Swap them with a long-day person from the biggest pod (keeps every count the same).
