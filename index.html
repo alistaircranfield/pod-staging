@@ -68,7 +68,7 @@ table{border-collapse:collapse;width:100%}
 .navarrow:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
 .navarrow:hover{background:var(--hair)}
 /* rota table */
-.rota-wrap{background:var(--card);border:0.5px solid var(--line);border-radius:18px;overflow-x:auto;overflow-y:visible;max-width:100%;-webkit-overflow-scrolling:touch}
+.rota-wrap{background:var(--card);border:0.5px solid var(--line);border-radius:18px;overflow:visible;max-width:100%}
 table.rota{border-collapse:collapse;width:100%;min-width:1080px}
 table.rota th{background:var(--card);color:var(--muted);font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;padding:.6rem .6rem;text-align:left;position:sticky;top:0;z-index:10;border-bottom:1px solid var(--line);font-weight:700}
 table.rota td{border-bottom:1px solid var(--hair);border-right:1px solid var(--hair);padding:.5rem .5rem;vertical-align:top}
@@ -851,6 +851,14 @@ async function enterEditInner(){
   EDIT_MODE = true;
   document.body.classList.remove("viewmode");
   data.editLock = { by: n.trim(), at: new Date().toISOString() };
+  // One-off (26.07.24): reset every graded person's skills to the grade defaults.
+  if (!data.gradeDefaultsV1){
+    data.gradeDefaultsV1 = true;
+    let n2 = 0;
+    for (const p of data.staff || []) if (!p.adhoc && p.grade && applyGradeDefaults(p)) n2++;
+    if (n2) logEntry("Reset skills to grade defaults for " + n2 + " staff (one-off)");
+  }
+  try { srTriageNewPeople(); } catch(e){}
   markDirty();
   updateWhoBtn();
   updateSaveState("unsaved");
@@ -1440,11 +1448,10 @@ const FLAGS = [
   ["phoneSupervisor","Phone supervisor","rule","#1B5E20","Senior enough to supervise a learner on the phone. A supervisor automatically counts as a phone holder too."],
   ["phoneShadow","Phone shadow (learning)","rule","#8A5A00","Still learning the phone — can only carry it on a day when a phone supervisor is also on, and never at night."],
   ["transfer","Transfer trained","rule","#085041","Trained to escort transfers off the unit. The checks aim for enough transfer-trained cover on the day shift."],
-  ["neuro","Neuro trained","rule","#6A2C91","Neuro-trained — auto-fill aims to keep more of their shifts on Pods C & D."],
-  ["neurology","Neurology resident (C/D only)","rule","#4A1B0C","Neurology resident — only ever rostered to Pod C or D, and not counted in pod numbers (supernumerary). Set manually; doesn't come from Allocate."],
+  ["neuro","Neuro placement","rule","#6A2C91","On a neuro placement — auto-fill aims to keep more of their shifts on Pods C & D."],
   ["supernum","Supernumerary — never counted","rule","#72243E","Doesn't count towards pod numbers (e.g. supernumerary or purely learning)."],
   ["nights","Works nights","info","","Available to be put on night shifts."],
-  ["fgh","FGH cover","info","","Covers Fairfield General."],
+  ["fgh","FGH days","info","","Covers Fairfield General on days."],
   ["fghNights","FGH nights","info","","Covers Fairfield General at night."],
   ["fghSuper","FGH supernumerary","info","","Supernumerary at Fairfield General."],
 ];
@@ -1454,7 +1461,34 @@ const isPhoneSupervisor = s => !!(s && s.phoneSupervisor);
 const isPhoneShadow = s => !!(s && s.phoneShadow && !canHoldPhone(s));
 // Is a phone supervisor actually on this day (from the people allocated that day)?
 function supervisorOnDay(dayIds, exceptId){ return [...new Set(dayIds)].some(id => id !== exceptId && isPhoneSupervisor(staffById(id))); }
-const SKILL_SHORT = { airway:"Airway", phoneHolder:"Phone", phoneSupervisor:"Ph sup", phoneShadow:"Ph shadow", transfer:"Transfer", neuro:"Neuro", supernum:"Supernum", nights:"Nights", fgh:"FGH", fghNights:"FGH nts", fghSuper:"FGH sup" };
+const SKILL_SHORT = { airway:"Airway", phoneHolder:"Phone", phoneSupervisor:"Ph sup", phoneShadow:"Ph shadow", transfer:"Transfer", neuro:"Neuro", supernum:"Supernum", nights:"Nights", fgh:"FGH days", fghNights:"FGH nts", fghSuper:"FGH sup" };
+// Default skills by grade (26.07.24, per Ali): nights for everyone except consultants;
+// consultants are reference-only (never counted); picking a grade in the edit dialog
+// pre-ticks these (still adjustable per person before saving).
+const GRADE_DEFAULTS = {
+  CON:      { supernum: true },
+  ACCP:     { nights: true, transfer: true },
+  SCF:      { nights: true, airway: true, phoneHolder: true, phoneSupervisor: true, transfer: true, fgh: true, fghNights: true },
+  JCF:      { nights: true, fgh: true },
+  RCF:      { nights: true },
+  ST:       { nights: true, airway: true, phoneHolder: true, transfer: true },
+  CT:       { nights: true, airway: true, phoneHolder: true, transfer: true },
+  ACCS:     { nights: true, airway: true, transfer: true, fgh: true },
+  IMT:      { nights: true },
+  FY1:      { nights: true },
+  FY2:      { nights: true },
+  ICM:      { nights: true, airway: true, phoneHolder: true, phoneSupervisor: true, transfer: true, fgh: true, fghNights: true },
+  Anaes:    { nights: true, airway: true, phoneHolder: true, transfer: true },
+  ED:       { nights: true },
+  Neurology:{ nights: true, supernum: true },
+  Other:    { nights: true },
+};
+const SKILL_KEYS = FLAGS.map(f => f[0]);
+function applyGradeDefaults(s){
+  const d = GRADE_DEFAULTS[s.grade]; if (!d) return false;
+  for (const k of SKILL_KEYS) s[k] = !!d[k];
+  return true;
+}
 
 function renderStaff(){
   const body = $("#staffBody");
@@ -1534,6 +1568,8 @@ function staffModal(s){
   cbs.fghSuper.onchange = () => { if (cbs.fghSuper.checked) { cbs.fgh.checked = false; cbs.fghNights.checked = false; } };
   cbs.fgh.onchange = () => { if (cbs.fgh.checked) cbs.fghSuper.checked = false; };
   cbs.fghNights.onchange = () => { if (cbs.fghNights.checked) cbs.fghSuper.checked = false; };
+  // Picking a grade pre-ticks that grade's default skills — still adjustable before saving.
+  grade.onchange = () => { const d = GRADE_DEFAULTS[grade.value]; if (!d) return; for (const k of SKILL_KEYS) if (cbs[k]) cbs[k].checked = !!d[k]; };
   m.append(el("div", { class: "modalbtns" },
     el("button", { class: "btn sec", onclick: closeModal }, "Cancel"),
     el("button", { class: "btn", onclick: () => {
@@ -3139,7 +3175,7 @@ function autoFillDay(wk, di){
     const prior = priorPodFor(id, wk, di);
     let bestP = null, bestScore = -Infinity;
     for (const p of PODS) {
-      let score = (target[p] - counts[p]) * 3 - Math.max(0, counts[p] - target[p]) * 50 - counts[p] * 0.05;
+      let score = (target[p] - counts[p]) * 3 - Math.max(0, counts[p] + 1 - target[p]) * 50 - counts[p] * 0.05;
       if (isLD && !hasLD[p]) score += 8;
       if (prior === p) score += 6;
       if (s.airway) {
@@ -3620,6 +3656,31 @@ async function nameLocum(s, di){
   logEntry("Locum named: " + s.name + " on " + date + " is " + nm);
   markDirty(); renderAll();
   toast(nm + " replaces " + s.name + " for " + srDateLabel(date));
+}
+function srTriageNewPeople(){
+  // Shown once per newcomer, when a rota-team member enters Edit: people the Optima sync
+  // created that nobody has reviewed. Ticked -> promoted to the proper staff list (set their
+  // grade after and the defaults fill in). Unticked -> stay as one-offs, never asked again.
+  const fresh = (data.staff || []).filter(s => s.adhoc && !s.triaged && !/zlocum/i.test(s.name || ""));
+  if (!fresh.length) return;
+  const m = $("#modal"); m.innerHTML = "";
+  m.append(el("h3", {}, "New people from Optima"));
+  m.append(el("p", { style: "font-size:.85rem;color:var(--muted)" },
+    "These appeared on the Optima roster but aren't on the staff list. Tick anyone who should be added properly (then set their grade on the Staff page — defaults fill in). Unticked people stay as one-off cover and you won't be asked about them again."));
+  const boxes = fresh.map(s => {
+    const cb = el("input", { type: "checkbox" });
+    m.append(el("label", { style: "display:block;margin:.3rem 0" }, cb, " " + s.name));
+    return [s, cb];
+  });
+  m.append(el("div", { class: "modalbtns" },
+    el("button", { class: "btn", onclick: () => {
+      let added = 0;
+      for (const [s, cb] of boxes){ s.triaged = true; if (cb.checked){ s.adhoc = false; added++; } }
+      logEntry("Optima newcomers reviewed: " + added + " added to the staff list, " + (boxes.length - added) + " kept as one-off cover");
+      markDirty(); closeModal(); renderAll();
+      if (added) toast(added + " added — set their grade on the Staff page");
+    } }, "Done")));
+  $("#modalBg").style.display = "flex";
 }
 function srApplySickFix(g, reallocate){
   if (!EDIT_MODE){ toast("Press Edit first, then apply the fix."); return; }
