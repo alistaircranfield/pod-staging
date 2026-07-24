@@ -3526,21 +3526,27 @@ function keyDialog(){
 // manual entry here disagrees with Allocate. This banner lets whoever's editing pick a winner:
 // "Keep ours" marks the entry src:"m" so the sync respects it silently from then on;
 // "Take Allocate's" swaps the entry to Allocate's code and hands ownership back to the sync.
+function srDateLabel(iso){
+  try { return new Date(iso + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }); }
+  catch(e){ return iso; }
+}
 function renderSyncReview(){
   const el = document.getElementById("syncReview"); if (!el) return;
   const items = (data && data.syncReview) || [];
   if (!items.length){ el.style.display = "none"; el.innerHTML = ""; return; }
   const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   el.style.display = "";
-  const n = items.length, plural = n > 1 ? "es" : "";
+  const n = items.length;
+  const chip = c => "<span style='background:#2c2c2a;color:#f1efe8;font-size:12px;padding:2px 9px;border-radius:6px'>" + esc(c || "blank") + "</span>";
   if (!staffUnlocked()){
-    // Everyone else just sees a small badge — details and decisions are rota-team only,
+    // Everyone else sees a quiet strip — details and decisions are rota-team only,
     // behind the same staff password as the Staff/Import/Fairness/Log pages.
-    el.style.cssText = "background:#fff7e6;border:1px solid #e0a800;border-radius:10px;padding:7px 12px;margin:0 0 12px;font-size:13px;display:flex;align-items:center;gap:10px;flex-wrap:wrap";
-    el.innerHTML = "<span>&#9888; Allocate sync: <b>" + n + " item" + (n > 1 ? "s" : "") +
-      "</b> awaiting rota-team review</span>" +
-      "<button id='srReveal'>Review (rota team)</button>" +
-      "<span id='srPwWrap' style='display:none'><input type='password' id='srPw' placeholder='Staff password' style='width:130px'> " +
+    el.style.cssText = "background:#fff;border:1px solid #d5d5d0;border-radius:10px;padding:8px 14px;margin:0 0 12px;font-size:13px;display:flex;align-items:center;gap:10px;flex-wrap:wrap";
+    el.innerHTML = "<span style='width:8px;height:8px;border-radius:50%;background:#ef9f27;flex:none'></span>" +
+      "<span style='color:#5f5e5a'>Optima check: <b style='color:#2c2c2a'>" + n + " shift" + (n > 1 ? "s" : "") +
+      "</b> need" + (n > 1 ? "" : "s") + " a rota-team decision</span>" +
+      "<button id='srReveal' style='margin-left:auto'>Rota team sign in</button>" +
+      "<span id='srPwWrap' style='display:none;margin-left:auto'><input type='password' id='srPw' placeholder='Staff password' style='width:130px'> " +
       "<button id='srUnlock'>Unlock</button> <span id='srMsg' style='color:#b00'></span></span>";
     el.querySelector("#srReveal").onclick = () => {
       el.querySelector("#srReveal").style.display = "none";
@@ -3556,14 +3562,16 @@ function renderSyncReview(){
     el.querySelector("#srPw").onkeydown = e => { if (e.key === "Enter") tryUnlock(); };
     return;
   }
-  el.style.cssText = "background:#fff7e6;border:1px solid #e0a800;border-radius:10px;padding:10px 14px;margin:0 0 12px;font-size:14px";
-  el.innerHTML = "<div style='font-weight:600;margin-bottom:6px'>&#9888; Allocate sync — " + n +
-    " clash" + plural + ": the rota here and Allocate disagree. Choose which to keep:</div>" +
+  el.style.cssText = "margin:0 0 12px;display:grid;gap:8px";
+  el.innerHTML = "<div style='font-size:13px;color:#5f5e5a'>Optima check — someone changed these shifts here, but Optima says different. Pick the correct version:</div>" +
     items.map((c, i) =>
-      "<div style='margin:5px 0'>" + esc(c.date) + " — <b>" + esc(c.name) + "</b>: here <b>" + esc(c.app || "(blank)") +
-      "</b> &middot; Allocate <b>" + esc(c.allocate) + "</b>&nbsp; " +
-      "<button data-sr='keep' data-i='" + i + "'>Keep ours</button> " +
-      "<button data-sr='take' data-i='" + i + "'>Take Allocate's</button></div>").join("");
+      "<div style='background:#fff;border:1px solid #e3e3de;border-left:3px solid #ef9f27;padding:9px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px'>" +
+      "<span style='min-width:150px'><b style='font-size:14px'>" + esc(c.name) + "</b><br><span style='color:#888780;font-size:12px'>" + srDateLabel(c.date) + "</span></span>" +
+      "<span style='color:#5f5e5a'>shown here</span> " + chip(c.app) +
+      " <span style='color:#5f5e5a'>Optima</span> " + chip(c.allocate) +
+      "<span style='margin-left:auto;display:flex;gap:6px'>" +
+      "<button data-sr='keep' data-i='" + i + "'>Keep " + esc(c.app || "blank") + "</button>" +
+      "<button data-sr='take' data-i='" + i + "'>Use Optima: " + esc(c.allocate) + "</button></span></div>").join("");
   el.querySelectorAll("button[data-sr]").forEach(b => b.onclick = () => resolveSyncClash(+b.dataset.i, b.dataset.sr));
 }
 function resolveSyncClash(i, how){
@@ -3576,9 +3584,9 @@ function resolveSyncClash(i, how){
     else if (day[c.id]){ day[c.id].src = "m"; }
   }
   data.syncReview.splice(i, 1);
-  logEntry("Sync clash " + c.date + " " + c.name + ": kept " + (how === "take" ? "Allocate's version (" + c.allocate + ")" : "our version (" + (c.app || "blank") + ")"));
+  logEntry("Optima check " + c.date + " " + c.name + ": " + (how === "take" ? "changed to Optima's version (" + c.allocate + ")" : "kept " + (c.app || "blank") + " — Optima won't override it"));
   markDirty(); renderAll();
-  toast(how === "take" ? "Took Allocate's version" : "Kept our version — sync will respect it");
+  toast(how === "take" ? "Changed to Optima's version: " + c.allocate : "Kept " + (c.app || "blank") + " — Optima won't override it");
 }
 function renderAll(){ renderWeek(); renderStaffGate(); renderFairGate(); renderImportGate(); renderLogGate(); renderSyncReview(); }
 const PAGE_TITLES = { rota: "Pod Allocator", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", help: "How it works" };
