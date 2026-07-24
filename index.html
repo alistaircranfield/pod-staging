@@ -2255,16 +2255,26 @@ function renderDayRow(day, di, dateISO, issues){
     const s = staffById(day.night.phone);
     if (s) night.append(el("div", { style: "margin-bottom:.2rem" }, chip(s, { di, day })));
   }
-  const nightZone = (label, arr) => {
+  const nightZone = (label, arr, filt) => {
     night.append(el("div", { class: "subhead" }, label));
     const z = el("div", { style: "min-height:22px" });
     makeZone(z, di, id => { removeAssign(day, id); arr.push(id); logEntry(staffById(id).name + " → night " + label + " (" + dayShort(di) + ")"); });
-    for (const id of arr.filter(id => staffById(id))) z.append(chip(staffById(id), { di, day, tag: "N", onRemove: () => { const i = arr.indexOf(id); if (i >= 0) arr.splice(i, 1); logEntry("Removed " + staffById(id).name + " from night " + label + " (" + dayShort(di) + ")"); markDirty(); renderWeek(); } }));
-    if (!arr.length) z.append(el("div", { class: "hint" }, "drop staff"));
+    const shown = arr.filter(id => staffById(id) && (!filt || filt(id)));
+    for (const id of shown) z.append(chip(staffById(id), { di, day, tag: "N", onRemove: () => { const i = arr.indexOf(id); if (i >= 0) arr.splice(i, 1); logEntry("Removed " + staffById(id).name + " from night " + label + " (" + dayShort(di) + ")"); markDirty(); renderWeek(); } }));
+    if (!shown.length && !filt) z.append(el("div", { class: "hint" }, "drop staff"));
     night.append(z);
   };
   nightZone("Pod A & B", day.night.AB);
-  nightZone("Pod C, D & E", day.night.CDE);
+  // With FIVE on nights, the phone holder covers Pod E alone (it's quieter) — shown under its
+  // own heading. With four, the same two people cover C, D & E and only the phone rotates.
+  const nTot = (day.night.AB || []).length + (day.night.CDE || []).length;
+  const nPh = day.night.phone;
+  if (nTot >= 5 && nPh && (day.night.CDE || []).includes(nPh)) {
+    nightZone("Pod C & D", day.night.CDE, id => id !== nPh);
+    nightZone("Pod E", day.night.CDE, id => id === nPh);
+  } else {
+    nightZone("Pod C, D & E", day.night.CDE);
+  }
   if (day.night.super.length || activeStaff(dateISO).some(s => s.supernum)) {
     night.append(el("div", { class: "subhead" }, "Super"));
     const nsup = el("div"); night.append(nsup);
@@ -3245,9 +3255,15 @@ function autoFillDay(wk, di){
   for (const id of [...new Set(nightUnplaced)]) {
     if (id === day.night.phone) { day.night.CDE.push(id); nightAssigned.add(id); }
   }
+  // Keep people in the SAME night pods across a run of nights — only the phone rotates.
+  const prevNight = di > 0 ? wk.days[di - 1].night : null;
   for (const id of nightUnplaced) {
     if (nightAssigned.has(id)) continue;
-    if (day.night.AB.length < 2) day.night.AB.push(id);
+    const wasAB = prevNight && (prevNight.AB || []).includes(id);
+    const wasCDE = prevNight && (prevNight.CDE || []).includes(id);
+    if (wasAB && day.night.AB.length < 2) day.night.AB.push(id);
+    else if (wasCDE) day.night.CDE.push(id);
+    else if (day.night.AB.length < 2) day.night.AB.push(id);
     else day.night.CDE.push(id);
     nightAssigned.add(id);
   }
