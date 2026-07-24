@@ -2927,14 +2927,14 @@ function renderFairness(){
   if (!data) return;
   const cutoff = addDays(todayISO(), -365);   // rolling last 12 months
   const counts = {};
-  const ensure = id => counts[id] = counts[id] || { pods: {A:0,B:0,C:0,D:0,E:0}, phone: 0, nightPhone: 0, ldAvail: 0, nightAvail: 0 };
+  const ensure = id => counts[id] = counts[id] || { pods: {A:0,B:0,C:0,D:0,E:0}, phone: 0, nightPhone: 0, ldAvail: 0, nightAvail: 0, wkPods: {} };
   for (const [key, wk] of Object.entries(data.weeks)) {
     if (key < cutoff) continue;                // only the last 12 months
     wk.days.forEach((day, di) => {
       const dateISO = addDays(key, di);
       if (day.phone) ensure(day.phone).phone++;
       if (day.night.phone) ensure(day.night.phone).nightPhone++;
-      for (const p of PODS) for (const a of day.pods[p].assign) if (a.id) ensure(a.id).pods[p]++;
+      for (const p of PODS) for (const a of day.pods[p].assign) if (a.id){ const cc = ensure(a.id); cc.pods[p]++; (cc.wkPods[key] = cc.wkPods[key] || new Set()).add(p); }
       // opportunities to hold the phone = days rostered while on the unit (the fair denominator)
       const r = (wk.roster && wk.roster[dateISO]) || {};
       for (const [id, v] of Object.entries(r)) {
@@ -2951,7 +2951,7 @@ function renderFairness(){
   const podDot = { A: "var(--podAb)", B: "var(--podBb)", C: "var(--podCb)", D: "var(--podDb)", E: "var(--podEb)" };
   const head = el("tr", {}, el("th", { style: "min-width:150px" }, "Name"));
   for (const p of PODS) head.append(el("th", {}, el("span", { class: "dot", style: "background:" + podDot[p] }), p));
-  head.append(el("th", { style: "text-align:left" }, "Pod days"), el("th", {}, "Phone"), el("th", {}, "Night phone"));
+  head.append(el("th", { style: "text-align:left" }, "Pod days"), el("th", { title: "Average number of different pods per week — lower = more consistent" }, "Pods/wk"), el("th", {}, "Phone"), el("th", {}, "Night phone"));
   tbl.append(el("thead", {}, head));
   const body = el("tbody");
   const maxTotal = Math.max(1, ...rows.map(r => r.total));
@@ -2964,6 +2964,9 @@ function renderFairness(){
     }
     const bar = el("span", { class: "fbar" }, el("span", { class: "fbar-fill", style: "width:" + Math.round(total/maxTotal*100) + "%" }));
     tr.append(el("td", { style: "text-align:left;white-space:nowrap" }, el("b", {}, String(total)), bar));
+    const wkSets = Object.values(c.wkPods || {});
+    const avgPods = wkSets.length ? wkSets.reduce((n, s2) => n + s2.size, 0) / wkSets.length : 0;
+    tr.append(el("td", { title: "Different pods per week, averaged over " + wkSets.length + " week" + (wkSets.length === 1 ? "" : "s"), style: avgPods > 2 ? "color:#b45309;font-weight:700" : "" }, wkSets.length ? avgPods.toFixed(1) : ""));
     // Phone = held on X% of the long-days you were actually rostered (self-normalising: fair whether
     // you've been here 1 month or 12). Night phone = the same against nights you were on.
     const pPct = c.ldAvail ? Math.round(c.phone / c.ldAvail * 100) : (c.phone ? 100 : null);
@@ -3163,21 +3166,29 @@ function autoFillDay(wk, di){
   const remPods = new Set(AD.slice(startOff).concat(AD.slice(0, startOff)).slice(0, Math.min(remCount, 4)));
   const target = {};
   PODS.forEach(p => target[p] = base + (remPods.has(p) ? 1 : 0));
+  // Pod consistency: people who already have a pod this week get placed FIRST (so nobody
+  // else takes their slot), and the keep-same-pod bonus below is strong enough to win
+  // whenever their pod still has room under the even-spread targets.
+  const priorMap = {};
+  for (const id of unplaced) priorMap[id] = priorPodFor(id, wk, di);
   const order = [...unplaced].sort((a,b) => {
+    const ha = priorMap[a] ? 0 : 1, hb = priorMap[b] ? 0 : 1;
     const A = pool[a], B = pool[b];
     const la = poolState(A) === "LD" ? 0 : 1, lb = poolState(B) === "LD" ? 0 : 1;
     const aa = staffById(a).airway ? 0 : 1, ab = staffById(b).airway ? 0 : 1;
-    return la - lb || aa - ab || staffById(a).name.localeCompare(staffById(b).name);
+    return ha - hb || la - lb || aa - ab || staffById(a).name.localeCompare(staffById(b).name);
   });
   for (const id of order) {
     const s = staffById(id);
     const isLD = poolState(pool[id]) === "LD";
-    const prior = priorPodFor(id, wk, di);
+    const prior = priorMap[id];
     let bestP = null, bestScore = -Infinity;
     for (const p of PODS) {
       let score = (target[p] - counts[p]) * 3 - Math.max(0, counts[p] + 1 - target[p]) * 50 - counts[p] * 0.05;
       if (isLD && !hasLD[p]) score += 8;
-      if (prior === p) score += 6;
+      if (prior === p) score += 12;
+      // Senior airway trainees (ST/CT/Anaes/ICM) stay off Pod E unless there's truly nowhere else.
+      if (p === "E" && ["ST", "CT", "Anaes", "ICM"].includes(s.grade)) score -= 40;
       if (s.airway) {
         if (p === "E") score -= 8; // unit keeps airway-trained off Pod E unless there's no other option
         else score += airwayIn[p] === 0 ? 5 : -4 * airwayIn[p];
