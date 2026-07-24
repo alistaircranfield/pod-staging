@@ -1933,8 +1933,7 @@ function holderShift(day, id){
 async function assignPhoneTo(day, type, s){
   if (type === "shadow") {
     if (s.id === day.phone) { uiAlert("They already hold the phone — a shadow is someone else learning from them.", { title: "Already the holder" }); tapPhone = null; renderWeek(); return; }
-    day.shadow = day.shadow || [];
-    if (!day.shadow.includes(s.id)) day.shadow.push(s.id);
+    day.shadow = [s.id];   // only ever ONE phone shadow per day — assigning replaces any previous
   } else if (type === "day") {
     const dayIds = dayAllAssigned(day);
     // Not phone-trained at all?
@@ -2085,8 +2084,9 @@ function renderDayRow(day, di, dateISO, issues){
     const s = staffById(day.phone);
     if (s) dlInner.append(el("div", { style: "margin-top:.25rem" }, chip(s, { di, day })));
   }
-  // Offer a "shadowing the phone" token whenever there is a phone holder, so a learner can be attached.
-  if (day.phone && canEdit()) dlInner.append(el("div", {}, phoneToken(di, "shadow")));
+  // Offer a "shadowing the phone" token when there's a phone holder AND no shadow yet —
+  // only ever one shadow per day, so the token disappears once someone is attached.
+  if (day.phone && canEdit() && !(day.shadow || []).filter(Boolean).length) dlInner.append(el("div", {}, phoneToken(di, "shadow")));
   tr.append(dl);
   /* ---- tray: on duty, unassigned ---- */
   const tray = el("td", { class: "tray" });
