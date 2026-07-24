@@ -1837,6 +1837,8 @@ function chip(s, opts){
   const short = s.name.split(" ");
   c.append((short[0] || "") + (short.length > 1 ? " " + short[short.length-1] : ""));
   if (s.airway) c.append(el("span", { class: "awdot", title: "Airway trained" }, "A"));
+  if (s.adhoc && /zlocum/i.test(s.name || "") && opts.di != null && canEdit())
+    c.append(el("button", { class: "x", title: "We know who this locum is — type their name", onclick: e => { e.stopPropagation(); nameLocum(s, opts.di); } }, "✎"));
   if (opts.onRemove) c.append(el("button", { class: "x", title: opts.removeTitle || "Remove", onclick: e => { e.stopPropagation(); opts.onRemove(); } }, "✕"));
   if (tapPick && tapPick.id === s.id && tapPick.di === opts.di) c.classList.add("selected");
   if (tapPhone && day && tapPhone.di === opts.di) c.classList.add("phonehover");
@@ -3583,6 +3585,41 @@ function srDetectGhosts(){
     }
   } catch(e){}
   return out;
+}
+async function nameLocum(s, di){
+  if (!canEdit()){ toast("Press Edit first."); return; }
+  const date = addDays(currentWeekKey, di);
+  const who = await uiPrompt("Who is " + s.name + " on " + srDateLabel(date) + "? Their real name replaces the placeholder for this day — and the Optima sync remembers it.",
+    { title: "Name this locum", placeholder: "Dr …", okLabel: "Save name" });
+  if (!who || !who.trim()) return;
+  const nm = who.trim();
+  data.locumMap = data.locumMap || {};
+  data.locumMap[date + "|" + s.name] = nm;
+  let named = (data.staff || []).find(x => x.adhoc && (x.name || "").toLowerCase() === nm.toLowerCase());
+  if (!named){
+    const slug = "loc-" + (nm.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "x");
+    named = (data.staff || []).find(x => x.id === slug);
+    if (!named){
+      named = JSON.parse(JSON.stringify(s));
+      named.id = slug; named.name = nm;
+      data.staff.push(named);
+    }
+  }
+  const wk = getWeek(currentWeekKey), day = wk.days[di];
+  const swap = a => { if (a) for (let i = 0; i < a.length; i++) if (a[i] === s.id) a[i] = named.id; };
+  for (const p of Object.values(day.pods || {})){ swap(p.assign); swap(p.super); if (p.student === s.id) p.student = named.id; }
+  ["phone", "phoneSup", "nightCons"].forEach(k => { if (day[k] === s.id) day[k] = named.id; });
+  swap(day.shadow);
+  if (day.night){ if (day.night.phone === s.id) day.night.phone = named.id; swap(day.night.AB); swap(day.night.CDE); swap(day.night.super); }
+  (day.extras || []).forEach(x => { if (x && x.id === s.id) x.id = named.id; });
+  (day.fghExtras || []).forEach(x => { if (x && x.id === s.id) x.id = named.id; });
+  if (wk.roster && wk.roster[date] && wk.roster[date][s.id]){
+    wk.roster[date][named.id] = wk.roster[date][s.id];
+    delete wk.roster[date][s.id];
+  }
+  logEntry("Locum named: " + s.name + " on " + date + " is " + nm);
+  markDirty(); renderAll();
+  toast(nm + " replaces " + s.name + " for " + srDateLabel(date));
 }
 function srApplySickFix(g, reallocate){
   if (!EDIT_MODE){ toast("Press Edit first, then apply the fix."); return; }
