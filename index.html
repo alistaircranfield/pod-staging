@@ -3530,20 +3530,88 @@ function srDateLabel(iso){
   try { return new Date(iso + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }); }
   catch(e){ return iso; }
 }
+function srRemoveFromDay(day, sid){
+  const hits = [];
+  for (const [pname, p] of Object.entries(day.pods || {})){
+    if ((p.assign || []).includes(sid)){ p.assign = p.assign.filter(x => x !== sid); hits.push("Pod " + pname); }
+    if ((p.super || []).includes(sid)){ p.super = p.super.filter(x => x !== sid); hits.push("Pod " + pname + " supervision"); }
+    if (p.student === sid){ p.student = ""; hits.push("Pod " + pname + " student"); }
+  }
+  if (day.phone === sid){ day.phone = null; hits.push("phone"); }
+  if (day.phoneSup === sid){ day.phoneSup = null; hits.push("phone supervisor"); }
+  if (day.nightCons === sid){ day.nightCons = null; hits.push("night consultant"); }
+  if ((day.shadow || []).includes(sid)){ day.shadow = day.shadow.filter(x => x !== sid); hits.push("shadowing"); }
+  if ((day.extras || []).some(x => x && x.id === sid)){ day.extras = day.extras.filter(x => !x || x.id !== sid); hits.push("extras"); }
+  if (day.night){
+    if (day.night.phone === sid){ day.night.phone = null; hits.push("night phone"); }
+    for (const k of ["AB", "CDE", "super"]){
+      if ((day.night[k] || []).includes(sid)){ day.night[k] = day.night[k].filter(x => x !== sid); hits.push("night " + k); }
+    }
+  }
+  return hits;
+}
+function srDetectGhosts(){
+  // People still allocated on a day (today onwards, viewed week) who are no longer on the
+  // Optima roster for that day — e.g. taken off sick and auto-removed by the sync.
+  const out = [];
+  try {
+    const wk = (data && data.weeks || {})[currentWeekKey];
+    if (!wk || !wk.roster) return out;
+    const todayISO = new Date().toLocaleDateString("en-CA");
+    for (let di = 0; di < 7; di++){
+      const date = addDays(currentWeekKey, di);
+      if (date < todayISO) continue;
+      const roster = wk.roster[date]; if (!roster) continue;
+      const day = wk.days[di]; if (!day) continue;
+      const sids = new Set();
+      for (const p of Object.values(day.pods || {})){
+        (p.assign || []).forEach(x => sids.add(x));
+        (p.super || []).forEach(x => sids.add(x));
+        if (p.student) sids.add(p.student);
+      }
+      ["phone", "phoneSup", "nightCons"].forEach(k => { if (day[k]) sids.add(day[k]); });
+      (day.shadow || []).forEach(x => sids.add(x));
+      (day.extras || []).forEach(x => { if (x && x.id) sids.add(x.id); });
+      if (day.night){
+        if (day.night.phone) sids.add(day.night.phone);
+        ["AB", "CDE", "super"].forEach(k => (day.night[k] || []).forEach(x => sids.add(x)));
+      }
+      for (const sid of sids){
+        const s = staffById(sid);
+        if (s && !(sid in roster)) out.push({ di, date, sid, name: s.name });
+      }
+    }
+  } catch(e){}
+  return out;
+}
+function srApplySickFix(g, reallocate){
+  if (!EDIT_MODE){ toast("Press Edit first, then apply the fix."); return; }
+  const day = getWeek(currentWeekKey).days[g.di];
+  const hits = srRemoveFromDay(day, g.sid);
+  logEntry("Sickness fix " + g.date + ": removed " + g.name + (hits.length ? " from " + hits.join(", ") : ""));
+  let moved = 0;
+  if (reallocate){
+    const plan = planDayFix(g.di);
+    if (plan.changes.length){ applyFixedDay(g.di, plan.fixed); moved = plan.changes.length; }
+  }
+  markDirty(); renderAll();
+  toast(g.name + " removed" + (reallocate ? (moved ? " — covered with " + moved + " move" + (moved > 1 ? "s" : "") : " — no moves needed to cover") : "") + ". Undo reverses it.");
+}
 function renderSyncReview(){
   const el = document.getElementById("syncReview"); if (!el) return;
   const items = (data && data.syncReview) || [];
-  if (!items.length){ el.style.display = "none"; el.innerHTML = ""; return; }
+  const ghosts = srDetectGhosts();
+  if (!items.length && !ghosts.length){ el.style.display = "none"; el.innerHTML = ""; return; }
   const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   el.style.display = "";
-  const n = items.length;
+  const n = items.length + ghosts.length;
   const chip = c => "<span style='background:#2c2c2a;color:#f1efe8;font-size:12px;padding:2px 9px;border-radius:6px'>" + esc(c || "blank") + "</span>";
   if (!staffUnlocked()){
     // Everyone else sees a quiet strip — details and decisions are rota-team only,
     // behind the same staff password as the Staff/Import/Fairness/Log pages.
     el.style.cssText = "background:#fff;border:1px solid #d5d5d0;border-radius:10px;padding:8px 14px;margin:0 0 12px;font-size:13px;display:flex;align-items:center;gap:10px;flex-wrap:wrap";
     el.innerHTML = "<span style='width:8px;height:8px;border-radius:50%;background:#ef9f27;flex:none'></span>" +
-      "<span style='color:#5f5e5a'>Optima check: <b style='color:#2c2c2a'>" + n + " shift" + (n > 1 ? "s" : "") +
+      "<span style='color:#5f5e5a'>Optima check: <b style='color:#2c2c2a'>" + n + " item" + (n > 1 ? "s" : "") +
       "</b> need" + (n > 1 ? "" : "s") + " a rota-team decision</span>" +
       "<button id='srReveal' style='margin-left:auto'>Rota team sign in</button>" +
       "<span id='srPwWrap' style='display:none;margin-left:auto'><input type='password' id='srPw' placeholder='Staff password' style='width:130px'> " +
@@ -3563,16 +3631,35 @@ function renderSyncReview(){
     return;
   }
   el.style.cssText = "margin:0 0 12px;display:grid;gap:8px";
-  el.innerHTML = "<div style='font-size:13px;color:#5f5e5a'>Optima check — someone changed these shifts here, but Optima says different. Pick the correct version:</div>" +
-    items.map((c, i) =>
-      "<div style='background:#fff;border:1px solid #e3e3de;border-left:3px solid #ef9f27;padding:9px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px'>" +
-      "<span style='min-width:150px'><b style='font-size:14px'>" + esc(c.name) + "</b><br><span style='color:#888780;font-size:12px'>" + srDateLabel(c.date) + "</span></span>" +
-      "<span style='color:#5f5e5a'>shown here</span> " + chip(c.app) +
-      " <span style='color:#5f5e5a'>Optima</span> " + chip(c.allocate) +
-      "<span style='margin-left:auto;display:flex;gap:6px'>" +
-      "<button data-sr='keep' data-i='" + i + "'>Keep " + esc(c.app || "blank") + "</button>" +
-      "<button data-sr='take' data-i='" + i + "'>Use Optima: " + esc(c.allocate) + "</button></span></div>").join("");
+  let html = "";
+  if (ghosts.length){
+    html += "<div style='font-size:13px;color:#5f5e5a'>Off the Optima rota but still allocated — remove them, and tick to auto-cover with the fewest moves:</div>" +
+      ghosts.map((g, i) =>
+        "<div style='background:#fff;border:1px solid #e3e3de;border-left:3px solid #d85a30;padding:9px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px'>" +
+        "<span style='min-width:150px'><b style='font-size:14px'>" + esc(g.name) + "</b><br><span style='color:#888780;font-size:12px'>" + srDateLabel(g.date) + "</span></span>" +
+        "<span style='color:#5f5e5a'>no longer on the Optima rota, still in the day's allocations</span>" +
+        "<span style='margin-left:auto;display:flex;gap:10px;align-items:center'>" +
+        "<label style='display:inline-flex;gap:5px;align-items:center;color:#5f5e5a'><input type='checkbox' id='srRe" + i + "' checked> re-allocate to cover (fewest moves)</label>" +
+        "<button data-gi='" + i + "'>Remove from day</button></span></div>").join("");
+  }
+  if (items.length){
+    html += "<div style='font-size:13px;color:#5f5e5a'>Optima check — someone changed these shifts here, but Optima says different. Pick the correct version:</div>" +
+      items.map((c, i) =>
+        "<div style='background:#fff;border:1px solid #e3e3de;border-left:3px solid #ef9f27;padding:9px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px'>" +
+        "<span style='min-width:150px'><b style='font-size:14px'>" + esc(c.name) + "</b><br><span style='color:#888780;font-size:12px'>" + srDateLabel(c.date) + "</span></span>" +
+        "<span style='color:#5f5e5a'>shown here</span> " + chip(c.app) +
+        " <span style='color:#5f5e5a'>Optima</span> " + chip(c.allocate) +
+        "<span style='margin-left:auto;display:flex;gap:6px'>" +
+        "<button data-sr='keep' data-i='" + i + "'>Keep " + esc(c.app || "blank") + "</button>" +
+        "<button data-sr='take' data-i='" + i + "'>Use Optima: " + esc(c.allocate) + "</button></span></div>").join("");
+  }
+  el.innerHTML = html;
   el.querySelectorAll("button[data-sr]").forEach(b => b.onclick = () => resolveSyncClash(+b.dataset.i, b.dataset.sr));
+  el.querySelectorAll("button[data-gi]").forEach(b => b.onclick = () => {
+    const g = ghosts[+b.dataset.gi];
+    const cb = el.querySelector("#srRe" + b.dataset.gi);
+    srApplySickFix(g, !cb || cb.checked);
+  });
 }
 function resolveSyncClash(i, how){
   if (!EDIT_MODE){ toast("Press Edit first, then choose which version to keep."); return; }
