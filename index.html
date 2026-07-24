@@ -2981,8 +2981,13 @@ function renderFairness(){
     // you've been here 1 month or 12). Night phone = the same against nights you were on.
     const pPct = c.ldAvail ? Math.round(c.phone / c.ldAvail * 100) : (c.phone ? 100 : null);
     const nPct = c.nightAvail ? Math.round(c.nightPhone / c.nightAvail * 100) : (c.nightPhone ? 100 : null);
-    tr.append(el("td", { title: "Held on " + c.phone + " of " + c.ldAvail + " long-day" + (c.ldAvail===1?"":"s") + " on the unit", style: pPct != null ? "background:rgba(76,93,214," + (0.05 + pPct/100*0.20).toFixed(3) + ")" : "" }, pPct != null ? pPct + "%" : ""));
-    tr.append(el("td", { title: "Held on " + c.nightPhone + " of " + c.nightAvail + " night" + (c.nightAvail===1?"":"s") + " on the unit", style: nPct != null ? "background:rgba(122,92,201," + (0.05 + nPct/100*0.20).toFixed(3) + ")" : "" }, nPct != null ? nPct + "%" : ""));
+    // Non-phone-holders get plain blank cells — a 0% would just be confusing.
+    if (!canHoldPhone(s)){
+      tr.append(el("td", {}, ""), el("td", {}, ""));
+    } else {
+      tr.append(el("td", { title: "Held on " + c.phone + " of " + c.ldAvail + " long-day" + (c.ldAvail===1?"":"s") + " on the unit", style: pPct != null ? "background:rgba(76,93,214," + (0.05 + pPct/100*0.20).toFixed(3) + ")" : "" }, pPct != null ? pPct + "%" : ""));
+      tr.append(el("td", { title: "Held on " + c.nightPhone + " of " + c.nightAvail + " night" + (c.nightAvail===1?"":"s") + " on the unit", style: nPct != null ? "background:rgba(122,92,201," + (0.05 + nPct/100*0.20).toFixed(3) + ")" : "" }, nPct != null ? nPct + "%" : ""));
+    }
     body.append(tr);
   }
   if (!rows.length) body.append(el("tr", {}, el("td", { colspan: "9", class: "empty" }, "No allocations saved yet.")));
@@ -3181,6 +3186,17 @@ function autoFillDay(wk, di){
   // whenever their pod still has room under the even-spread targets.
   const priorMap = {};
   for (const id of unplaced) priorMap[id] = priorPodFor(id, wk, di);
+  // HARD RULE: nobody works more than TWO different pods in a week. A third pod is only
+  // ever possible when every other pod is genuinely unavailable.
+  const weekPodsSoFar = {};
+  for (const id of unplaced){
+    const set = new Set();
+    for (let k = 0; k < di; k++){
+      const dd = wk.days[k];
+      for (const q of PODS) if ((dd.pods[q].assign || []).some(a => a.id === id)) set.add(q);
+    }
+    weekPodsSoFar[id] = set;
+  }
   const order = [...unplaced].sort((a,b) => {
     const ha = priorMap[a] ? 0 : 1, hb = priorMap[b] ? 0 : 1;
     const A = pool[a], B = pool[b];
@@ -3197,6 +3213,8 @@ function autoFillDay(wk, di){
       let score = (target[p] - counts[p]) * 3 - Math.max(0, counts[p] + 1 - target[p]) * 50 - counts[p] * 0.05;
       if (isLD && !hasLD[p]) score += 8;
       if (prior === p) score += 12;
+      const wkSoFar = weekPodsSoFar[id];
+      if (wkSoFar && wkSoFar.size >= 2 && !wkSoFar.has(p)) score -= 2000;   // never a 3rd pod in a week
       // Senior airway trainees (ST/CT/Anaes/ICM) stay off Pod E unless there's truly nowhere else.
       if (p === "E" && ["ST", "CT", "Anaes", "ICM"].includes(s.grade)) score -= 40;
       if (s.airway) {
