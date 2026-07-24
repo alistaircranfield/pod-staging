@@ -443,6 +443,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
 </div>
 <main>
   <section id="tab-rota">
+    <div id="syncReview" style="display:none"></div>
     <div class="weekbar">
       <button class="navarrow" id="btnPrevWeek" title="Previous week"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
       <b id="weekTitle"></b>
@@ -3520,7 +3521,42 @@ function keyDialog(){
 }
 
 /* ================= WIRING ================= */
-function renderAll(){ renderWeek(); renderStaffGate(); renderFairGate(); renderImportGate(); renderLogGate(); }
+// ── Allocate-sync clash review ─────────────────────────────────────────────────
+// The 2-hourly Allocate sync writes data.syncReview = [{date,id,name,app,allocate}] whenever a
+// manual entry here disagrees with Allocate. This banner lets whoever's editing pick a winner:
+// "Keep ours" marks the entry src:"m" so the sync respects it silently from then on;
+// "Take Allocate's" swaps the entry to Allocate's code and hands ownership back to the sync.
+function renderSyncReview(){
+  const el = document.getElementById("syncReview"); if (!el) return;
+  const items = (data && data.syncReview) || [];
+  if (!items.length){ el.style.display = "none"; el.innerHTML = ""; return; }
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  el.style.display = "";
+  el.style.cssText = "background:#fff7e6;border:1px solid #e0a800;border-radius:10px;padding:10px 14px;margin:0 0 12px;font-size:14px";
+  el.innerHTML = "<div style='font-weight:600;margin-bottom:6px'>&#9888; Allocate sync — " + items.length +
+    " clash" + (items.length > 1 ? "es" : "") + ": the rota here and Allocate disagree. Choose which to keep:</div>" +
+    items.map((c, i) =>
+      "<div style='margin:5px 0'>" + esc(c.date) + " — <b>" + esc(c.name) + "</b>: here <b>" + esc(c.app || "(blank)") +
+      "</b> &middot; Allocate <b>" + esc(c.allocate) + "</b>&nbsp; " +
+      "<button data-sr='keep' data-i='" + i + "'>Keep ours</button> " +
+      "<button data-sr='take' data-i='" + i + "'>Take Allocate's</button></div>").join("");
+  el.querySelectorAll("button[data-sr]").forEach(b => b.onclick = () => resolveSyncClash(+b.dataset.i, b.dataset.sr));
+}
+function resolveSyncClash(i, how){
+  if (!EDIT_MODE){ toast("Press Edit first, then choose which version to keep."); return; }
+  const c = (data.syncReview || [])[i]; if (!c) return;
+  const wk = data.weeks && data.weeks[mondayOf(c.date)];
+  const day = wk && wk.roster && wk.roster[c.date];
+  if (day){
+    if (how === "take"){ day[c.id] = { code: c.allocate, kind: dutyKind(c.allocate), src: "a" }; }
+    else if (day[c.id]){ day[c.id].src = "m"; }
+  }
+  data.syncReview.splice(i, 1);
+  logEntry("Sync clash " + c.date + " " + c.name + ": kept " + (how === "take" ? "Allocate's version (" + c.allocate + ")" : "our version (" + (c.app || "blank") + ")"));
+  markDirty(); renderAll();
+  toast(how === "take" ? "Took Allocate's version" : "Kept our version — sync will respect it");
+}
+function renderAll(){ renderWeek(); renderStaffGate(); renderFairGate(); renderImportGate(); renderLogGate(); renderSyncReview(); }
 const PAGE_TITLES = { rota: "Pod Allocator", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", help: "How it works" };
 function switchTab(tab){
   document.querySelectorAll("aside button[data-tab]").forEach(x => x.classList.toggle("active", x.dataset.tab === tab));
