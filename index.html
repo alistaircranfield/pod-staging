@@ -192,8 +192,10 @@ table.rota:not(:has(td.tray .chip)) td.tray .trayhint::after{content:"drop";font
 .addpop-item:hover .addico{color:var(--accent)}
 .adlbl{display:block;font-size:.72rem;color:var(--muted);margin:.7rem 0 .3rem;font-weight:600}
 /* ---- Help page (public) ---- */
-.hlp{max-width:720px}
-.hlp .lead{color:#4a4f58;line-height:1.6;margin:0 0 1.2rem;font-size:.92rem}
+/* Fill the page like every other card; keep the prose itself to a readable measure. */
+.hlp{max-width:none}
+.hlp .lead{color:#4a4f58;line-height:1.6;margin:0 0 1.2rem;font-size:.92rem;max-width:76ch}
+.hlp .in>p,.hlp .in>ol,.hlp .in>ul{max-width:76ch}
 .hlp details{border-bottom:1px solid var(--hair)}
 .hlp details:last-of-type{border-bottom:0}
 .hlp summary{cursor:pointer;padding:.85rem 0;font-weight:600;font-size:.95rem;list-style:none;display:flex;align-items:center;gap:.7rem}
