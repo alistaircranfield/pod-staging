@@ -5,114 +5,211 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CCU Consultant Pods</title>
 <style>
-:root{--ink:#17181c;--muted:#8a8f98;--line:#e3e3de;--card:#fff;--bg:#f7f7f5;--amber:#b45309;--accent:#4c5dd6}
+:root{
+  --bg:#f6f6f4; --card:#ffffff; --ink:#17181c; --muted:#8a8f98; --line:#ececea; --hair:#f2f2ef;
+  --accent:#4c5dd6; --accent-bg:#eef0fb;
+  --green:#2e7d4f; --green-bg:#e7f5ec; --amber:#b07d1e; --amber-bg:#fdf3df; --red:#cf3d3d; --red-bg:#fdeaea;
+  --podA:#f5f8ff; --podB:#f3faf5; --podC:#fdf8ef; --podD:#f8f5fd; --podE:#fdf4f6;
+  --podAb:#5b76d8; --podBb:#3d9964; --podCb:#c98a2b; --podDb:#8b66c9; --podEb:#d4577a;
+}
 *{box-sizing:border-box}
-body{font-family:Inter,"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);margin:0;padding:18px}
-h1{font-size:22px;margin:0 0 2px}
-.sub{color:var(--muted);font-size:12.5px;margin-bottom:14px}
-.wkcard{background:var(--card);border:0.5px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:16px;overflow-x:auto}
-.wktitle{font-weight:700;font-size:15px;margin:2px 0 8px}
-table{border-collapse:collapse;width:100%;min-width:760px;font-size:13px}
-th{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--card)}
-td{padding:5px 8px;border-bottom:0.5px solid #f0f0ec}
-td.rowh{font-weight:600;white-space:nowrap;color:#444}
-.cell{cursor:pointer;border-radius:6px;padding:2px 6px;display:inline-block;min-width:34px}
-.cell:hover{background:#eef0ff}
-.cell.diff{outline:1.5px dashed var(--amber);color:var(--amber);font-weight:700}
-.tagcod{font-size:9px;background:#2c2c2a;color:#f1efe8;border-radius:5px;padding:1px 5px;margin-left:4px;vertical-align:1px}
-.legend{font-size:12px;color:var(--muted);margin:6px 0 14px}
-.fair{background:var(--card);border:0.5px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:16px}
-.fair table{min-width:520px}
-.warn{color:var(--amber);font-weight:600}
-button{font-family:inherit;font-size:12.5px;border:1px solid #cfcfc9;background:#fff;border-radius:8px;padding:4px 10px;cursor:pointer}
-button:hover{background:#f2f2ee}
-#status{font-size:12px;color:var(--muted);margin-left:8px}
-.jun{font-size:11.5px;color:#555;background:#fafaf7;border-radius:8px;padding:6px 8px;margin-top:6px;display:none}
-.jun.open{display:block}
-.jn{white-space:nowrap}
+body{margin:0;font-family:Inter,-apple-system,"Segoe UI",system-ui,Arial,sans-serif;color:var(--ink);background:var(--bg);font-size:14px;-webkit-font-smoothing:antialiased}
+#layout{display:flex;min-height:100vh}
+aside{width:78px;background:rgba(255,255,255,.72);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-right:0.5px solid var(--line);display:flex;flex-direction:column;align-items:stretch;padding:.9rem 0;position:sticky;top:0;height:100vh;flex-shrink:0}
+aside .logo{margin:0 auto 1.1rem;width:42px;height:42px;border-radius:13px;background:var(--accent-bg);color:var(--accent);font-weight:800;font-size:.68rem;display:flex;align-items:center;justify-content:center;letter-spacing:.03em}
+aside button{background:none;border:0;color:var(--muted);font-family:inherit;cursor:pointer;padding:.45rem 0;display:flex;flex-direction:column;align-items:center;gap:.28rem;font-size:.58rem;font-weight:600;letter-spacing:.02em}
+aside button .ic{width:40px;height:40px;border-radius:13px;display:flex;align-items:center;justify-content:center;transition:background .12s}
+aside button .ic svg{width:19px;height:19px}
+aside button:hover .ic{background:var(--hair)}
+aside button.active{color:var(--ink)}
+aside button.active .ic{background:var(--accent-bg);color:var(--accent)}
+aside .aside-spacer{flex:1}
+#content{flex:1;min-width:0}
+#topbar{background:rgba(246,246,244,.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding:1rem 1.6rem .4rem;display:flex;align-items:center;gap:.7rem;position:sticky;top:0;z-index:45;min-height:56px;flex-wrap:wrap}
+#topbar h1{font-size:1.35rem;margin:0;font-weight:700;letter-spacing:-.01em}
+.spacer{flex:1}
+.hbtn{background:var(--ink);color:#fff;border:0;border-radius:12px;padding:.52rem 1rem;font-weight:600;font-size:.82rem;cursor:pointer;font-family:inherit}
+.hbtn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.hbtn:hover{filter:brightness(.95)}
+#saveState{font-size:.72rem;font-weight:600;padding:.25rem .65rem;border-radius:999px}
+#saveState.saved{color:var(--green);background:var(--green-bg)} #saveState.unsaved{color:var(--red);background:var(--red-bg)} #saveState.saving{color:var(--amber);background:var(--amber-bg)}
+main{padding:.6rem 1.6rem 4rem;max-width:1550px}
+.card{background:var(--card);border:0.5px solid var(--line);border-radius:18px;padding:1.1rem 1.3rem;margin-bottom:1rem}
+h2{font-size:.72rem;margin:.1rem 0 .8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+button.btn{background:var(--ink);color:#fff;border:0;border-radius:12px;padding:.5rem 1rem;font-weight:600;font-size:.84rem;cursor:pointer;font-family:inherit}
+button.btn.sec{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+button.btn:hover{filter:brightness(.96)}
+.weekbar{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem}
+.weekbar b{font-size:.95rem;min-width:215px;text-align:center;font-weight:700;letter-spacing:-.01em}
+.navarrow{background:var(--card);border:1px solid var(--line);border-radius:999px;width:36px;height:36px;cursor:pointer;color:var(--muted);display:inline-flex;align-items:center;justify-content:center;transition:background .12s}
+.navarrow:hover{background:var(--hair)}
+.rota-wrap{background:var(--card);border:0.5px solid var(--line);border-radius:18px;overflow-x:auto;max-width:100%}
+table.rota{border-collapse:collapse;width:100%;min-width:880px}
+table.rota th{background:var(--card);color:var(--muted);font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;padding:.6rem .6rem;text-align:left;position:sticky;top:0;z-index:10;border-bottom:1px solid var(--line);font-weight:700}
+table.rota td{border-bottom:1px solid var(--hair);border-right:1px solid var(--hair);padding:.55rem .6rem;vertical-align:top}
+table.rota td:last-child{border-right:0}
+td.rowh{white-space:nowrap;width:110px;font-weight:700;font-size:.85rem}
+td.rowh .sub{display:block;font-size:.6rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+td.rowh .bar{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:.4rem}
+.cell{cursor:pointer;border-radius:8px;padding:.15rem .4rem;display:inline-block;min-width:38px;font-weight:700;font-size:.9rem;letter-spacing:-.01em}
+.cell:hover{background:var(--accent-bg)}
+.cell.empty{color:#c9cbd1;font-weight:400}
+.cell.diff{outline:1.5px dashed var(--amber);color:var(--amber)}
+.codpill{font-size:.55rem;background:var(--ink);color:#f1efe8;border-radius:6px;padding:.1rem .35rem;margin-left:.3rem;vertical-align:2px;font-weight:800;letter-spacing:.04em}
+.fintime{display:block;font-size:.62rem;color:var(--muted);font-weight:600;margin-top:.1rem}
+tr.junrow td{background:#fafaf8;border-bottom:1px solid var(--hair);font-size:.74rem;color:#5a5f68;padding:.3rem .6rem}
+tr.junrow td.rowh{font-weight:700;font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.legend{font-size:.76rem;color:var(--muted);margin:.6rem 0 0;display:flex;gap:1rem;flex-wrap:wrap}
+table.plain{border-collapse:collapse;width:100%}
+table.plain th{text-align:left;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:.45rem .5rem;border-bottom:1px solid var(--line);font-weight:700}
+table.plain td{padding:.45rem .5rem;border-bottom:1px solid var(--hair);font-size:.85rem}
+.warnpc{color:var(--amber);font-weight:700}
+.inipill{display:inline-block;background:var(--hair);border-radius:8px;padding:.05rem .4rem;font-size:.72rem;font-weight:700;color:var(--muted);margin-left:.35rem}
 #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#2c2c2a;color:#fff;padding:8px 16px;border-radius:10px;font-size:13px;display:none;z-index:50}
+.logrow{display:flex;gap:.6rem;padding:.4rem 0;border-bottom:1px solid var(--hair);font-size:.8rem}
+.logrow .lt{color:var(--muted);white-space:nowrap;font-size:.72rem;margin-top:.1rem}
+@media(max-width:760px){aside{display:none}main{padding:.6rem .7rem 4rem}#topbar{padding:.8rem .8rem .3rem}}
 </style>
 </head>
 <body>
-<h1>Consultant pod allocations</h1>
-<div class="sub">From the consultant rota sheet, refreshed automatically every 2 hours · COD covers Pod E (referrals, 19:00 finish) · on-call 16:00–09:00 covers all pods ·
-weekend: long day = 2 pods incl. E + referrals to 16:00, 24h = 2 pods, short day = 1 pod ·
-click any name to swap (logged) · <span class="warn">amber dashes = differs from the rota sheet</span></div>
-<div style="margin-bottom:10px"><button id="btnJun">Show juniors on each day</button><span id="status">loading…</span></div>
-<div id="weeks"></div>
-<div class="fair" id="fairbox"></div>
+<div id="layout">
+<aside>
+  <div class="logo">CCU</div>
+  <button data-tab="rota" class="active"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg></span>Pods</button>
+  <button data-tab="fair"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l3-8 4 14 3-8h4"/></svg></span>Fairness</button>
+  <button data-tab="staff"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19.5c.8-3.3 3.3-5 6.2-5s5.4 1.7 6.2 5"/><path d="M15.5 5.5a3.2 3.2 0 011.6 6"/><path d="M17.6 14.6c2.2.5 3.7 2 4.2 4.4"/></svg></span>Staffing</button>
+  <button data-tab="log"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>Log</button>
+  <div class="aside-spacer"></div>
+</aside>
+<div id="content">
+<div id="topbar">
+  <h1>Consultant pods</h1>
+  <div class="spacer"></div>
+  <button class="hbtn ghost" id="btnWho" style="font-size:.75rem;padding:.35rem .7rem;color:var(--muted)" title="Swaps are logged under this name — click to change"></button>
+  <span id="saveState"></span>
+  <button class="hbtn ghost" id="btnJuniors">Show juniors</button>
+</div>
+<main>
+  <section id="tab-rota">
+    <div class="weekbar">
+      <button class="navarrow" id="btnPrev" title="Previous week"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <b id="weekTitle"></b>
+      <button class="navarrow" id="btnNext" title="Next week"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button class="btn sec" id="btnToday" style="font-size:.78rem;padding:.35rem .7rem">This week</button>
+    </div>
+    <div class="rota-wrap"><div id="weekGrid"></div></div>
+    <div class="legend">
+      <span>Click a name to swap (logged)</span>
+      <span><span class="codpill">COD</span> referrals, finishes 19:00 (weekend/BH long day: referrals to 16:00)</span>
+      <span>On call 16:00–09:00</span>
+      <span style="color:var(--amber)">amber dashed = differs from the rota sheet</span>
+    </div>
+  </section>
+  <section id="tab-fair" style="display:none">
+    <div class="card"><h2>Pod A&amp;B vs C&amp;D — running totals (incl. pre-app history)</h2><div id="fairBox"></div></div>
+  </section>
+  <section id="tab-staff" style="display:none">
+    <div class="card"><h2>Consultant staffing</h2><div id="staffBox"></div></div>
+  </section>
+  <section id="tab-log" style="display:none">
+    <div class="card"><h2>Consultant change log</h2><div id="logBox"></div></div>
+  </section>
+</main>
+</div>
+</div>
 <div id="toast"></div>
 <script>
 const q = new URLSearchParams((location.hash || "").replace(/^#/, ""));
 const READ = q.get("r"), SAVE = q.get("s");
-let data = null, showJun = false;
+let data = null, showJun = false, curWeek = null;
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const toast = m => { const t = $("#toast"); t.textContent = m; t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", 3000); };
 const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const addDays = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0,10); };
+const mondayOf = iso => { const d = new Date(iso + "T12:00:00"); const k = (d.getDay() + 6) % 7; d.setDate(d.getDate() - k); return d.toISOString().slice(0,10); };
 const fmt = iso => new Date(iso + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 const nameOf = ini => (data.consRota && data.consRota.map && data.consRota.map[ini]) || ini;
+const PODROWS = [["A","Pod A","var(--podAb)"],["B","Pod B","var(--podBb)"],["C","Pod C","var(--podCb)"],["D","Pod D","var(--podDb)"],["E","Pod E","var(--podEb)"]];
+const state = t => { const s = $("#saveState"); s.className = t; s.textContent = t === "saved" ? "Saved" : t === "saving" ? "Saving…" : "Save failed"; };
+
+function weeksAvail(){ return Object.keys((data || {}).weeks || {}).sort(); }
 
 async function load(){
-  if (!READ){ $("#status").textContent = "no data key in the link — open this page from the shared Teams link"; return; }
+  if (!READ){ $("#weekGrid").innerHTML = "<p style='padding:1rem'>No data key in the link — open this page from the shared Teams link.</p>"; return; }
   const r = await fetch(READ, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}", cache: "no-store" });
   data = await r.json();
-  $("#status").textContent = data.savedAt ? "data saved " + new Date(data.savedAt).toLocaleString("en-GB") : "";
-  render();
+  const wks = weeksAvail();
+  const thisMon = mondayOf(new Date().toISOString().slice(0,10));
+  curWeek = wks.includes(thisMon) ? thisMon : (wks.find(w => w >= thisMon) || wks[wks.length - 1]);
+  state("saved");
+  whoBtn();
+  renderAll();
 }
 
-function juniorLine(date){
-  // compact list of juniors per pod that day, from the shared rota
-  const wk = (data.weeks || {})[mondayOf(date)];
-  if (!wk) return "";
-  const di = (new Date(date + "T12:00:00").getDay() + 6) % 7;
+function whoBtn(){ const w = localStorage.getItem("consEditor"); $("#btnWho").textContent = w ? "Editing as " + w : "Set your initials"; }
+$("#btnWho").onclick = () => { const w = (prompt("Your initials (recorded in the change log):", localStorage.getItem("consEditor") || "") || "").trim().toUpperCase(); if (w){ localStorage.setItem("consEditor", w); whoBtn(); } };
+
+function juniorsFor(dateISO){
+  const wk = (data.weeks || {})[mondayOf(dateISO)];
+  if (!wk) return null;
+  const di = (new Date(dateISO + "T12:00:00").getDay() + 6) % 7;
   const day = wk.days && wk.days[di];
-  if (!day) return "";
+  if (!day) return null;
   const nm = id => { const s = (data.staff || []).find(x => x.id === id); return s ? s.name.split(" ").pop() : ""; };
-  return ["A","B","C","D","E"].map(p => {
-    const ppl = ((day.pods[p] || {}).assign || []).map(a => nm(a.id)).filter(Boolean);
-    return ppl.length ? "<span class='jn'><b>" + p + ":</b> " + esc(ppl.join(", ")) + "</span>" : "";
-  }).filter(Boolean).join(" · ");
+  const out = { pods: {}, night: [] };
+  for (const p of ["A","B","C","D","E"]) out.pods[p] = (((day.pods || {})[p] || {}).assign || []).map(a => nm(a.id)).filter(Boolean);
+  out.night = [].concat((day.night || {}).AB || [], (day.night || {}).CDE || []).map(nm).filter(Boolean);
+  return out;
 }
-const mondayOf = iso => { const d = new Date(iso + "T12:00:00"); const k = (d.getDay() + 6) % 7; d.setDate(d.getDate() - k); return d.toISOString().slice(0,10); };
 
-function render(){
-  const cons = data.consRota;
-  const box = $("#weeks"); box.innerHTML = "";
-  if (!cons || !Object.keys(cons.days || {}).length){ box.innerHTML = "<p>No consultant allocations yet — the next sync run fills them in.</p>"; renderFair(); return; }
-  const weeks = [...new Set(Object.keys(data.weeks || {}))].sort();
-  for (const wk of weeks){
-    const dates = Array.from({length:7}, (_, i) => addDays(wk, i));
-    if (!dates.some(d => cons.days[d])) continue;
-    const card = document.createElement("div"); card.className = "wkcard";
-    card.innerHTML = "<div class='wktitle'>Week commencing " + fmt(wk) + "</div>";
-    let h = "<table><tr><th></th>" + dates.map((d, i) => "<th>" + DAYS[i] + " " + fmt(d) + "</th>").join("") + "</tr>";
-    const rows = [["A","Pod A"],["B","Pod B"],["C","Pod C"],["D","Pod D"],["E","Pod E"],["oncall","On call / 24h"],["cod","COD"],["fgh","FGH"]];
-    for (const [key, label] of rows){
-      h += "<tr><td class='rowh'>" + label + "</td>";
+function cellHTML(rec, key, d){
+  const cur = (rec && rec.cur[key]) || "", auto = (rec && rec.auto[key]) || "";
+  const diff = rec && cur !== auto;
+  const fin = rec && (rec.cur.fin || {})[cur];
+  const isCod = rec && cur && rec.cur.cod === cur && "ABCDE".includes(key);
+  let h = "<span class='cell" + (diff ? " diff" : "") + (cur ? "" : " empty") + "' data-d='" + d + "' data-k='" + key + "' title='" +
+    esc(nameOf(cur) || "nobody assigned") + (fin ? " · finishes " + fin : "") + (diff ? " · MANUAL — sheet says " + esc(auto || "nobody") : "") + "'>" + (esc(cur) || "—") + "</span>";
+  if (isCod) h += "<span class='codpill'>COD</span>";
+  if (fin && cur) h += "<span class='fintime'>to " + fin + "</span>";
+  return h;
+}
+
+function renderRota(){
+  const cons = (data.consRota || {}).days || {};
+  const dates = Array.from({length:7}, (_, i) => addDays(curWeek, i));
+  $("#weekTitle").textContent = fmt(curWeek) + " – " + fmt(dates[6]) + " " + new Date(dates[6] + "T12:00:00").getFullYear();
+  let h = "<table class='rota'><tr><th></th>" + dates.map((d,i) => "<th>" + DAYS[i] + " " + fmt(d) + "</th>").join("") + "</tr>";
+  for (const [p, label, barcol] of PODROWS){
+    h += "<tr><td class='rowh'><span class='bar' style='background:" + barcol + "'></span>" + label + "</td>";
+    for (const d of dates) h += "<td style='background:var(--pod" + p + ")'>" + cellHTML(cons[d], p, d) + "</td>";
+    h += "</tr>";
+    if (showJun){
+      h += "<tr class='junrow'><td class='rowh'>juniors</td>";
       for (const d of dates){
-        const rec = cons.days[d];
-        if (!rec){ h += "<td></td>"; continue; }
-        const cur = rec.cur[key] || "", auto = rec.auto[key] || "";
-        const fin = (rec.cur.fin || {})[cur];
-        const diff = cur !== auto;
-        const codTag = (key === "E" && cur && rec.cur.cod === cur && !rec.cur.wkend) ? "<span class='tagcod'>COD</span>" : "";
-        h += "<td><span class='cell" + (diff ? " diff" : "") + "' data-d='" + d + "' data-k='" + key + "' title='" +
-             esc(nameOf(cur)) + (fin ? " · finishes " + fin : "") + (diff ? " · MANUAL — sheet says " + esc(auto || "nobody") : "") +
-             "'>" + esc(cur) + "</span>" + codTag + "</td>";
+        const j = juniorsFor(d);
+        h += "<td>" + (j && j.pods[p].length ? esc(j.pods[p].join(", ")) : "—") + "</td>";
       }
       h += "</tr>";
     }
-    h += "</table>";
-    card.innerHTML += h;
-    const jun = document.createElement("div"); jun.className = "jun" + (showJun ? " open" : "");
-    jun.innerHTML = dates.map(d => "<div><b>" + fmt(d) + ":</b> " + (juniorLine(d) || "—") + "</div>").join("");
-    card.appendChild(jun);
-    box.appendChild(card);
   }
-  box.querySelectorAll(".cell").forEach(c => c.onclick = () => editCell(c.dataset.d, c.dataset.k));
-  renderFair();
+  h += "<tr><td class='rowh'>On call<span class='sub'>16:00–09:00 · 24h wknd</span></td>";
+  for (const d of dates) h += "<td>" + cellHTML(cons[d], "oncall", d) + "</td>";
+  h += "</tr>";
+  if (showJun){
+    h += "<tr class='junrow'><td class='rowh'>night juniors</td>";
+    for (const d of dates){ const j = juniorsFor(d); h += "<td>" + (j && j.night.length ? esc(j.night.join(", ")) : "—") + "</td>"; }
+    h += "</tr>";
+  }
+  h += "<tr><td class='rowh'>COD<span class='sub'>referrals</span></td>";
+  for (const d of dates) h += "<td>" + cellHTML(cons[d], "cod", d) + "</td>";
+  h += "</tr>";
+  h += "<tr><td class='rowh'>Fairfield</td>";
+  for (const d of dates) h += "<td>" + cellHTML(cons[d], "fgh", d) + "</td>";
+  h += "</tr>";
+  h += "</table>";
+  $("#weekGrid").innerHTML = h;
+  $("#weekGrid").querySelectorAll(".cell").forEach(c => c.onclick = () => editCell(c.dataset.d, c.dataset.k));
 }
 
 function renderFair(){
@@ -120,39 +217,82 @@ function renderFair(){
   const fair = cons.fair || {}, win = cons.window || {};
   const inis = [...new Set([...Object.keys(fair), ...Object.keys(win)])];
   const rows = inis.map(i => {
-    const ab = (fair[i] ? fair[i].ab : 0) + (win[i] ? win[i].ab : 0);
-    const cd = (fair[i] ? fair[i].cd : 0) + (win[i] ? win[i].cd : 0);
+    const ab = ((fair[i] || {}).ab || 0) + ((win[i] || {}).ab || 0);
+    const cd = ((fair[i] || {}).cd || 0) + ((win[i] || {}).cd || 0);
     return { i, ab, cd, t: ab + cd, pc: ab + cd ? Math.round(cd / (ab + cd) * 100) : null };
-  }).filter(r => r.t).sort((a, b) => b.t - a.t);
-  $("#fairbox").innerHTML = "<div class='wktitle'>Fairness — Pod A&amp;B vs C&amp;D (running totals, incl. pre-app history)</div>" +
-    "<table><tr><th>Consultant</th><th>A&amp;B days</th><th>C&amp;D days</th><th>% neuro (C&amp;D)</th></tr>" +
-    rows.map(r => "<tr><td>" + esc(nameOf(r.i)) + " <span style='color:var(--muted)'>" + r.i + "</span></td><td>" + r.ab +
-      "</td><td>" + r.cd + "</td><td" + (r.pc < 40 || r.pc > 60 ? " class='warn'" : "") + ">" + r.pc + "%</td></tr>").join("") +
-    "</table>";
+  }).filter(r => r.t).sort((a,b) => b.t - a.t);
+  $("#fairBox").innerHTML = "<table class='plain'><tr><th>Consultant</th><th>A&amp;B days</th><th>C&amp;D (neuro) days</th><th>% neuro</th></tr>" +
+    rows.map(r => "<tr><td>" + esc(nameOf(r.i)) + "<span class='inipill'>" + r.i + "</span></td><td>" + r.ab + "</td><td>" + r.cd +
+      "</td><td" + (r.pc < 40 || r.pc > 60 ? " class='warnpc'" : "") + ">" + r.pc + "%</td></tr>").join("") + "</table>";
 }
 
+function renderStaff(){
+  const cons = data.consRota || {}; const days = cons.days || {}; const map = cons.map || {};
+  const tal = {};
+  const bump = (ini, k) => { if (!ini) return; (tal[ini] = tal[ini] || { pod:0, oc:0, cod:0, fgh:0 })[k]++; };
+  for (const d in days){
+    const cur = days[d].cur || {};
+    const podset = new Set();
+    for (const p of ["A","B","C","D","E"]) if (cur[p]) podset.add(cur[p]);
+    for (const i of podset) bump(i, "pod");
+    bump(cur.oncall, "oc"); bump(cur.cod, "cod"); bump(cur.fgh, "fgh");
+  }
+  const inis = Object.keys(map).filter(i => !["FMCN","NET","AC","SF"].includes(i)).sort((a,b) => nameOf(a).localeCompare(nameOf(b)));
+  $("#staffBox").innerHTML = "<table class='plain'><tr><th>Consultant</th><th>Initials</th><th>Pod days*</th><th>On call</th><th>COD</th><th>Fairfield</th></tr>" +
+    inis.map(i => { const t = tal[i] || { pod:0, oc:0, cod:0, fgh:0 };
+      return "<tr><td>" + esc(nameOf(i)) + "</td><td><span class='inipill' style='margin:0'>" + i + "</span></td><td>" + t.pod + "</td><td>" + t.oc + "</td><td>" + t.cod + "</td><td>" + t.fgh + "</td></tr>"; }).join("") +
+    "</table><div style='font-size:.72rem;color:var(--muted);margin-top:.5rem'>*days covering at least one pod, across the window the app currently holds — the rota sheet remains the master.</div>";
+}
+
+function renderLog(){
+  const rows = (data.log || []).filter(x => /consultant|on call/i.test(x.msg || "") || /consultant page/i.test(x.who || ""));
+  $("#logBox").innerHTML = rows.length ? rows.slice(0,200).map(x =>
+    "<div class='logrow'><span class='lt'>" + esc(new Date(x.t).toLocaleString("en-GB", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })) + "</span><span><b style='font-weight:600'>" + esc(x.who || "") + "</b> — " + esc(x.msg) + "</span></div>").join("")
+    : "<p style='color:var(--muted);font-size:.85rem'>No consultant changes logged yet.</p>";
+}
+
+function renderAll(){ renderRota(); renderFair(); renderStaff(); renderLog(); }
+
 async function editCell(d, k){
-  const rec = data.consRota.days[d];
+  const cons = data.consRota; if (!cons) return;
+  const blank = () => ({ A:"",B:"",C:"",D:"",E:"",oncall:"",cod:"",fgh:"",wkend:false,fin:{} });
+  const rec = cons.days[d] || (cons.days[d] = { auto: blank(), cur: blank() });
   let who = localStorage.getItem("consEditor") || "";
-  if (!who){ who = (prompt("Your initials (recorded in the change log):") || "").trim().toUpperCase(); if (!who) return; localStorage.setItem("consEditor", who); }
+  if (!who){ who = (prompt("Your initials (recorded in the change log):") || "").trim().toUpperCase(); if (!who) return; localStorage.setItem("consEditor", who); whoBtn(); }
+  const label = k.length === 1 ? "Pod " + k : k === "oncall" ? "on call" : k === "cod" ? "COD" : "Fairfield";
   const cur = rec.cur[k] || "";
-  const val = prompt("Who covers " + (k.length === 1 ? "Pod " + k : k) + " on " + fmt(d) + "? Enter initials (blank = clear):", cur);
+  const val = prompt("Who covers " + label + " on " + fmt(d) + "? Enter initials (blank = clear):", cur);
   if (val === null) return;
   const ini = val.trim().toUpperCase();
   rec.cur[k] = ini;
   data.log = data.log || [];
-  data.log.unshift({ t: new Date().toISOString(), who: who + " (consultant page)", msg: "Consultant swap " + d + " " + k + ": " + (cur || "—") + " → " + (ini || "—") + (ini === rec.auto[k] ? "" : " (differs from rota sheet)") });
+  data.log.unshift({ t: new Date().toISOString(), who: who + " (consultant page)", msg: "Consultant swap " + d + " " + label + ": " + (cur || "—") + " → " + (ini || "—") + (ini === (rec.auto[k] || "") ? "" : " (differs from rota sheet)") });
   if (data.log.length > 500) data.log.length = 500;
   data.savedAt = new Date().toISOString(); data.savedBy = who;
+  state("saving");
   try {
     await fetch(SAVE, { method: "POST", mode: "no-cors", body: new Blob([JSON.stringify(data)], { type: "application/json" }) });
-    toast("Saved — " + (ini || "cleared") + (ini === rec.auto[k] ? "" : " (flagged: differs from the rota sheet)"));
-  } catch(e){ toast("Save failed — try again"); }
-  render();
+    state("saved");
+    toast("Saved — " + (ini || "cleared") + (ini === (rec.auto[k] || "") ? "" : " (flagged: differs from the rota sheet)"));
+  } catch(e){ state("unsaved"); toast("Save failed — try again"); }
+  renderAll();
 }
 
-$("#btnJun").onclick = () => { showJun = !showJun; $("#btnJun").textContent = showJun ? "Hide juniors" : "Show juniors on each day"; document.querySelectorAll(".jun").forEach(j => j.classList.toggle("open", showJun)); };
-load().catch(e => $("#status").textContent = "couldn't load: " + e);
+function shiftWeek(n){
+  const wks = weeksAvail();
+  const i = wks.indexOf(curWeek);
+  const target = wks[i + n];
+  if (target){ curWeek = target; renderRota(); }
+}
+$("#btnPrev").onclick = () => shiftWeek(-1);
+$("#btnNext").onclick = () => shiftWeek(1);
+$("#btnToday").onclick = () => { const wks = weeksAvail(); const m = mondayOf(new Date().toISOString().slice(0,10)); if (wks.includes(m)){ curWeek = m; renderRota(); } };
+$("#btnJuniors").onclick = () => { showJun = !showJun; $("#btnJuniors").textContent = showJun ? "Hide juniors" : "Show juniors"; renderRota(); };
+document.querySelectorAll("aside button[data-tab]").forEach(b => b.onclick = () => {
+  document.querySelectorAll("aside button[data-tab]").forEach(x => x.classList.toggle("active", x === b));
+  for (const t of ["rota","fair","staff","log"]) $("#tab-" + t).style.display = (b.dataset.tab === t) ? "" : "none";
+});
+load().catch(e => { $("#weekGrid").innerHTML = "<p style='padding:1rem'>Couldn't load: " + esc(e.message || e) + "</p>"; });
 </script>
 </body>
 </html>

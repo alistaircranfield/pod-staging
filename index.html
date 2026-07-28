@@ -213,6 +213,8 @@ body.person-dragging .trayhint,td.tray.tappable .trayhint{display:block;border-c
 .conssel.has{color:var(--muted);font-weight:700}
 .conssel:hover{color:var(--ink)}
 .conswrap{display:flex;justify-content:flex-end;margin:-1px 0 3px;min-height:14px}
+.consauto{font-size:.66rem;color:var(--muted);font-weight:700;text-align:right;white-space:nowrap}
+.codpill{font-size:.5rem;background:var(--ink);color:#f1efe8;border-radius:5px;padding:.06rem .3rem;margin-left:.25rem;font-weight:800;letter-spacing:.04em;vertical-align:1px}
 th.podth{border-top:3px solid var(--line)}
 td.col-A{background:var(--podA)} td.col-B{background:var(--podB)} td.col-C{background:var(--podC)} td.col-D{background:var(--podD)} td.col-E{background:var(--podE)}
 .ptoken{display:inline-flex;align-items:center;gap:.3rem;border:1.5px dashed #c6cdd8;border-radius:999px;padding:.18rem .6rem;font-size:.7rem;font-weight:700;color:var(--muted);cursor:grab;user-select:none;margin-top:.35rem;background:rgba(255,255,255,.6)}
@@ -2215,6 +2217,17 @@ function renderDayRow(day, di, dateISO, issues){
       consSel.disabled = !canEdit();
       col.append(el("div", { class: "conswrap" }, consSel));
     }
+    /* Consultant rota crosstalk: when no consultant is picked here, show the one the
+       consultant rota assigns (display-only), with a COD pill on the referral holder. */
+    {
+      const crec = data.consRota && data.consRota.days && data.consRota.days[dateISO];
+      const cini = crec && crec.cur && crec.cur[p];
+      if (cini && !pod.cons) {
+        const lbl = el("span", { class: "consauto", title: ((data.consRota.map || {})[cini] || cini) + " — from the consultant rota" }, cini);
+        if (crec.cur.cod && crec.cur.cod === cini) lbl.append(el("span", { class: "codpill" }, "COD"));
+        col.append(el("div", { class: "conswrap" }, lbl));
+      }
+    }
     for (const a of pod.assign.filter(a => a.id && staffById(a.id))) {
       col.append(chip(staffById(a.id), { di, day, tag: a.shift,
         tagClick: async () => {
@@ -2248,6 +2261,13 @@ function renderDayRow(day, di, dateISO, issues){
       ncSel.onchange = () => { day.nightCons = ncSel.value || null; logEntry("On call: " + (ncSel.value ? (staffById(ncSel.value) ? consLabel(staffById(ncSel.value)) : ncSel.value) : "cleared") + " (" + dayShort(di) + ")"); markDirty(); renderWeek(); };
       ncSel.disabled = !canEdit();
       night.append(el("div", { class: "conswrap" }, ncSel));
+    }
+    /* Consultant rota crosstalk: overnight on-call consultant from the consultant rota. */
+    const crecN = data.consRota && data.consRota.days && data.consRota.days[dateISO];
+    if (crecN && crecN.cur && crecN.cur.oncall && !day.nightCons) {
+      night.append(el("div", { class: "conswrap" },
+        el("span", { class: "consauto", title: ((data.consRota.map || {})[crecN.cur.oncall] || crecN.cur.oncall) + " — consultant on call overnight (16:00–09:00), from the consultant rota" },
+          crecN.cur.oncall + " on call")));
     }
   }
   if (!day.night.phone) night.append(el("div", {}, phoneToken(di, "night")));
