@@ -342,12 +342,13 @@ function cellHTML(rec, key, d){
   const fin = rec && (rec.cur.fin || {})[cur];
   const isCod = rec && cur && rec.cur.cod === cur && "ABCDE".includes(key);
   const podCell = "ABCDE".includes(key);
-  let h = "<div class='cellwrap'><span class='cell" + (diff ? " diff" : "") + (cur ? "" : " empty") + "' data-d='" + d + "' data-k='" + key + "'" +
+  let h = "<div class='cellwrap'>" +
+    (isCod ? "<span class='codpill' draggable='true' data-d='" + d + "' title='COD — drag onto another pod on this day to hand over referrals'>COD</span>" : "") +
+    "<span class='cell" + (diff ? " diff" : "") + (cur ? "" : " empty") + "' data-d='" + d + "' data-k='" + key + "'" +
     (cur && podCell ? " draggable='true'" : "") + " title='" +
     esc(nameOf(cur) || "nobody assigned") + (fin ? " · finishes " + fin : "") + (diff ? " · MANUAL — sheet says " + esc(auto || "nobody") : "") +
     (cur && podCell ? " · drag onto another pod to swap" : "") + "'>" + (esc(cur) || "—") + "</span>";
-  if (isCod) h += "<span class='codpill' draggable='true' data-d='" + d + "' title='COD — drag onto another pod on this day to hand over referrals'>COD</span>";
-  else if (fin && cur){
+  if (fin && cur && !isCod){
     /* 17:00 is the normal finish, so it isn't drawn — only the exception gets a mark. */
     const t = fin.slice(0,2) === "17" ? "" : fin.slice(0,2) === "18" ? "18" : fin;
     if (t) h += "<span class='finbadge' title='finishes " + fin + "'>" + esc(t) + "</span>";

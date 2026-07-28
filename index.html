@@ -118,6 +118,10 @@ td.daylabel .d{font-weight:700;font-size:1.05rem;letter-spacing:-.01em}
 .slotrow{display:flex;align-items:center;gap:.3rem;margin-bottom:.3rem}
 .slotrow select{flex:1;min-width:0}
 .subhead{font-size:.58rem;font-weight:700;color:#a7adb5;text-transform:uppercase;letter-spacing:.08em;margin:.55rem 0 .25rem}
+/* Night column: line the names up with the other columns, and one person per row. */
+td.nighttd .subhead:first-child{margin-top:0}
+td.nighttd>div:first-child{margin-top:0}
+td.nighttd .chip{display:flex}
 .mini{border:0;background:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:0 .2rem}
 .mini:hover{color:var(--red)}
 .addbtn{border:1px dashed #d5d5d0;border-radius:8px;background:none;color:var(--muted);font-size:.7rem;cursor:pointer;padding:.2rem .5rem;margin-top:.15rem;font-family:inherit}
@@ -187,6 +191,28 @@ table.rota:not(:has(td.tray .chip)) td.tray .trayhint::after{content:"drop";font
 .addpop-item:hover{background:var(--accent-bg);color:var(--accent)}
 .addpop-item:hover .addico{color:var(--accent)}
 .adlbl{display:block;font-size:.72rem;color:var(--muted);margin:.7rem 0 .3rem;font-weight:600}
+/* ---- Help page (public) ---- */
+.hlp{max-width:720px}
+.hlp .lead{color:#4a4f58;line-height:1.6;margin:0 0 1.2rem;font-size:.92rem}
+.hlp details{border-bottom:1px solid var(--hair)}
+.hlp details:last-of-type{border-bottom:0}
+.hlp summary{cursor:pointer;padding:.85rem 0;font-weight:600;font-size:.95rem;list-style:none;display:flex;align-items:center;gap:.7rem}
+.hlp summary::-webkit-details-marker{display:none}
+.hlp summary::before{content:"+";width:22px;height:22px;border-radius:7px;background:var(--hair);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:.9rem;flex-shrink:0}
+.hlp details[open]>summary::before{content:"-";background:var(--accent-bg);color:var(--accent)}
+.hlp .in{padding:0 0 1.1rem 2.9rem;color:#4a4f58;font-size:.88rem;line-height:1.65}
+.hlp .in p{margin:0 0 .65rem} .hlp .in p:last-child{margin-bottom:0}
+.hlp .in ol{margin:.2rem 0 .65rem;padding-left:1.1rem} .hlp .in li{margin-bottom:.4rem}
+.hlp .anno{display:flex;gap:1.4rem;flex-wrap:wrap;align-items:flex-start}
+.hlp .cellex{border:1px solid var(--line);border-radius:14px;overflow:hidden;width:250px;flex-shrink:0}
+.hlp .cellex .ph{background:#f5f8ff;padding:.42rem .7rem;font-size:.62rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);display:flex;justify-content:space-between}
+.hlp .cellex .bd{padding:.6rem .7rem;background:#f5f8ff}
+.hlp .pc{display:flex;align-items:center;gap:.4rem;background:#fff;border:1px solid var(--line);border-radius:999px;padding:.24rem .55rem;margin-bottom:.35rem;font-size:.82rem;font-weight:600}
+.hlp .calls{margin:0;padding:0}
+.hlp .calls li{list-style:none;display:flex;gap:.65rem;padding:.4rem 0;border-bottom:1px solid var(--hair);font-size:.85rem;line-height:1.5}
+.hlp .calls li:last-child{border-bottom:0}
+.hlp .num{width:19px;height:19px;border-radius:50%;background:var(--accent);color:#fff;font-size:.68rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:.12rem}
+.hlp .exdot{display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:.02em;margin-right:.15rem}
 .adnote{font-size:.72rem;color:var(--muted);margin-top:.5rem}
 .seg{display:flex;gap:.3rem}
 .segbtn{flex:1;font-size:.78rem;font-weight:600;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:.5rem .3rem;cursor:pointer;font-family:inherit}
@@ -442,6 +468,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
   <button class="hbtn ghost" id="btnWho" style="font-size:.75rem;padding:.35rem .7rem;color:var(--muted)" title="Changes are logged under this name — click to change who's editing"></button>
   <span id="saveState"></span>
   <button class="hbtn ghost" id="btnKey" title="What the symbols and colours mean">Key</button>
+  <button class="hbtn ghost" id="btnFeedback" title="Tell us what works and what doesn't — named or anonymous">Feedback</button>
   <button class="hbtn" id="btnEdit" title="Unlock to edit — drag people between pods, add locums and edit the Fairfield column">Edit</button>
   <button class="hbtn ghost" id="btnDone" title="Back to read-only view">Done</button>
   <button class="hbtn ghost" id="btnUndo" title="Undo last change (Ctrl+Z)">↩ Undo</button>
@@ -582,19 +609,86 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
     </div>
   </section>
 
-  <section id="tab-help" style="display:none">
-    <div class="card help" style="max-width:680px">
-      <h2>Pods</h2>
-      <p>Each day, the people still to place appear under <b>To allocate</b> — from an Import, or added with the add-person line. Drag them into pods, or click a person then click where they go. Give out the referral phone the same way: drag the dashed <b>phone</b> token onto a person (or click it, then them); to move it, drag the phone straight off one chip onto another, or click it to take it back. If the phone holder needs supervision, an amber <b>supervisor</b> badge appears — put it on whoever is supervising, the same way. Click a chip's <b>SD / LD / N</b> tag to change their shift. The small <b>A</b> means airway trained. Students and work-experience visitors go on via <b>+ observer / student…</b> — they show on the rota but never count in numbers.</p>
-      <p>The dot beside each date: <b style="color:var(--green)">green</b> all checks pass · <b style="color:var(--amber)">amber</b> worth a look · <b style="color:var(--red)">red</b> a unit rule is broken. Click it to read the details. Everything saves automatically — watch for "All changes saved" at the top.</p>
-      <h2>Import</h2>
-      <p>Drop in the week's <b>Work Roster 1 Week</b> Excel export from Optima (instructions on the Import page). Names are matched to the staff list automatically, and each day's bench then shows exactly who's working.</p>
-      <h2>Staff</h2>
-      <p>One row per person: airway, phone, nights, transfer, supernumerary, plus start and end dates. This list is what all the safety checks run on. When someone leaves, set their end date and they disappear from the lists by themselves. Password protected — the password is set the first time anyone opens the page.</p>
-      <h2>Print copy</h2>
-      <p>Saves a read-only, nicely formatted copy of the week as a single file — for printing for the wall, or posting into the Teams chat.</p>
-      <h2>Mistakes</h2>
-      <p><b>Undo</b> reverses your last change, step by step. The <b>Log</b> page records who changed what and when. Only one person can edit at a time — if someone else has Edit open, the button tells you who, and it frees itself within minutes of them finishing. Every edit session starts from the latest saved version, an older copy can never save over a newer one, and editing closes itself after five minutes untouched.</p>
+  <section id="tab-help">
+    <div class="card hlp">
+      <p class="lead">This is the pod allocation for the unit. It updates itself from Allocate roughly every two hours through the day, so short-notice changes appear on their own. Anyone can look; changing it needs the team password.</p>
+
+      <details open><summary>What everything on the board means</summary>
+        <div class="in">
+          <div class="anno">
+            <div class="cellex">
+              <div class="ph"><span>Pod A</span><span style="color:var(--ink);font-weight:700">TF</span></div>
+              <div class="bd">
+                <div class="pc"><span class="tagx LD">LD</span> Ella Snowden <span class="awdot">A</span> ☎</div>
+                <div class="pc"><span class="tagx SD">SD</span> Tom Curtis</div>
+                <div class="pc" style="opacity:.75"><span class="tagx SD">SD</span> Alice Ring 👁</div>
+              </div>
+            </div>
+            <ul class="calls">
+              <li><span class="num">1</span><div>Days run down the left, pods across the top. Find your name on today’s row.</div></li>
+              <li><span class="num">2</span><div><b>TF</b> — the consultant covering that pod.</div></li>
+              <li><span class="num">3</span><div><b>LD</b> long day, 8 till 8. <b>SD</b> short day. Nights are in the Night team column.</div></li>
+              <li><span class="num">4</span><div><b>A</b> — airway trained.</div></li>
+              <li><span class="num">5</span><div><b>☎</b> — holds the referral phone. Always someone on a long day.</div></li>
+              <li><span class="num">6</span><div><b>👁</b> — supernumerary, so not counted in the pod’s numbers.</div></li>
+            </ul>
+          </div>
+        </div>
+      </details>
+
+      <details><summary>Someone’s off sick — what do I do?</summary>
+        <div class="in">
+          <p>You can sort it on the board there and then. You’ll need the team password.</p>
+          <ol>
+            <li>Click the person and choose <b>Take off this day</b>.</li>
+            <li>The day’s dot turns amber or red, and a <b>Fix this day</b> button appears next to the date.</li>
+            <li>Press it. It works out the fewest moves that clear the problem — who shifts pod, who picks up the phone — and shows you the list before anything happens. Everyone not involved stays put.</li>
+            <li><b>Apply</b>, or close it and move people yourself by dragging.</li>
+          </ol>
+          <p><b>Undo</b> reverses it, and the change is logged with your name. If nothing can be moved it says so and tells you why — for example if no long-day person is left who can hold the phone.</p>
+          <p>Still record the absence in Allocate as normal. The board keeps your pod changes, but who’s rostered comes from Allocate.</p>
+        </div>
+      </details>
+
+      <details><summary>Who’s got the referral phone?</summary>
+        <div class="in">
+          <p>The phone icon shows the holder, and they are always on a long day — the board won’t leave it with someone on a short day.</p>
+          <p>A fainter phone icon on someone else means they’re shadowing to learn it, with a supervisor on the same shift. If the holder goes off sick, <b>Fix this day</b> hands the phone on for you.</p>
+        </div>
+      </details>
+
+      <details><summary>What do the coloured dots mean?</summary>
+        <div class="in">
+          <p><span class="exdot" style="background:var(--green)"></span> nothing to flag · <span class="exdot" style="background:var(--amber)"></span> worth a look, perhaps airway cover is uneven · <span class="exdot" style="background:var(--red)"></span> something needs sorting: a pod under numbers, no phone holder, or somebody in two places at once.</p>
+          <p><b>Click the dot</b> to see exactly what it’s flagging on that day.</p>
+        </div>
+      </details>
+
+      <details><summary>What’s the Fairfield column?</summary>
+        <div class="in">
+          <p>Who’s at Fairfield that day. Locum, bank and NHSp names can be added there for a single day, and they don’t count towards Salford’s pod numbers.</p>
+          <p>To add one: create them in the <b>To allocate</b> column as you would a Salford locum, then drag them across into Fairfield.</p>
+        </div>
+      </details>
+
+      <details><summary>Can I change it?</summary>
+        <div class="in">
+          <p>Looking is open to everyone. Press <b>Edit</b> and enter the team password to make changes — the coordinators and rota team have it.</p>
+          <p>Only one person can edit at a time; if someone else is in, the button tells you who. Every change is logged with a name and a time, and <b>Undo</b> steps back through them.</p>
+        </div>
+      </details>
+
+      <details><summary>Can I print it or put it in the chat?</summary>
+        <div class="in">
+          <p><b>Print copy</b> at the top saves a clean, read-only copy of the week as a single file — for the wall, or for posting into Teams.</p>
+        </div>
+      </details>
+
+      <details><summary>Something looks wrong — who do I tell?</summary>
+        <div class="in">
+          <p>Use the <b>Feedback</b> button at the top. Put your name to it or send it anonymously, whichever you prefer — both come straight back to us during the trial.</p>
+        </div>
+      </details>
     </div>
   </section>
 </main>
@@ -2247,7 +2341,9 @@ function renderDayRow(day, di, dateISO, issues){
         onRemove: () => { pod.assign = pod.assign.filter(x => x !== a); logEntry("Removed " + staffById(a.id).name + " from Pod " + p + " (" + dayShort(di) + ")"); markDirty(); renderWeek(); } }));
     }
     if (!pod.assign.length) col.append(el("div", { class: "hint" }, "drop staff here"));
-    if (pod.super.length || activeStaff(dateISO).some(s => s.supernum)) {
+    // Only say "Super" when someone actually is one here. In edit mode the empty box still
+    // shows so the rota team can drop somebody into it.
+    if (pod.super.length || (canEdit() && activeStaff(dateISO).some(s => s.supernum))) {
       col.append(el("div", { class: "subhead" }, "Super"));
       const supBox = el("div"); col.append(supBox);
       idListEditor(supBox, dateISO, pod.super, s => s.supernum, "super");
@@ -2302,7 +2398,7 @@ function renderDayRow(day, di, dateISO, issues){
   } else {
     nightZone("Pod C, D & E", day.night.CDE);
   }
-  if (day.night.super.length || activeStaff(dateISO).some(s => s.supernum)) {
+  if (day.night.super.length || (canEdit() && activeStaff(dateISO).some(s => s.supernum))) {
     night.append(el("div", { class: "subhead" }, "Super"));
     const nsup = el("div"); night.append(nsup);
     idListEditor(nsup, dateISO, day.night.super, s => s.supernum, "super");
@@ -3033,6 +3129,17 @@ function renderFairness(){
 function renderLog(){
   const box = $("#logList");
   box.innerHTML = "";
+  const fb = (data && data.feedback) || [];
+  if (fb.length) {
+    box.append(el("div", { style: "font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:.2rem 0 .5rem" },
+      "Trial feedback (" + fb.length + ")"));
+    for (const f of fb.slice(0, 100)) {
+      box.append(el("div", { class: "logrow" },
+        el("div", { class: "t" }, new Date(f.t).toLocaleString("en-GB") + " — " + (f.name || "anonymous")),
+        (f.kind ? f.kind + ": " : "") + f.msg));
+    }
+    box.append(el("div", { style: "font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:1.1rem 0 .5rem" }, "Changes"));
+  }
   if (!data || !data.log.length) { box.append(el("div", { class: "empty" }, "No changes logged yet.")); return; }
   for (const e of data.log.slice(0, 200)) {
     box.append(el("div", { class: "logrow" }, el("div", { class: "t" }, new Date(e.t).toLocaleString("en-GB") + " — " + e.who), e.msg));
@@ -3490,6 +3597,71 @@ function addAdhocPerson(di, name, shift, dest){
   logEntry("Added " + name + " (locum/bank) — " + (dest === "fairfield" ? "Fairfield" : dest === "night" ? "night team" : "to allocate") + " (" + dayShort(di) + ")");
   markDirty(); renderWeek();
 }
+/* ================= TRIAL FEEDBACK =================
+   Open to everyone — no unlock needed. Saved into the same SharePoint file as the rota, so
+   anonymous really is anonymous (nothing about the sender is recorded unless they type it).
+   Writes against a freshly-read copy, never our own in-memory rota, so somebody sending
+   feedback can never overwrite an edit made elsewhere in the meantime. */
+const TRIAL_END = "2026-09-02";                 // button disappears after this date
+const FEEDBACK_TO = "alistair.cranfield@nca.nhs.uk";
+function trialOn(){ return todayISO() <= TRIAL_END; }
+
+async function sendFeedback(entry){
+  const cur = await readSelf();
+  const base = (cur && Array.isArray(cur.staff)) ? cur : data;
+  base.feedback = base.feedback || [];
+  base.feedback.unshift(entry);
+  if (base.feedback.length > 300) base.feedback.length = 300;
+  const ok = await relayFetch(JSON.stringify(base));
+  if (ok) { data.feedback = base.feedback; }
+  return ok;
+}
+
+function feedbackDialog(){
+  const m = $("#modal"); m.innerHTML = "";
+  m.append(el("h3", {}, "Feedback"));
+  let kind = "Problem", anon = false;
+  const seg = el("div", { class: "seg" });
+  [["Problem","Something's wrong"],["Suggestion","An idea"],["Question","A question"]].forEach(([v,l]) => {
+    const b = el("button", { class: "segbtn" + (v === kind ? " on" : ""), onclick: () => {
+      kind = v; [...seg.children].forEach(c => c.classList.toggle("on", c.dataset.v === v)); } }, l);
+    b.dataset.v = v; seg.append(b);
+  });
+  m.append(el("label", { class: "adlbl" }, "What kind of thing is it?"), seg);
+  const msg = el("textarea", { style: "width:100%;min-height:130px;font-family:inherit;font-size:.9rem;border:1px solid var(--line);border-radius:12px;padding:.6rem .7rem", placeholder: "What happened, or what would make it better?" });
+  m.append(el("label", { class: "adlbl" }, "Your feedback"), msg);
+  const nameIn = el("input", { type: "text", placeholder: "Optional", style: "width:100%" });
+  const nameLbl = el("label", { class: "adlbl" }, "Your name");
+  m.append(nameLbl, nameIn);
+  const anonWrap = el("label", { style: "display:flex;align-items:center;gap:.5rem;margin-top:.7rem;font-size:.85rem;cursor:pointer" });
+  const anonBox = el("input", { type: "checkbox" });
+  anonBox.onchange = () => { anon = anonBox.checked; nameIn.style.display = anon ? "none" : ""; nameLbl.style.display = anon ? "none" : ""; };
+  anonWrap.append(anonBox, el("span", {}, "Send anonymously — nothing about me is recorded"));
+  m.append(anonWrap);
+  const note = el("p", { class: "fixsub", style: "margin-top:.7rem" }, "Stays inside the Trust — it's saved in the same SharePoint file as the rota.");
+  m.append(note);
+  const btns = el("div", { class: "modalbtns" });
+  btns.append(
+    el("button", { class: "btn sec", onclick: closeModal }, "Cancel"),
+    el("button", { class: "btn sec", onclick: () => {
+        const body = encodeURIComponent((msg.value || "") + "\n\n— sent from the Pod Allocator");
+        location.href = "mailto:" + FEEDBACK_TO + "?subject=" + encodeURIComponent("Pod Allocator feedback: " + kind) + "&body=" + body;
+      } }, "Email it instead"),
+    el("button", { class: "btn", onclick: async () => {
+        const text = (msg.value || "").trim();
+        if (!text) { msg.focus(); return; }
+        closeModal();
+        toast("Sending…");
+        const ok = await sendFeedback({ t: new Date().toISOString(), kind,
+          name: anon ? "" : (nameIn.value || "").trim(), msg: text });
+        toast(ok ? "Thanks — that's been sent" : "Couldn't send just now — try Email it instead");
+      } }, "Send")
+  );
+  m.append(btns);
+  $("#modalBg").style.display = "flex";
+  msg.focus();
+}
+
 function adhocDialog(di, prefillName, presetDest){
   const m = $("#modal"); m.innerHTML = "";
   m.append(el("h3", {}, presetDest === "fairfield" ? "Add someone to Fairfield" : "Add a one-off person"));
@@ -3869,6 +4041,8 @@ function switchTab(tab){
 document.querySelectorAll("aside button[data-tab]").forEach(b => b.onclick = () => switchTab(b.dataset.tab));
 $("#btnWho").onclick = changeEditor;
 $("#btnEdit").onclick = enterEdit;
+$("#btnFeedback").onclick = feedbackDialog;
+if (!trialOn()) $("#btnFeedback").style.display = "none";
 $("#btnDone").onclick = exitEdit;
 document.body.classList.add("viewmode");
 updateWhoBtn();
