@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCU Consultant Pods</title>
+<style>
+:root{--ink:#17181c;--muted:#8a8f98;--line:#e3e3de;--card:#fff;--bg:#f7f7f5;--amber:#b45309;--accent:#4c5dd6}
+*{box-sizing:border-box}
+body{font-family:Inter,"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);margin:0;padding:18px}
+h1{font-size:22px;margin:0 0 2px}
+.sub{color:var(--muted);font-size:12.5px;margin-bottom:14px}
+.wkcard{background:var(--card);border:0.5px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:16px;overflow-x:auto}
+.wktitle{font-weight:700;font-size:15px;margin:2px 0 8px}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:13px}
+th{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--card)}
+td{padding:5px 8px;border-bottom:0.5px solid #f0f0ec}
+td.rowh{font-weight:600;white-space:nowrap;color:#444}
+.cell{cursor:pointer;border-radius:6px;padding:2px 6px;display:inline-block;min-width:34px}
+.cell:hover{background:#eef0ff}
+.cell.diff{outline:1.5px dashed var(--amber);color:var(--amber);font-weight:700}
+.tagcod{font-size:9px;background:#2c2c2a;color:#f1efe8;border-radius:5px;padding:1px 5px;margin-left:4px;vertical-align:1px}
+.legend{font-size:12px;color:var(--muted);margin:6px 0 14px}
+.fair{background:var(--card);border:0.5px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:16px}
+.fair table{min-width:520px}
+.warn{color:var(--amber);font-weight:600}
+button{font-family:inherit;font-size:12.5px;border:1px solid #cfcfc9;background:#fff;border-radius:8px;padding:4px 10px;cursor:pointer}
+button:hover{background:#f2f2ee}
+#status{font-size:12px;color:var(--muted);margin-left:8px}
+.jun{font-size:11.5px;color:#555;background:#fafaf7;border-radius:8px;padding:6px 8px;margin-top:6px;display:none}
+.jun.open{display:block}
+.jn{white-space:nowrap}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#2c2c2a;color:#fff;padding:8px 16px;border-radius:10px;font-size:13px;display:none;z-index:50}
+</style>
+</head>
+<body>
+<h1>Consultant pod allocations</h1>
+<div class="sub">From the consultant rota sheet, refreshed automatically every 2 hours · COD covers Pod E (referrals, 19:00 finish) · on-call 16:00–09:00 covers all pods ·
+weekend: long day = 2 pods incl. E + referrals to 16:00, 24h = 2 pods, short day = 1 pod ·
+click any name to swap (logged) · <span class="warn">amber dashes = differs from the rota sheet</span></div>
+<div style="margin-bottom:10px"><button id="btnJun">Show juniors on each day</button><span id="status">loading…</span></div>
+<div id="weeks"></div>
+<div class="fair" id="fairbox"></div>
+<div id="toast"></div>
+<script>
+const q = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+const READ = q.get("r"), SAVE = q.get("s");
+let data = null, showJun = false;
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const toast = m => { const t = $("#toast"); t.textContent = m; t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", 3000); };
+const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const addDays = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0,10); };
+const fmt = iso => new Date(iso + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+const nameOf = ini => (data.consRota && data.consRota.map && data.consRota.map[ini]) || ini;
+
+async function load(){
+  if (!READ){ $("#status").textContent = "no data key in the link — open this page from the shared Teams link"; return; }
+  const r = await fetch(READ, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}", cache: "no-store" });
+  data = await r.json();
+  $("#status").textContent = data.savedAt ? "data saved " + new Date(data.savedAt).toLocaleString("en-GB") : "";
+  render();
+}
+
+function juniorLine(date){
+  // compact list of juniors per pod that day, from the shared rota
+  const wk = (data.weeks || {})[mondayOf(date)];
+  if (!wk) return "";
+  const di = (new Date(date + "T12:00:00").getDay() + 6) % 7;
+  const day = wk.days && wk.days[di];
+  if (!day) return "";
+  const nm = id => { const s = (data.staff || []).find(x => x.id === id); return s ? s.name.split(" ").pop() : ""; };
+  return ["A","B","C","D","E"].map(p => {
+    const ppl = ((day.pods[p] || {}).assign || []).map(a => nm(a.id)).filter(Boolean);
+    return ppl.length ? "<span class='jn'><b>" + p + ":</b> " + esc(ppl.join(", ")) + "</span>" : "";
+  }).filter(Boolean).join(" · ");
+}
+const mondayOf = iso => { const d = new Date(iso + "T12:00:00"); const k = (d.getDay() + 6) % 7; d.setDate(d.getDate() - k); return d.toISOString().slice(0,10); };
+
+function render(){
+  const cons = data.consRota;
+  const box = $("#weeks"); box.innerHTML = "";
+  if (!cons || !Object.keys(cons.days || {}).length){ box.innerHTML = "<p>No consultant allocations yet — the next sync run fills them in.</p>"; renderFair(); return; }
+  const weeks = [...new Set(Object.keys(data.weeks || {}))].sort();
+  for (const wk of weeks){
+    const dates = Array.from({length:7}, (_, i) => addDays(wk, i));
+    if (!dates.some(d => cons.days[d])) continue;
+    const card = document.createElement("div"); card.className = "wkcard";
+    card.innerHTML = "<div class='wktitle'>Week commencing " + fmt(wk) + "</div>";
+    let h = "<table><tr><th></th>" + dates.map((d, i) => "<th>" + DAYS[i] + " " + fmt(d) + "</th>").join("") + "</tr>";
+    const rows = [["A","Pod A"],["B","Pod B"],["C","Pod C"],["D","Pod D"],["E","Pod E"],["oncall","On call / 24h"],["cod","COD"],["fgh","FGH"]];
+    for (const [key, label] of rows){
+      h += "<tr><td class='rowh'>" + label + "</td>";
+      for (const d of dates){
+        const rec = cons.days[d];
+        if (!rec){ h += "<td></td>"; continue; }
+        const cur = rec.cur[key] || "", auto = rec.auto[key] || "";
+        const fin = (rec.cur.fin || {})[cur];
+        const diff = cur !== auto;
+        const codTag = (key === "E" && cur && rec.cur.cod === cur && !rec.cur.wkend) ? "<span class='tagcod'>COD</span>" : "";
+        h += "<td><span class='cell" + (diff ? " diff" : "") + "' data-d='" + d + "' data-k='" + key + "' title='" +
+             esc(nameOf(cur)) + (fin ? " · finishes " + fin : "") + (diff ? " · MANUAL — sheet says " + esc(auto || "nobody") : "") +
+             "'>" + esc(cur) + "</span>" + codTag + "</td>";
+      }
+      h += "</tr>";
+    }
+    h += "</table>";
+    card.innerHTML += h;
+    const jun = document.createElement("div"); jun.className = "jun" + (showJun ? " open" : "");
+    jun.innerHTML = dates.map(d => "<div><b>" + fmt(d) + ":</b> " + (juniorLine(d) || "—") + "</div>").join("");
+    card.appendChild(jun);
+    box.appendChild(card);
+  }
+  box.querySelectorAll(".cell").forEach(c => c.onclick = () => editCell(c.dataset.d, c.dataset.k));
+  renderFair();
+}
+
+function renderFair(){
+  const cons = data.consRota || {};
+  const fair = cons.fair || {}, win = cons.window || {};
+  const inis = [...new Set([...Object.keys(fair), ...Object.keys(win)])];
+  const rows = inis.map(i => {
+    const ab = (fair[i] ? fair[i].ab : 0) + (win[i] ? win[i].ab : 0);
+    const cd = (fair[i] ? fair[i].cd : 0) + (win[i] ? win[i].cd : 0);
+    return { i, ab, cd, t: ab + cd, pc: ab + cd ? Math.round(cd / (ab + cd) * 100) : null };
+  }).filter(r => r.t).sort((a, b) => b.t - a.t);
+  $("#fairbox").innerHTML = "<div class='wktitle'>Fairness — Pod A&amp;B vs C&amp;D (running totals, incl. pre-app history)</div>" +
+    "<table><tr><th>Consultant</th><th>A&amp;B days</th><th>C&amp;D days</th><th>% neuro (C&amp;D)</th></tr>" +
+    rows.map(r => "<tr><td>" + esc(nameOf(r.i)) + " <span style='color:var(--muted)'>" + r.i + "</span></td><td>" + r.ab +
+      "</td><td>" + r.cd + "</td><td" + (r.pc < 40 || r.pc > 60 ? " class='warn'" : "") + ">" + r.pc + "%</td></tr>").join("") +
+    "</table>";
+}
+
+async function editCell(d, k){
+  const rec = data.consRota.days[d];
+  let who = localStorage.getItem("consEditor") || "";
+  if (!who){ who = (prompt("Your initials (recorded in the change log):") || "").trim().toUpperCase(); if (!who) return; localStorage.setItem("consEditor", who); }
+  const cur = rec.cur[k] || "";
+  const val = prompt("Who covers " + (k.length === 1 ? "Pod " + k : k) + " on " + fmt(d) + "? Enter initials (blank = clear):", cur);
+  if (val === null) return;
+  const ini = val.trim().toUpperCase();
+  rec.cur[k] = ini;
+  data.log = data.log || [];
+  data.log.unshift({ t: new Date().toISOString(), who: who + " (consultant page)", msg: "Consultant swap " + d + " " + k + ": " + (cur || "—") + " → " + (ini || "—") + (ini === rec.auto[k] ? "" : " (differs from rota sheet)") });
+  if (data.log.length > 500) data.log.length = 500;
+  data.savedAt = new Date().toISOString(); data.savedBy = who;
+  try {
+    await fetch(SAVE, { method: "POST", mode: "no-cors", body: new Blob([JSON.stringify(data)], { type: "application/json" }) });
+    toast("Saved — " + (ini || "cleared") + (ini === rec.auto[k] ? "" : " (flagged: differs from the rota sheet)"));
+  } catch(e){ toast("Save failed — try again"); }
+  render();
+}
+
+$("#btnJun").onclick = () => { showJun = !showJun; $("#btnJun").textContent = showJun ? "Hide juniors" : "Show juniors on each day"; document.querySelectorAll(".jun").forEach(j => j.classList.toggle("open", showJun)); };
+load().catch(e => $("#status").textContent = "couldn't load: " + e);
+</script>
+</body>
+</html>
