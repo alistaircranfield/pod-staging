@@ -133,9 +133,14 @@ table.plain td{padding:.45rem .5rem;border-bottom:1px solid var(--hair);font-siz
 </div>
 </div>
 <div id="toast"></div>
+<script src="k.js"></script>
 <script>
+/* Keys: the link's #hash wins, else the small k.js file served alongside the page (window.__POD_KEYS)
+   so the plain address works with no link — same trick the trainee board uses. */
 const q = new URLSearchParams((location.hash || "").replace(/^#/, ""));
-const READ = q.get("r"), SAVE = q.get("s"), CREAD = q.get("cr"), CSAVE = q.get("cs");
+const K = window.__POD_KEYS || {};
+const READ = q.get("r") || K.r || "", SAVE = q.get("s") || K.s || "";
+const CREAD = q.get("cr") || K.cr || "", CSAVE = q.get("cs") || K.cs || "";
 let data = null, cdata = null, showJun = false, curWeek = null, adminOpen = false, myOpen = "", rotaOpen = false;
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -213,6 +218,7 @@ function renderAdmin(){
       o.value = location.origin + location.pathname + "#r=" + encodeURIComponent(READ || "") + "&s=" + encodeURIComponent(SAVE || "") + "&cr=" + encodeURIComponent(cr) + "&cs=" + encodeURIComponent(cs);
       o.style.display = "block"; o.select();
       try { navigator.clipboard.writeText(o.value); toast("Link copied — replace the Teams link with it"); } catch(e){}
+      setTimeout(() => { try { location.replace(o.value); } catch(e){} }, 300);
     };
     return;
   }
