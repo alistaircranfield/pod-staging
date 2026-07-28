@@ -29,7 +29,8 @@ aside button.active .ic{background:var(--accent-bg);color:var(--accent)}
 aside .aside-spacer{flex:1}
 aside button.smallb{opacity:.85}
 #content{flex:1;min-width:0}
-#topbar{background:rgba(246,246,244,.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding:1rem 1.6rem .4rem;display:flex;align-items:center;gap:.7rem;position:sticky;top:0;z-index:45;min-height:56px}
+/* Solid, not translucent — a see-through bar means rows scroll visibly through the header. */
+#topbar{background:var(--bg);padding:1rem 1.6rem .4rem;display:flex;align-items:center;gap:.7rem;position:sticky;top:0;z-index:45;min-height:56px}
 #topbar h1{font-size:1.35rem;margin:0;font-weight:700;letter-spacing:-.01em}
 .spacer{flex:1}
 .hbtn{background:var(--ink);color:#fff;border:0;border-radius:12px;padding:.52rem 1rem;font-weight:600;font-size:.82rem;cursor:pointer;font-family:inherit}
@@ -70,13 +71,14 @@ table{border-collapse:collapse;width:100%}
 /* rota table */
 .rota-wrap{background:var(--card);border:0.5px solid var(--line);border-radius:18px;overflow:visible;max-width:100%}
 table.rota{border-collapse:collapse;width:100%;min-width:1080px}
-/* Pod A–E headers stay put under the topbar as the week scrolls (64px matches .dl-inner). */
-table.rota th{background:var(--card);color:var(--muted);font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;padding:.6rem .6rem;text-align:left;position:sticky;top:64px;z-index:10;border-bottom:1px solid var(--line);font-weight:700}
+/* The whole header row sits directly under the topbar. --stick is measured from the real topbar
+   height at runtime, so there's never a gap for content to show through. */
+table.rota th{background:var(--card);color:var(--muted);font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;padding:.6rem .6rem;text-align:left;position:sticky;top:calc(var(--stick, 64px) - 1px);z-index:30;border-bottom:1px solid var(--line);font-weight:700;box-shadow:0 1px 0 var(--line)}
 table.rota td{border-bottom:1px solid var(--hair);border-right:1px solid var(--hair);padding:.5rem .5rem;vertical-align:top}
 table.rota td:last-child{border-right:0}
 .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:.4rem;vertical-align:baseline}
 td.daylabel{background:var(--card);white-space:nowrap;width:86px}
-.dl-inner{position:sticky;top:64px}
+.dl-inner{position:sticky;top:calc(var(--stick, 64px) + 42px)}
 td.daylabel .dn{font-size:.62rem;font-weight:700;letter-spacing:.08em;color:var(--muted)}
 td.daylabel .d{font-weight:700;font-size:1.05rem;letter-spacing:-.01em}
 .statusdot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-top:.45rem;cursor:pointer}
@@ -146,6 +148,9 @@ button:focus-visible,a:focus-visible,select:focus-visible{outline:2px solid var(
 body.viewmode .x,body.viewmode .ptoken,body.viewmode .trayadd,body.viewmode .addbtn,body.viewmode .mini,
 body.viewmode #btnSave,body.viewmode #btnUndo,body.viewmode #btnRedo,body.viewmode #btnWho,body.viewmode #btnAutoFill,body.viewmode #btnFixWeek,body.viewmode #saveState,body.viewmode #btnDone{display:none}
 body:not(.viewmode) #btnEdit{display:none}
+/* When the board is locked, Edit is the one thing to press — make it look like it. */
+body.viewmode #btnEdit{background:var(--accent);color:#fff;box-shadow:0 0 0 3px var(--accent-bg)}
+body.viewmode #btnEdit::before{content:"";display:inline-block;width:11px;height:11px;margin-right:.4rem;vertical-align:-1px;background:currentColor;-webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M6 10V8a6 6 0 1112 0v2h1a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8a2 2 0 012-2h1zm2 0h8V8a4 4 0 10-8 0v2z'/></svg>") center/contain no-repeat;mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M6 10V8a6 6 0 1112 0v2h1a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8a2 2 0 012-2h1zm2 0h8V8a4 4 0 10-8 0v2z'/></svg>") center/contain no-repeat}
 body.viewmode .conssel{pointer-events:none;appearance:none;-webkit-appearance:none}
 body.viewmode .conssel:not(.has){display:none}
 body.viewmode .slotrow select{pointer-events:none;appearance:none;-webkit-appearance:none;border:0;background:transparent}
@@ -430,14 +435,14 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
 <div id="content">
 <div id="topbar">
   <button id="hamburger" class="hamburger" title="Menu" aria-label="Menu"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
-  <div><h1 id="pageTitle">Pod Allocator</h1><div style="font-size:.58rem;font-weight:800;letter-spacing:.09em;color:var(--accent);margin-top:-1px">TRAINEE ROTA</div></div>
+  <div><h1 id="pageTitle">Pod Allocator</h1><div style="font-size:.58rem;font-weight:800;letter-spacing:.09em;color:var(--accent);margin-top:-1px">RESIDENT ROTA</div></div>
   <span class="demopill" title="Private sandbox — nothing here touches the live rota. Changes save only on this device.">Demo</span>
   <div class="spacer"></div>
   <button class="hbtn ghost" id="btnResetDemo" style="font-size:.72rem;padding:.35rem .7rem" title="Clear your changes and reload the sample data">Reset demo</button>
   <button class="hbtn ghost" id="btnWho" style="font-size:.75rem;padding:.35rem .7rem;color:var(--muted)" title="Changes are logged under this name — click to change who's editing"></button>
   <span id="saveState"></span>
   <button class="hbtn ghost" id="btnKey" title="What the symbols and colours mean">Key</button>
-  <button class="hbtn" id="btnEdit">Edit</button>
+  <button class="hbtn" id="btnEdit" title="Unlock to edit — drag people between pods, add locums and edit the Fairfield column">Edit</button>
   <button class="hbtn ghost" id="btnDone" title="Back to read-only view">Done</button>
   <button class="hbtn ghost" id="btnUndo" title="Undo last change (Ctrl+Z)">↩ Undo</button>
   <button class="hbtn ghost" id="btnRedo" title="Redo (Ctrl+Y / Ctrl+Shift+Z)">↪ Redo</button>
@@ -473,7 +478,8 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
       </div>
     </div>
     <div class="imp-grid" id="importCard">
-      <div class="card">
+      <details class="card" id="manualRosterCard">
+        <summary style="cursor:pointer;font-size:.78rem;color:var(--muted);font-weight:600">Manual roster import — only needed if the automatic sync has stopped</summary>
         <h2>Staff rota — from Optima</h2>
         <p class="impdesc">Fills each day's bench with who's working and their shifts.</p>
         <div class="dropzone dz-sm" id="dropRota">
@@ -488,7 +494,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
           <li><b>Run Report</b> → Reports icon (top right) → click the report → <b>View Report</b> — it downloads</li>
           <li>Drop the downloaded file above</li>
         </ol>
-      </div>
+      </details>
       <div class="card">
         <h2>Consultant cover</h2>
         <p class="impdesc">Fills the consultant line on each pod — every week in the file, in one go.</p>
@@ -2075,7 +2081,7 @@ const GRADE_RANK = { CON: -1, ICM: 0, ST: 1, SCF: 2, Anaes: 3, ACCP: 4, ACCS: 5,
 // Skills auto-ticked for a grade on import. Anything not listed defaults to no skills (safer to
 // under-grant and let someone tick a box than to over-grant airway/phone). Edit freely.
 const GRADE_DEFAULT_SKILLS = {
-  ST:   ["airway", "transfer"],   // anaesthesia trainees
+  ST:   ["airway", "transfer"],   // anaesthesia residents
   SCF:  ["phoneHolder"],
   ACCP: ["transfer"],
   ACCS: [],
@@ -2735,7 +2741,7 @@ function consLabel(s){
   const dup = data.staff.some(x => x.id !== s.id && x.grade === "CON" && x.name.trim().split(/\s+/).pop().toLowerCase() === sur.toLowerCase());
   return dup ? sur + " (" + parts[0][0] + ")" : sur;
 }
-/* Consultant-rota initials → surname, for the trainee board. Initials mean nothing to a trainee. */
+/* Consultant-rota initials → surname, for the resident board. Initials mean nothing to a resident. */
 function consSurname(ini){
   const map = (data.consRota && data.consRota.map) || {};
   const full = map[ini];
@@ -3246,7 +3252,7 @@ function autoFillDay(wk, di){
       if (prior === p) score += 12;
       const wkSoFar = weekPodsSoFar[id];
       if (wkSoFar && wkSoFar.size >= 2 && !wkSoFar.has(p)) score -= 2000;   // never a 3rd pod in a week
-      // Senior airway trainees (ST/CT/Anaes/ICM) stay off Pod E unless there's truly nowhere else.
+      // Senior airway residents (ST/CT/Anaes/ICM) stay off Pod E unless there's truly nowhere else.
       if (p === "E" && ["ST", "CT", "Anaes", "ICM"].includes(s.grade)) score -= 40;
       if (s.airway) {
         if (p === "E") score -= 8; // unit keeps airway-trained off Pod E unless there's no other option
@@ -3625,7 +3631,7 @@ function keyDialog(){
     row(el("span", { class: "awdot" }, "A"), "Airway trained"),
     row(el("span", { class: "phoneicon", html: PHONE_SVG }), "Holds the referral phone — drag it to another person to move it, click it to take it back"),
     row(el("span", { class: "phoneicon night", html: PHONE_SVG + '<span style="font-size:.5rem;font-weight:800;margin-left:1px">N</span>' }), "Holds the night phone (marked N)"),
-    row(el("span", { class: "shadowicon", html: SHADOW_SVG }), "Shadowing the phone — a trainee learning from the holder"),
+    row(el("span", { class: "shadowicon", html: SHADOW_SVG }), "Shadowing the phone — a resident learning from the holder"),
     row(el("span", { class: "tagx", style: "background:var(--hair);color:var(--muted);font-size:.6rem;font-weight:800;border-radius:999px;padding:.1rem .4rem" }, "OBS"), "Observer or student — on the rota, never counted"),
     row([el("span", { class: "statusdot ok", style: "margin:0" }), el("span", { class: "statusdot soft", style: "margin:0" }), el("span", { class: "statusdot hard", style: "margin:0" }), el("span", { class: "statusdot none", style: "margin:0" })], "Day status: green all checks pass · amber aims · red issue · grey nothing allocated yet — click a dot for details"),
     row(el("span", { style: "font-size:.7rem;color:var(--muted);font-weight:700" }, "Surname ▾"), "Consultant covering the pod (and “on call…” overnight, in the night column)")
@@ -3922,6 +3928,16 @@ window.addEventListener("keydown", e => {
 })();
 function applyEnvClasses(){ document.body.classList.toggle("viewonly", VIEW_ONLY && !relayUrl()); }
 applyEnvClasses();
+/* Measure the topbar and hand its real height to the sticky header, so the header sits flush
+   against it at any width and after it wraps. Re-measured on resize and whenever it changes. */
+function setStick(){
+  const tb = document.getElementById("topbar");
+  if (tb) document.documentElement.style.setProperty("--stick", Math.round(tb.getBoundingClientRect().height) + "px");
+}
+setStick();
+addEventListener("resize", setStick);
+addEventListener("load", setStick);
+try { new ResizeObserver(setStick).observe(document.getElementById("topbar")); } catch(e){}
 startUp();
 </script>
 </body>

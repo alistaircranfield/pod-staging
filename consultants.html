@@ -25,7 +25,8 @@ aside button.active{color:var(--ink)}
 aside button.active .ic{background:var(--accent-bg);color:var(--accent)}
 aside .aside-spacer{flex:1}
 #content{flex:1;min-width:0}
-#topbar{background:rgba(246,246,244,.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding:1rem 1.6rem .4rem;display:flex;align-items:center;gap:.7rem;position:sticky;top:0;z-index:45;min-height:56px;flex-wrap:wrap}
+/* Solid, not translucent — content must never be visible scrolling through the bar. */
+#topbar{background:var(--bg);padding:1rem 1.6rem .4rem;display:flex;align-items:center;gap:.7rem;position:sticky;top:0;z-index:45;min-height:56px;flex-wrap:wrap}
 #topbar h1{font-size:1.35rem;margin:0;font-weight:700;letter-spacing:-.01em}
 .spacer{flex:1}
 .hbtn{background:var(--ink);color:#fff;border:0;border-radius:12px;padding:.52rem 1rem;font-weight:600;font-size:.82rem;cursor:pointer;font-family:inherit}
@@ -136,7 +137,7 @@ table.plain td{padding:.45rem .5rem;border-bottom:1px solid var(--hair);font-siz
 <script src="k.js"></script>
 <script>
 /* Keys: the link's #hash wins, else the small k.js file served alongside the page (window.__POD_KEYS)
-   so the plain address works with no link — same trick the trainee board uses. */
+   so the plain address works with no link — same trick the resident board uses. */
 const q = new URLSearchParams((location.hash || "").replace(/^#/, ""));
 const K = window.__POD_KEYS || {};
 const READ = q.get("r") || K.r || "", SAVE = q.get("s") || K.s || "";
@@ -169,7 +170,7 @@ async function load(){
 }
 
 /* ── consultant store: a SEPARATE SharePoint file behind its own flow keys (cr/cs in the link).
-   Holds personal data (job plans, totals, PINs, skills, tariff) the trainee link can never reach. */
+   Holds personal data (job plans, totals, PINs, skills, tariff) the resident link can never reach. */
 function seedC(){
   return { v: 1, adminPin: "", rotaPin: "", pins: {}, admins: ["AJC"],
            jobPlans: {}, skills: {},
