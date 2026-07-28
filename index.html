@@ -3260,7 +3260,7 @@ function autoFillDay(wk, di){
       }
       // Neuro-trained lean towards Pods C & D (the neuro pods) — a nudge, not a rule, so it still
       // yields to keeping the pods evenly sized. Aims for roughly two-thirds of their shifts on C/D.
-      if (s.neuro && (p === "C" || p === "D")) score += 2.5;
+      if (s.neuro && (p === "C" || p === "D")) score += 3.5;
       // Long days fill A–D before E: E is always the pod that misses out on a long day when they're
       // short, so never give E a long-day resident while any A–D pod still has none.
       if (isLD && p === "E" && PODS.filter(q => q !== "E").some(q => !hasLD[q])) score -= 1000;
