@@ -7,7 +7,7 @@
 <style>
 :root{
   --bg:#f6f6f4; --card:#ffffff; --ink:#17181c; --muted:#8a8f98; --line:#ececea; --hair:#f2f2ef;
-  --accent:#4c5dd6; --accent-bg:#eef0fb;
+  --accent:#b07d1e; --accent-bg:#fdf3df;
   --green:#2e7d4f; --green-bg:#e7f5ec; --amber:#b07d1e; --amber-bg:#fdf3df; --red:#cf3d3d; --red-bg:#fdeaea;
   --podA:#f5f8ff; --podB:#f3faf5; --podC:#fdf8ef; --podD:#f8f5fd; --podE:#fdf4f6;
   --podAb:#5b76d8; --podBb:#3d9964; --podCb:#c98a2b; --podDb:#8b66c9; --podEb:#d4577a;
@@ -84,13 +84,13 @@ table.plain td{padding:.45rem .5rem;border-bottom:1px solid var(--hair);font-siz
   <div class="logo">CCU</div>
   <button data-tab="rota" class="active"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg></span>Pods</button>
   <button data-tab="fair"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l3-8 4 14 3-8h4"/></svg></span>Fairness</button>
-  <button data-tab="staff"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19.5c.8-3.3 3.3-5 6.2-5s5.4 1.7 6.2 5"/><path d="M15.5 5.5a3.2 3.2 0 011.6 6"/><path d="M17.6 14.6c2.2.5 3.7 2 4.2 4.4"/></svg></span>Staffing</button>
+  <button data-tab="staff"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19.5c.8-3.3 3.3-5 6.2-5s5.4 1.7 6.2 5"/><path d="M15.5 5.5a3.2 3.2 0 011.6 6"/><path d="M17.6 14.6c2.2.5 3.7 2 4.2 4.4"/></svg></span>Totals</button>
   <button data-tab="log"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>Log</button>
   <div class="aside-spacer"></div>
 </aside>
 <div id="content">
 <div id="topbar">
-  <h1>Consultant pods</h1>
+  <div><h1>Consultant pods</h1><div style="font-size:.58rem;font-weight:800;letter-spacing:.09em;color:var(--accent);margin-top:-1px">CONSULTANT ROTA</div></div>
   <div class="spacer"></div>
   <button class="hbtn ghost" id="btnWho" style="font-size:.75rem;padding:.35rem .7rem;color:var(--muted)" title="Swaps are logged under this name — click to change"></button>
   <span id="saveState"></span>
