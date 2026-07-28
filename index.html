@@ -130,10 +130,10 @@ td.nighttd .chip{display:flex}
 .chip{display:inline-flex;align-items:center;gap:.32rem;background:#fff;border:0.5px solid rgba(29,31,36,.05);border-radius:999px;padding:.2rem .55rem .2rem .26rem;font-size:.74rem;font-weight:600;margin:.15rem;cursor:grab;user-select:none;box-shadow:0 1px 3px rgba(29,31,36,.10);white-space:nowrap;max-width:100%;flex-wrap:nowrap}
 .chip:active{cursor:grabbing}
 .chip.dragging{opacity:.35}
-.chip .tagx{font-size:.56rem;font-weight:800;border-radius:999px;padding:.09rem .34rem;background:var(--hair);color:var(--muted);flex-shrink:0;letter-spacing:.02em}
-.chip .tagx.LD{background:#2c3e78;color:#fff}
-.chip .tagx.SD{background:#e8edf6;color:#3b558f}
-.chip .tagx.N{background:#4a4460;color:#fff}
+.chip .tagx,.hlp .tagx{font-size:.56rem;font-weight:800;border-radius:999px;padding:.09rem .34rem;background:var(--hair);color:var(--muted);flex-shrink:0;letter-spacing:.02em;display:inline-block;vertical-align:.08em}
+.chip .tagx.LD,.hlp .tagx.LD{background:#2c3e78;color:#fff}
+.chip .tagx.SD,.hlp .tagx.SD{background:#e8edf6;color:#3b558f}
+.chip .tagx.N,.hlp .tagx.N{background:#4a4460;color:#fff}
 .chip .tagx.clickable{cursor:pointer;border-bottom:1px dotted currentColor}
 .chip .tagx.clickable:hover{outline:2px solid var(--accent-bg)}
 .chip.selected{outline:2px solid var(--accent);outline-offset:1px}
@@ -192,10 +192,9 @@ table.rota:not(:has(td.tray .chip)) td.tray .trayhint::after{content:"drop";font
 .addpop-item:hover .addico{color:var(--accent)}
 .adlbl{display:block;font-size:.72rem;color:var(--muted);margin:.7rem 0 .3rem;font-weight:600}
 /* ---- Help page (public) ---- */
-/* Fill the page like every other card; keep the prose itself to a readable measure. */
+/* Fills the page like every other card. */
 .hlp{max-width:none}
-.hlp .lead{color:#4a4f58;line-height:1.6;margin:0 0 1.2rem;font-size:.92rem;max-width:76ch}
-.hlp .in>p,.hlp .in>ol,.hlp .in>ul{max-width:76ch}
+.hlp .lead{color:#4a4f58;line-height:1.6;margin:0 0 1.2rem;font-size:.92rem}
 .hlp details{border-bottom:1px solid var(--hair)}
 .hlp details:last-of-type{border-bottom:0}
 .hlp summary{cursor:pointer;padding:.85rem 0;font-weight:600;font-size:.95rem;list-style:none;display:flex;align-items:center;gap:.7rem}
@@ -205,12 +204,16 @@ table.rota:not(:has(td.tray .chip)) td.tray .trayhint::after{content:"drop";font
 .hlp .in{padding:0 0 1.1rem 2.9rem;color:#4a4f58;font-size:.88rem;line-height:1.65}
 .hlp .in p{margin:0 0 .65rem} .hlp .in p:last-child{margin-bottom:0}
 .hlp .in ol{margin:.2rem 0 .65rem;padding-left:1.1rem} .hlp .in li{margin-bottom:.4rem}
-.hlp .anno{display:flex;gap:1.4rem;flex-wrap:wrap;align-items:flex-start}
-.hlp .cellex{border:1px solid var(--line);border-radius:14px;overflow:hidden;width:250px;flex-shrink:0}
-.hlp .cellex .ph{background:#f5f8ff;padding:.42rem .7rem;font-size:.62rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);display:flex;justify-content:space-between}
+.hlp .anno{display:flex;gap:1.8rem;flex-wrap:wrap;align-items:flex-start}
+.hlp .cellex{border:1px solid var(--line);border-radius:14px;overflow:hidden;width:265px;flex-shrink:0}
+.hlp .cellex .ph{background:#f5f8ff;padding:.42rem .7rem;font-size:.62rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
 .hlp .cellex .bd{padding:.6rem .7rem;background:#f5f8ff}
-.hlp .pc{display:flex;align-items:center;gap:.4rem;background:#fff;border:1px solid var(--line);border-radius:999px;padding:.24rem .55rem;margin-bottom:.35rem;font-size:.82rem;font-weight:600}
-.hlp .calls{margin:0;padding:0}
+/* Mirrors .chip exactly so the example looks like the real thing. */
+.hlp .pc{display:flex;align-items:center;gap:.32rem;background:#fff;border:.5px solid rgba(29,31,36,.05);border-radius:999px;padding:.2rem .55rem .2rem .26rem;margin-bottom:.35rem;font-size:.74rem;font-weight:600;box-shadow:0 1px 3px rgba(29,31,36,.10);width:max-content;max-width:100%}
+.hlp .exicon{display:inline-flex;align-items:center;line-height:1;color:var(--ink)}
+.hlp .exicon.night{color:#7a5cc9}
+.hlp .exicon.eye{color:#4c5dd6}
+.hlp .calls{margin:0;padding:0;flex:1 1 340px;min-width:0}
 .hlp .calls li{list-style:none;display:flex;gap:.65rem;padding:.4rem 0;border-bottom:1px solid var(--hair);font-size:.85rem;line-height:1.5}
 .hlp .calls li:last-child{border-bottom:0}
 .hlp .num{width:19px;height:19px;border-radius:50%;background:var(--accent);color:#fff;font-size:.68rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:.12rem}
@@ -619,20 +622,22 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
         <div class="in">
           <div class="anno">
             <div class="cellex">
-              <div class="ph"><span>Pod A</span><span style="color:var(--ink);font-weight:700">TF</span></div>
+              <div class="ph"><span>Pod A</span><span style="color:var(--ink);font-weight:700;text-transform:none;letter-spacing:0;font-size:.7rem">Example<span class="codpill">COD</span></span></div>
               <div class="bd">
-                <div class="pc"><span class="tagx LD">LD</span> Ella Snowden <span class="awdot">A</span> ☎</div>
-                <div class="pc"><span class="tagx SD">SD</span> Tom Curtis</div>
-                <div class="pc" style="opacity:.75"><span class="tagx SD">SD</span> Alice Ring 👁</div>
+                <div class="pc"><span class="tagx LD">LD</span><span class="exicon"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style="vertical-align:-1px"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg></span>Sam A.<span class="awdot">A</span></div>
+                <div class="pc"><span class="tagx SD">SD</span>Priya B.<span class="awdot">A</span></div>
+                <div class="pc"><span class="tagx SD">SD</span><span class="exicon eye"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px"><path d="M2.5 11s3.3-5.5 9.5-5.5S21.5 11 21.5 11 18.2 16.5 12 16.5 2.5 11 2.5 11z"/><circle cx="12" cy="11" r="2.3" fill="currentColor" stroke="none"/><path d="M8.5 20.5c1-1 2.2-1.5 3.5-1.5s2.5.5 3.5 1.5" stroke-width="1.7"/></svg></span>Chris C.</div>
               </div>
             </div>
             <ul class="calls">
               <li><span class="num">1</span><div>Days run down the left, pods across the top. Find your name on today’s row.</div></li>
-              <li><span class="num">2</span><div><b>TF</b> — the consultant covering that pod.</div></li>
-              <li><span class="num">3</span><div><b>LD</b> long day, 8 till 8. <b>SD</b> short day. Nights are in the Night team column.</div></li>
-              <li><span class="num">4</span><div><b>A</b> — airway trained.</div></li>
-              <li><span class="num">5</span><div><b>☎</b> — holds the referral phone. Always someone on a long day.</div></li>
-              <li><span class="num">6</span><div><b>👁</b> — supernumerary, so not counted in the pod’s numbers.</div></li>
+              <li><span class="num">2</span><div>The name in the top right is the <b>consultant covering that pod</b> that day. In the Night team column it’s the consultant on call overnight.</div></li>
+              <li><span class="num">3</span><div><span class="codpill" style="margin:0">COD</span> — the consultant taking referrals that day.</div></li>
+              <li><span class="num">4</span><div><span class="tagx LD">LD</span> long day, 8 till 8. <span class="tagx SD">SD</span> standard day, 8 till 4. <span class="tagx N">N</span> night — nights are in the Night team column.</div></li>
+              <li><span class="num">5</span><div><span class="awdot">A</span> — airway trained.</div></li>
+              <li><span class="num">6</span><div><span class="exicon"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style="vertical-align:-1px"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg></span> — holds the referral phone. Always someone on a long day. The night phone is the same icon with a small <b>N</b>.</div></li>
+              <li><span class="num">7</span><div><span class="exicon eye"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px"><path d="M2.5 11s3.3-5.5 9.5-5.5S21.5 11 21.5 11 18.2 16.5 12 16.5 2.5 11 2.5 11z"/><circle cx="12" cy="11" r="2.3" fill="currentColor" stroke="none"/><path d="M8.5 20.5c1-1 2.2-1.5 3.5-1.5s2.5.5 3.5 1.5" stroke-width="1.7"/></svg></span> — shadowing the phone: someone learning from the holder, not holding it themselves.</div></li>
+              <li><span class="num">8</span><div>Anyone listed under a <b>Super</b> heading is supernumerary — on the unit, but not counted in that pod’s numbers.</div></li>
             </ul>
           </div>
         </div>
@@ -655,7 +660,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
       <details><summary>Who’s got the referral phone?</summary>
         <div class="in">
           <p>The phone icon shows the holder, and they are always on a long day — the board won’t leave it with someone on a short day.</p>
-          <p>A fainter phone icon on someone else means they’re shadowing to learn it, with a supervisor on the same shift. If the holder goes off sick, <b>Fix this day</b> hands the phone on for you.</p>
+          <p>An eye icon on someone else means they’re shadowing to learn it, with a supervisor on the same shift — they aren’t holding the phone themselves. Overnight the holder’s icon is marked with a small <b>N</b>. If the holder goes off sick, <b>Fix this day</b> hands the phone on for you.</p>
         </div>
       </details>
 
