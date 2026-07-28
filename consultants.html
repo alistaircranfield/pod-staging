@@ -55,7 +55,9 @@ td.rowh .bar{display:inline-block;width:8px;height:8px;border-radius:50%;margin-
 .cell:hover{background:var(--accent-bg)}
 .cell.empty{color:#c9cbd1;font-weight:400}
 .cell.diff{outline:1.5px dashed var(--amber);color:var(--amber)}
-.codpill{font-size:.55rem;background:var(--ink);color:#f1efe8;border-radius:6px;padding:.1rem .35rem;margin-left:.3rem;vertical-align:2px;font-weight:800;letter-spacing:.04em;cursor:grab}
+.cellwrap{display:flex;align-items:center;justify-content:space-between;gap:.3rem;min-width:92px}
+.codpill,.finbadge{flex:0 0 auto;display:inline-block;width:42px;text-align:center;font-size:.55rem;border-radius:6px;padding:.14rem 0;font-weight:800;letter-spacing:.04em}
+.codpill{background:var(--ink);color:#f1efe8;cursor:grab}
 .codpill:active{cursor:grabbing}
 td.dropok{outline:2px dashed var(--accent);outline-offset:-3px}
 select.cellsel{border:1px solid #dcdcd8;border-radius:9px;padding:.25rem .3rem;font-size:.8rem;font-family:inherit;background:#fff;max-width:100%}
@@ -63,7 +65,6 @@ select.cellsel{border:1px solid #dcdcd8;border-radius:9px;padding:.25rem .3rem;f
 #whoOverlay .box{background:var(--card);border-radius:16px;padding:1.2rem 1.4rem;max-width:320px;width:90%}
 #whoOverlay b{display:block;margin-bottom:.6rem}
 #whoOverlay select{width:100%;margin-bottom:.7rem}
-.finbadge{font-size:.55rem;border-radius:6px;padding:.1rem .32rem;margin-left:.3rem;font-weight:800;letter-spacing:.02em;vertical-align:2px}
 .f17{background:var(--hair);color:var(--muted)}
 .f18{background:var(--accent-bg);color:var(--accent)}
 tr.junrow td{background:#fafaf8;border-bottom:1px solid var(--hair);font-size:.74rem;color:#5a5f68;padding:.3rem .6rem}
@@ -192,14 +193,14 @@ function cellHTML(rec, key, d){
   const diff = rec && cur !== auto;
   const fin = rec && (rec.cur.fin || {})[cur];
   const isCod = rec && cur && rec.cur.cod === cur && "ABCDE".includes(key);
-  let h = "<span class='cell" + (diff ? " diff" : "") + (cur ? "" : " empty") + "' data-d='" + d + "' data-k='" + key + "' title='" +
+  let h = "<div class='cellwrap'><span class='cell" + (diff ? " diff" : "") + (cur ? "" : " empty") + "' data-d='" + d + "' data-k='" + key + "' title='" +
     esc(nameOf(cur) || "nobody assigned") + (fin ? " · finishes " + fin : "") + (diff ? " · MANUAL — sheet says " + esc(auto || "nobody") : "") + "'>" + (esc(cur) || "—") + "</span>";
   if (isCod) h += "<span class='codpill' draggable='true' data-d='" + d + "' title='COD — drag onto another pod on this day to hand over referrals'>COD</span>";
   else if (fin && cur){
     const t = fin.slice(0,2) === "17" ? "17" : fin.slice(0,2) === "18" ? "18" : fin;
     h += "<span class='finbadge " + (t === "17" ? "f17" : "f18") + "' title='finishes " + fin + "'>" + t + "</span>";
   }
-  return h;
+  return h + "</div>";
 }
 
 function renderRota(){
@@ -228,9 +229,6 @@ function renderRota(){
     for (const d of dates){ const j = juniorsFor(d); h += "<td>" + (j && j.night.length ? esc(j.night.join(", ")) : "—") + "</td>"; }
     h += "</tr>";
   }
-  h += "<tr><td class='rowh'>COD<span class='sub'>referrals</span></td>";
-  for (const d of dates) h += "<td>" + cellHTML(cons[d], "cod", d) + "</td>";
-  h += "</tr>";
   h += "<tr><td class='rowh'>Fairfield</td>";
   for (const d of dates) h += "<td>" + cellHTML(cons[d], "fgh", d) + "</td>";
   h += "</tr>";
