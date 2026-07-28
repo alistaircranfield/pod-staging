@@ -55,18 +55,19 @@ td.rowh .bar{display:inline-block;width:8px;height:8px;border-radius:50%;margin-
 .cell:hover{background:var(--accent-bg)}
 .cell.empty{color:#c9cbd1;font-weight:400}
 .cell.diff{outline:1.5px dashed var(--amber);color:var(--amber)}
-.cellwrap{display:flex;align-items:center;justify-content:space-between;gap:.3rem;min-width:92px}
-.codpill,.finbadge{flex:0 0 auto;display:inline-block;width:42px;text-align:center;font-size:.55rem;border-radius:6px;padding:.14rem 0;font-weight:800;letter-spacing:.04em}
-.codpill{background:var(--ink);color:#f1efe8;cursor:grab}
+.cellwrap{display:flex;align-items:center;gap:.42rem}
+.codpill{flex:0 0 auto;display:inline-block;width:42px;text-align:center;font-size:.55rem;border-radius:6px;padding:.14rem 0;font-weight:800;letter-spacing:.04em;background:var(--ink);color:#f1efe8;cursor:grab}
 .codpill:active{cursor:grabbing}
+.finbadge{flex:0 0 auto;display:inline-flex;align-items:center;gap:.26rem;font-size:.62rem;font-weight:800;color:var(--accent);letter-spacing:.03em}
+.finbadge::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--accent)}
+.cell[draggable="true"]{cursor:grab}
+.cell[draggable="true"]:active{cursor:grabbing}
 td.dropok{outline:2px dashed var(--accent);outline-offset:-3px}
 select.cellsel{border:1px solid #dcdcd8;border-radius:9px;padding:.25rem .3rem;font-size:.8rem;font-family:inherit;background:#fff;max-width:100%}
 #whoOverlay{position:fixed;inset:0;background:rgba(23,24,28,.35);display:flex;align-items:center;justify-content:center;z-index:60}
 #whoOverlay .box{background:var(--card);border-radius:16px;padding:1.2rem 1.4rem;max-width:320px;width:90%}
 #whoOverlay b{display:block;margin-bottom:.6rem}
 #whoOverlay select{width:100%;margin-bottom:.7rem}
-.f17{background:var(--hair);color:var(--muted)}
-.f18{background:var(--accent-bg);color:var(--accent)}
 tr.junrow td{background:#fafaf8;border-bottom:1px solid var(--hair);font-size:.74rem;color:#5a5f68;padding:.3rem .6rem}
 tr.junrow td.rowh{font-weight:700;font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .legend{font-size:.76rem;color:var(--muted);margin:.6rem 0 0;display:flex;gap:1rem;flex-wrap:wrap}
@@ -78,6 +79,12 @@ table.plain td{padding:.45rem .5rem;border-bottom:1px solid var(--hair);font-siz
 #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#2c2c2a;color:#fff;padding:8px 16px;border-radius:10px;font-size:13px;display:none;z-index:50}
 .logrow{display:flex;gap:.6rem;padding:.4rem 0;border-bottom:1px solid var(--hair);font-size:.8rem}
 .logrow .lt{color:var(--muted);white-space:nowrap;font-size:.72rem;margin-top:.1rem}
+/* Desktop: the pod labels stay put while the week scrolls sideways. */
+@media(min-width:761px){
+  table.rota td.rowh{position:sticky;left:0;z-index:6;background:var(--card);box-shadow:1px 0 0 var(--hair)}
+  table.rota tr.junrow td.rowh{background:#fafaf8}
+  table.rota th:first-child{position:sticky;left:0;z-index:12;background:var(--card)}
+}
 @media(max-width:760px){aside{display:none}main{padding:.6rem .7rem 4rem}#topbar{padding:.8rem .8rem .3rem}}
 </style>
 </head>
@@ -90,6 +97,7 @@ table.plain td{padding:.45rem .5rem;border-bottom:1px solid var(--hair);font-siz
   <button data-tab="staff"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19.5c.8-3.3 3.3-5 6.2-5s5.4 1.7 6.2 5"/><path d="M15.5 5.5a3.2 3.2 0 011.6 6"/><path d="M17.6 14.6c2.2.5 3.7 2 4.2 4.4"/></svg></span>Totals</button>
   <button data-tab="log"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>Log</button>
   <div class="aside-spacer"></div>
+  <button data-tab="admin" class="smallb"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 00-.15-1.44l2-1.55-2-3.46-2.37.95a7 7 0 00-2.49-1.44L13.6 2.5h-3.2l-.39 2.56a7 7 0 00-2.49 1.44l-2.37-.95-2 3.46 2 1.55A7 7 0 005 12c0 .49.05.97.15 1.44l-2 1.55 2 3.46 2.37-.95a7 7 0 002.49 1.44l.39 2.56h3.2l.39-2.56a7 7 0 002.49-1.44l2.37.95 2-3.46-2-1.55c.1-.47.15-.95.15-1.44z"/></svg></span>Admin</button>
 </aside>
 <div id="content">
 <div id="topbar">
@@ -118,14 +126,17 @@ table.plain td{padding:.45rem .5rem;border-bottom:1px solid var(--hair);font-siz
   <section id="tab-log" style="display:none">
     <div class="card"><h2>Consultant change log</h2><div id="logBox"></div></div>
   </section>
+  <section id="tab-admin" style="display:none">
+    <div id="adminBox"></div>
+  </section>
 </main>
 </div>
 </div>
 <div id="toast"></div>
 <script>
 const q = new URLSearchParams((location.hash || "").replace(/^#/, ""));
-const READ = q.get("r"), SAVE = q.get("s");
-let data = null, showJun = false, curWeek = null;
+const READ = q.get("r"), SAVE = q.get("s"), CREAD = q.get("cr"), CSAVE = q.get("cs");
+let data = null, cdata = null, showJun = false, curWeek = null, adminOpen = false, myOpen = "", rotaOpen = false;
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const toast = m => { const t = $("#toast"); t.textContent = m; t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", 3000); };
@@ -148,7 +159,137 @@ async function load(){
   curWeek = wks.includes(thisMon) ? thisMon : (wks.find(w => w >= thisMon) || wks[wks.length - 1]);
   state("saved");
   whoBtn();
+  await loadC();
   renderAll();
+}
+
+/* ── consultant store: a SEPARATE SharePoint file behind its own flow keys (cr/cs in the link).
+   Holds personal data (job plans, totals, PINs, skills, tariff) the trainee link can never reach. */
+function seedC(){
+  return { v: 1, adminPin: "", rotaPin: "", pins: {}, admins: ["AJC"],
+           jobPlans: {}, skills: {},
+           tariff: { "Day 17": 1, "Day 18": 1.25, "COD": 1.5, "Overnight OC": 2, "Weekend 24h": 3, "Weekend LD": 1.5, "Weekend SD": 1, "Anaesthesia list": 1, "FGH day": 1 },
+           log: [] };
+}
+async function loadC(){
+  if (!CREAD){ cdata = null; return; }
+  try {
+    const r = await fetch(CREAD, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}", cache: "no-store" });
+    if (!r.ok) throw 0;
+    const j = await r.json();
+    cdata = (j && j.v) ? j : seedC();
+  } catch(e){ cdata = seedC(); }
+}
+async function saveC(){
+  if (!CSAVE || !cdata) return;
+  cdata.savedAt = new Date().toISOString();
+  try { await fetch(CSAVE, { method: "POST", mode: "no-cors", body: new Blob([JSON.stringify(cdata)], { type: "application/json" }) }); toast("Saved"); }
+  catch(e){ toast("Save failed — try again"); }
+}
+async function sha(s){
+  const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("");
+}
+function clog(msg){
+  const who = localStorage.getItem("consEditor") || "?";
+  cdata.log = cdata.log || [];
+  cdata.log.unshift({ t: new Date().toISOString(), who, msg });
+  if (cdata.log.length > 300) cdata.log.length = 300;
+}
+
+function renderAdmin(){
+  const box = $("#adminBox");
+  if (!CREAD){
+    box.innerHTML = "<div class='card'><h2>Connect the consultant store</h2>" +
+      "<p style='font-size:.85rem'>Paste the two flow URLs (Consultant Data - Read and - Save) and this builds the full link for this page.</p>" +
+      "<input type='text' id='cnR' placeholder='Read flow URL' style='width:100%;margin-bottom:.5rem'>" +
+      "<input type='text' id='cnS' placeholder='Save flow URL' style='width:100%;margin-bottom:.7rem'>" +
+      "<button class='btn' id='cnGo'>Build link</button>" +
+      "<input type='text' id='cnOut' readonly style='width:100%;margin-top:.7rem;display:none' onclick='this.select()'></div>";
+    $("#cnGo").onclick = () => {
+      const cr = $("#cnR").value.trim(), cs = $("#cnS").value.trim();
+      if (!cr || !cs) return;
+      const o = $("#cnOut");
+      o.value = location.origin + location.pathname + "#r=" + encodeURIComponent(READ || "") + "&s=" + encodeURIComponent(SAVE || "") + "&cr=" + encodeURIComponent(cr) + "&cs=" + encodeURIComponent(cs);
+      o.style.display = "block"; o.select();
+      try { navigator.clipboard.writeText(o.value); toast("Link copied — replace the Teams link with it"); } catch(e){}
+    };
+    return;
+  }
+  if (!adminOpen){
+    const first = !cdata.adminPin;
+    box.innerHTML = "<div class='card' style='max-width:340px'><h2>" + (first ? "Set the admin PIN" : "Admin") + "</h2>" +
+      "<input type='password' id='apw' placeholder='PIN' style='width:100%;margin-bottom:.6rem'>" +
+      (first ? "<input type='password' id='apw2' placeholder='PIN again' style='width:100%;margin-bottom:.6rem'>" : "") +
+      "<button class='btn' id='ago' style='width:100%'>" + (first ? "Set and open" : "Unlock") + "</button>" +
+      "<div id='amsg' style='font-size:.78rem;color:var(--red);min-height:1em;margin-top:.3rem'></div></div>";
+    $("#ago").onclick = async () => {
+      const p = $("#apw").value;
+      if (first){
+        if (!p || p !== ($("#apw2") || {}).value){ $("#amsg").textContent = "PINs don't match"; return; }
+        cdata.adminPin = await sha(p); clog("Admin PIN set"); await saveC(); adminOpen = true; renderAdmin();
+      } else if (await sha(p) === cdata.adminPin){ adminOpen = true; renderAdmin(); }
+      else $("#amsg").textContent = "Wrong PIN";
+    };
+    return;
+  }
+  const inis = consList();
+  const jp = i => cdata.jobPlans[i] = cdata.jobPlans[i] || { weeklyPA: "", annualTarget: "", lastYear: "", carryOver: "" };
+  const sk = i => cdata.skills[i] = cdata.skills[i] || { neuro: false, ugi: false, endo: false };
+  let h = "<div class='card'><h2>Job plans</h2><table class='plain'><tr><th>Consultant</th><th>Weekly PAs</th><th>Annual target</th><th>Last year</th><th>Carry-over</th></tr>";
+  for (const i of inis){
+    const p = jp(i);
+    h += "<tr><td>" + esc(nameOf(i)) + "<span class='inipill'>" + i + "</span></td>" +
+      ["weeklyPA","annualTarget","lastYear","carryOver"].map(k =>
+        "<td><input type='text' inputmode='decimal' data-jp='" + i + "' data-k='" + k + "' value='" + esc(p[k]) + "' style='width:72px'></td>").join("") + "</tr>";
+  }
+  h += "</table></div>";
+  h += "<div class='card'><h2>List skills</h2><table class='plain'><tr><th>Consultant</th><th>Neuro</th><th>Upper GI</th><th>Endoscopy</th></tr>";
+  for (const i of inis){
+    const s = sk(i);
+    h += "<tr><td>" + esc(nameOf(i)) + "<span class='inipill'>" + i + "</span></td>" +
+      ["neuro","ugi","endo"].map(k => "<td><input type='checkbox' data-sk='" + i + "' data-k='" + k + "'" + (s[k] ? " checked" : "") + "></td>").join("") + "</tr>";
+  }
+  h += "</table></div>";
+  h += "<div class='card'><h2>PA tariff per shift</h2><table class='plain'>";
+  for (const k of Object.keys(cdata.tariff)) h += "<tr><td>" + esc(k) + "</td><td><input type='text' inputmode='decimal' data-tf='" + esc(k) + "' value='" + esc(cdata.tariff[k]) + "' style='width:72px'></td></tr>";
+  h += "</table></div>";
+  h += "<div class='card'><h2>Admins</h2><input type='text' id='admList' value='" + esc((cdata.admins || []).join(", ")) + "' style='width:100%'></div>";
+  box.innerHTML = h;
+  box.querySelectorAll("input[data-jp]").forEach(x => x.onchange = () => { jp(x.dataset.jp)[x.dataset.k] = x.value.trim(); clog("Job plan " + x.dataset.jp + " " + x.dataset.k + " → " + x.value.trim()); saveC(); });
+  box.querySelectorAll("input[data-sk]").forEach(x => x.onchange = () => { sk(x.dataset.sk)[x.dataset.k] = x.checked; clog("Skill " + x.dataset.sk + " " + x.dataset.k + " → " + x.checked); saveC(); });
+  box.querySelectorAll("input[data-tf]").forEach(x => x.onchange = () => { cdata.tariff[x.dataset.tf] = x.value.trim(); clog("Tariff " + x.dataset.tf + " → " + x.value.trim()); saveC(); });
+  $("#admList").onchange = () => { cdata.admins = $("#admList").value.split(",").map(s => s.trim().toUpperCase()).filter(Boolean); clog("Admins → " + cdata.admins.join(", ")); saveC(); };
+}
+
+async function myFigures(ini){
+  const p = (cdata.jobPlans || {})[ini] || {};
+  const pin = (cdata.pins || {})[ini];
+  const gate = document.createElement("div"); gate.id = "whoOverlay";
+  const box = document.createElement("div"); box.className = "box";
+  const t = document.createElement("b"); t.textContent = pin ? "PIN for " + ini : "Set a PIN for " + ini;
+  const inp = document.createElement("input"); inp.type = "password"; inp.placeholder = "PIN"; inp.style.width = "100%"; inp.style.marginBottom = ".6rem";
+  const ok = document.createElement("button"); ok.className = "btn"; ok.style.width = "100%"; ok.textContent = pin ? "Show my figures" : "Set PIN";
+  ok.onclick = async () => {
+    const v = inp.value; if (!v) return;
+    if (!pin){ cdata.pins = cdata.pins || {}; cdata.pins[ini] = await sha(v); clog("PIN set for " + ini); await saveC(); }
+    else if (await sha(v) !== pin){ t.textContent = "Wrong PIN"; return; }
+    gate.remove();
+    const shifts = (function(){ const days = ((data.consRota || {}).days) || {}; let n = 0; for (const d in days){ const c = days[d].cur || {}; if (["A","B","C","D","E"].some(k => c[k] === ini) || c.oncall === ini || c.fgh === ini) n++; } return n; })();
+    const ov = document.createElement("div"); ov.id = "whoOverlay";
+    const b2 = document.createElement("div"); b2.className = "box";
+    b2.innerHTML = "<b>" + esc(nameOf(ini)) + "</b><table class='plain' style='margin-top:.5rem'>" +
+      "<tr><td>Weekly PAs</td><td style='text-align:right'>" + esc(p.weeklyPA || "—") + "</td></tr>" +
+      "<tr><td>Annual target</td><td style='text-align:right'>" + esc(p.annualTarget || "—") + "</td></tr>" +
+      "<tr><td>Last year</td><td style='text-align:right'>" + esc(p.lastYear || "—") + "</td></tr>" +
+      "<tr><td>Carry-over</td><td style='text-align:right'>" + esc(p.carryOver || "—") + "</td></tr>" +
+      "<tr><td>Shift days in current window</td><td style='text-align:right'>" + shifts + "</td></tr></table>";
+    ov.onclick = e => { if (e.target === ov) ov.remove(); };
+    ov.append(b2); document.body.append(ov);
+  };
+  gate.onclick = e => { if (e.target === gate) gate.remove(); };
+  box.append(t, inp, ok); gate.append(box); document.body.append(gate);
+  inp.focus();
 }
 
 function consList(){
@@ -193,12 +334,16 @@ function cellHTML(rec, key, d){
   const diff = rec && cur !== auto;
   const fin = rec && (rec.cur.fin || {})[cur];
   const isCod = rec && cur && rec.cur.cod === cur && "ABCDE".includes(key);
-  let h = "<div class='cellwrap'><span class='cell" + (diff ? " diff" : "") + (cur ? "" : " empty") + "' data-d='" + d + "' data-k='" + key + "' title='" +
-    esc(nameOf(cur) || "nobody assigned") + (fin ? " · finishes " + fin : "") + (diff ? " · MANUAL — sheet says " + esc(auto || "nobody") : "") + "'>" + (esc(cur) || "—") + "</span>";
+  const podCell = "ABCDE".includes(key);
+  let h = "<div class='cellwrap'><span class='cell" + (diff ? " diff" : "") + (cur ? "" : " empty") + "' data-d='" + d + "' data-k='" + key + "'" +
+    (cur && podCell ? " draggable='true'" : "") + " title='" +
+    esc(nameOf(cur) || "nobody assigned") + (fin ? " · finishes " + fin : "") + (diff ? " · MANUAL — sheet says " + esc(auto || "nobody") : "") +
+    (cur && podCell ? " · drag onto another pod to swap" : "") + "'>" + (esc(cur) || "—") + "</span>";
   if (isCod) h += "<span class='codpill' draggable='true' data-d='" + d + "' title='COD — drag onto another pod on this day to hand over referrals'>COD</span>";
   else if (fin && cur){
-    const t = fin.slice(0,2) === "17" ? "17" : fin.slice(0,2) === "18" ? "18" : fin;
-    h += "<span class='finbadge " + (t === "17" ? "f17" : "f18") + "' title='finishes " + fin + "'>" + t + "</span>";
+    /* 17:00 is the normal finish, so it isn't drawn — only the exception gets a mark. */
+    const t = fin.slice(0,2) === "17" ? "" : fin.slice(0,2) === "18" ? "18" : fin;
+    if (t) h += "<span class='finbadge' title='finishes " + fin + "'>" + esc(t) + "</span>";
   }
   return h + "</div>";
 }
@@ -235,15 +380,34 @@ function renderRota(){
   h += "</table>";
   $("#weekGrid").innerHTML = h;
   $("#weekGrid").querySelectorAll(".cell").forEach(c => c.onclick = () => editCell(c.dataset.d, c.dataset.k, c));
+  /* Badge drag: a consultant carries their badge onto another pod and the two exchange pods.
+     This is the ONE edit open to any consultant without unlocking — everything else is rota-master. */
+  $("#weekGrid").querySelectorAll(".cell[draggable='true']").forEach(c => {
+    c.ondragstart = e => { e.dataTransfer.setData("text/pod", c.dataset.d + "|" + c.dataset.k); e.dataTransfer.effectAllowed = "move"; };
+  });
   /* COD pill drag: hand referrals to whoever covers the pod you drop it on (same day). */
   $("#weekGrid").querySelectorAll(".codpill").forEach(pill => {
     pill.ondragstart = e => { e.dataTransfer.setData("text/cod", pill.dataset.d); e.dataTransfer.effectAllowed = "move"; };
   });
   $("#weekGrid").querySelectorAll("td[data-pod]").forEach(td => {
-    td.ondragover = e => { if (e.dataTransfer.types.includes("text/cod")) { e.preventDefault(); td.classList.add("dropok"); } };
+    td.ondragover = e => {
+      const t = e.dataTransfer.types;
+      if (t.includes("text/cod") || t.includes("text/pod")) { e.preventDefault(); td.classList.add("dropok"); }
+    };
     td.ondragleave = () => td.classList.remove("dropok");
     td.ondrop = e => {
       td.classList.remove("dropok");
+      const pod = e.dataTransfer.getData("text/pod");
+      if (pod){
+        e.preventDefault();
+        const [pd, pk] = pod.split("|");
+        if (pd !== td.dataset.date) { toast("Swap within the same day"); return; }
+        if (pk === td.dataset.pod) return;
+        const rec = ((data.consRota || {}).days || {})[pd]; if (!rec) return;
+        if (!rec.cur[td.dataset.pod]) { toast("Drop on a pod with someone to swap with"); return; }
+        ensureWho(() => applySwap(pd, pk, td.dataset.pod));
+        return;
+      }
       const d = e.dataTransfer.getData("text/cod");
       if (!d || d !== td.dataset.date) { if (d) toast("Drop it on another pod on the same day"); return; }
       e.preventDefault();
@@ -251,7 +415,7 @@ function renderRota(){
       const target = rec.cur[td.dataset.pod];
       if (!target) { toast("No consultant on that pod to take COD"); return; }
       if (target === rec.cur.cod) return;
-      ensureWho(() => applyEdit(d, "cod", target, "COD handed to " + target + " (Pod " + td.dataset.pod + ")"));
+      ensureRota(() => ensureWho(() => applyEdit(d, "cod", target, "COD handed to " + target + " (Pod " + td.dataset.pod + ")")));
     };
   });
 }
@@ -282,10 +446,12 @@ function renderStaff(){
     bump(cur.oncall, "oc"); bump(cur.cod, "cod"); bump(cur.fgh, "fgh");
   }
   const inis = Object.keys(map).filter(i => !["FMCN","NET","AC","SF"].includes(i)).sort((a,b) => nameOf(a).localeCompare(nameOf(b)));
-  $("#staffBox").innerHTML = "<table class='plain'><tr><th>Consultant</th><th>Initials</th><th>Pod days*</th><th>On call</th><th>COD</th><th>Fairfield</th></tr>" +
+  $("#staffBox").innerHTML = "<table class='plain'><tr><th>Consultant</th><th>Initials</th><th>Pod days*</th><th>On call</th><th>COD</th><th>Fairfield</th>" + (cdata ? "<th></th>" : "") + "</tr>" +
     inis.map(i => { const t = tal[i] || { pod:0, oc:0, cod:0, fgh:0 };
-      return "<tr><td>" + esc(nameOf(i)) + "</td><td><span class='inipill' style='margin:0'>" + i + "</span></td><td>" + t.pod + "</td><td>" + t.oc + "</td><td>" + t.cod + "</td><td>" + t.fgh + "</td></tr>"; }).join("") +
+      return "<tr><td>" + esc(nameOf(i)) + "</td><td><span class='inipill' style='margin:0'>" + i + "</span></td><td>" + t.pod + "</td><td>" + t.oc + "</td><td>" + t.cod + "</td><td>" + t.fgh + "</td>" +
+        (cdata ? "<td><button data-my='" + i + "' style='border:1px solid var(--line);background:var(--card);border-radius:8px;padding:.2rem .55rem;font-size:.7rem;font-weight:600;cursor:pointer;font-family:inherit'>My figures</button></td>" : "") + "</tr>"; }).join("") +
     "</table><div style='font-size:.72rem;color:var(--muted);margin-top:.5rem'>*days covering at least one pod, across the window the app currently holds — the rota sheet remains the master.</div>";
+  $("#staffBox").querySelectorAll("button[data-my]").forEach(b => b.onclick = () => myFigures(b.dataset.my));
 }
 
 function renderLog(){
@@ -295,7 +461,7 @@ function renderLog(){
     : "<p style='color:var(--muted);font-size:.85rem'>No consultant changes logged yet.</p>";
 }
 
-function renderAll(){ renderRota(); renderFair(); renderStaff(); renderLog(); }
+function renderAll(){ renderRota(); renderFair(); renderStaff(); renderLog(); renderAdmin(); }
 
 function ensureWho(cb){
   const w = localStorage.getItem("consEditor");
@@ -325,8 +491,59 @@ async function applyEdit(d, k, ini, note){
   renderAll();
 }
 
+/* A pod-to-pod swap: the two consultants exchange pods for that day. Finish time and COD are
+   held against the person, not the pod, so both badges travel with them automatically. */
+async function applySwap(d, k1, k2){
+  const cons = data.consRota; if (!cons) return;
+  const rec = (cons.days || {})[d]; if (!rec) return;
+  const a = rec.cur[k1] || "", b = rec.cur[k2] || "";
+  if (!a || !b || a === b) return;
+  rec.cur[k1] = b; rec.cur[k2] = a;
+  const who = localStorage.getItem("consEditor") || "?";
+  data.log = data.log || [];
+  data.log.unshift({ t: new Date().toISOString(), who: who + " (consultant page)",
+    msg: "Pod swap " + d + ": " + a + " " + rowLabel(k1) + " ↔ " + b + " " + rowLabel(k2) });
+  if (data.log.length > 500) data.log.length = 500;
+  data.savedAt = new Date().toISOString(); data.savedBy = who;
+  state("saving");
+  try {
+    await fetch(SAVE, { method: "POST", mode: "no-cors", body: new Blob([JSON.stringify(data)], { type: "application/json" }) });
+    state("saved"); toast(a + " ↔ " + b);
+  } catch(e){ state("unsaved"); toast("Save failed — try again"); }
+  renderAll();
+}
+
+/* Rota-master gate. Changing who covers what, handing over COD, on call and Fairfield are all
+   rota-master edits. Pod-to-pod swaps are not gated. Until the consultant store is connected
+   there is nowhere to keep the PIN, so the page behaves as it did before. */
+function ensureRota(cb){
+  if (rotaOpen || !cdata) { rotaOpen = true; return cb(); }
+  const first = !cdata.rotaPin;
+  const gate = document.createElement("div"); gate.id = "whoOverlay";
+  const box = document.createElement("div"); box.className = "box";
+  const t = document.createElement("b"); t.textContent = first ? "Set the rota-master PIN" : "Rota-master PIN";
+  const inp = document.createElement("input"); inp.type = "password"; inp.placeholder = "PIN"; inp.style.width = "100%"; inp.style.marginBottom = ".6rem";
+  const inp2 = document.createElement("input"); inp2.type = "password"; inp2.placeholder = "PIN again"; inp2.style.width = "100%"; inp2.style.marginBottom = ".6rem";
+  const ok = document.createElement("button"); ok.className = "btn"; ok.style.width = "100%"; ok.textContent = first ? "Set PIN" : "Unlock";
+  ok.onclick = async () => {
+    const v = inp.value; if (!v) return;
+    if (first){
+      if (v !== inp2.value){ t.textContent = "PINs don't match"; return; }
+      cdata.rotaPin = await sha(v); clog("Rota-master PIN set"); await saveC();
+    } else {
+      const h = await sha(v);
+      if (h !== cdata.rotaPin && h !== cdata.adminPin){ t.textContent = "Wrong PIN"; return; }
+    }
+    rotaOpen = true; gate.remove(); cb();
+  };
+  gate.onclick = e => { if (e.target === gate) gate.remove(); };
+  box.append(t, inp); if (first) box.append(inp2); box.append(ok);
+  gate.append(box); document.body.append(gate);
+  inp.focus();
+}
+
 function editCell(d, k, cellEl){
-  ensureWho(() => {
+  ensureRota(() => ensureWho(() => {
     const rec = ((data.consRota || {}).days || {})[d];
     const cur = (rec && rec.cur[k]) || "";
     const sel = consSelect("cellsel", cur, "— nobody —");
@@ -338,7 +555,7 @@ function editCell(d, k, cellEl){
     sel.onchange = () => finish(true);
     sel.onblur = () => finish(false);
     sel.onkeydown = e => { if (e.key === "Escape") finish(false); };
-  });
+  }));
 }
 
 function shiftWeek(n){
@@ -353,7 +570,7 @@ $("#btnToday").onclick = () => { const wks = weeksAvail(); const m = mondayOf(ne
 $("#btnJuniors").onclick = () => { showJun = !showJun; $("#btnJuniors").textContent = showJun ? "Hide juniors" : "Show juniors"; renderRota(); };
 document.querySelectorAll("aside button[data-tab]").forEach(b => b.onclick = () => {
   document.querySelectorAll("aside button[data-tab]").forEach(x => x.classList.toggle("active", x === b));
-  for (const t of ["rota","fair","staff","log"]) $("#tab-" + t).style.display = (b.dataset.tab === t) ? "" : "none";
+  for (const t of ["rota","fair","staff","log","admin"]) $("#tab-" + t).style.display = (b.dataset.tab === t) ? "" : "none";
 });
 load().catch(e => { $("#weekGrid").innerHTML = "<p style='padding:1rem'>Couldn't load: " + esc(e.message || e) + "</p>"; });
 </script>

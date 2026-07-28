@@ -70,7 +70,8 @@ table{border-collapse:collapse;width:100%}
 /* rota table */
 .rota-wrap{background:var(--card);border:0.5px solid var(--line);border-radius:18px;overflow:visible;max-width:100%}
 table.rota{border-collapse:collapse;width:100%;min-width:1080px}
-table.rota th{background:var(--card);color:var(--muted);font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;padding:.6rem .6rem;text-align:left;position:sticky;top:0;z-index:10;border-bottom:1px solid var(--line);font-weight:700}
+/* Pod A–E headers stay put under the topbar as the week scrolls (64px matches .dl-inner). */
+table.rota th{background:var(--card);color:var(--muted);font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;padding:.6rem .6rem;text-align:left;position:sticky;top:64px;z-index:10;border-bottom:1px solid var(--line);font-weight:700}
 table.rota td{border-bottom:1px solid var(--hair);border-right:1px solid var(--hair);padding:.5rem .5rem;vertical-align:top}
 table.rota td:last-child{border-right:0}
 .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:.4rem;vertical-align:baseline}
@@ -2223,7 +2224,7 @@ function renderDayRow(day, di, dateISO, issues){
       const crec = data.consRota && data.consRota.days && data.consRota.days[dateISO];
       const cini = crec && crec.cur && crec.cur[p];
       if (cini && !pod.cons) {
-        const lbl = el("span", { class: "consauto", title: ((data.consRota.map || {})[cini] || cini) + " — from the consultant rota" }, cini);
+        const lbl = el("span", { class: "consauto", title: ((data.consRota.map || {})[cini] || cini) + " — from the consultant rota" }, consSurname(cini));
         if (crec.cur.cod && crec.cur.cod === cini) lbl.append(el("span", { class: "codpill" }, "COD"));
         col.append(el("div", { class: "conswrap" }, lbl));
       }
@@ -2267,7 +2268,7 @@ function renderDayRow(day, di, dateISO, issues){
     if (crecN && crecN.cur && crecN.cur.oncall && !day.nightCons) {
       night.append(el("div", { class: "conswrap" },
         el("span", { class: "consauto", title: ((data.consRota.map || {})[crecN.cur.oncall] || crecN.cur.oncall) + " — consultant on call overnight (16:00–09:00), from the consultant rota" },
-          crecN.cur.oncall + " on call")));
+          consSurname(crecN.cur.oncall))));
     }
   }
   if (!day.night.phone) night.append(el("div", {}, phoneToken(di, "night")));
@@ -2732,6 +2733,16 @@ function consLabel(s){
   const parts = s.name.trim().split(/\s+/);
   const sur = parts[parts.length-1];
   const dup = data.staff.some(x => x.id !== s.id && x.grade === "CON" && x.name.trim().split(/\s+/).pop().toLowerCase() === sur.toLowerCase());
+  return dup ? sur + " (" + parts[0][0] + ")" : sur;
+}
+/* Consultant-rota initials → surname, for the trainee board. Initials mean nothing to a trainee. */
+function consSurname(ini){
+  const map = (data.consRota && data.consRota.map) || {};
+  const full = map[ini];
+  if (!full) return ini;
+  const parts = String(full).trim().split(/\s+/);
+  const sur = parts[parts.length-1];
+  const dup = Object.keys(map).some(k => k !== ini && String(map[k]).trim().split(/\s+/).pop().toLowerCase() === sur.toLowerCase());
   return dup ? sur + " (" + parts[0][0] + ")" : sur;
 }
 function showConsImportPreview(weeks, box){
