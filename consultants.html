@@ -55,7 +55,14 @@ td.rowh .bar{display:inline-block;width:8px;height:8px;border-radius:50%;margin-
 .cell:hover{background:var(--accent-bg)}
 .cell.empty{color:#c9cbd1;font-weight:400}
 .cell.diff{outline:1.5px dashed var(--amber);color:var(--amber)}
-.codpill{font-size:.55rem;background:var(--ink);color:#f1efe8;border-radius:6px;padding:.1rem .35rem;margin-left:.3rem;vertical-align:2px;font-weight:800;letter-spacing:.04em}
+.codpill{font-size:.55rem;background:var(--ink);color:#f1efe8;border-radius:6px;padding:.1rem .35rem;margin-left:.3rem;vertical-align:2px;font-weight:800;letter-spacing:.04em;cursor:grab}
+.codpill:active{cursor:grabbing}
+td.dropok{outline:2px dashed var(--accent);outline-offset:-3px}
+select.cellsel{border:1px solid #dcdcd8;border-radius:9px;padding:.25rem .3rem;font-size:.8rem;font-family:inherit;background:#fff;max-width:100%}
+#whoOverlay{position:fixed;inset:0;background:rgba(23,24,28,.35);display:flex;align-items:center;justify-content:center;z-index:60}
+#whoOverlay .box{background:var(--card);border-radius:16px;padding:1.2rem 1.4rem;max-width:320px;width:90%}
+#whoOverlay b{display:block;margin-bottom:.6rem}
+#whoOverlay select{width:100%;margin-bottom:.7rem}
 .fintime{display:block;font-size:.62rem;color:var(--muted);font-weight:600;margin-top:.1rem}
 tr.junrow td{background:#fafaf8;border-bottom:1px solid var(--hair);font-size:.74rem;color:#5a5f68;padding:.3rem .6rem}
 tr.junrow td.rowh{font-weight:700;font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
@@ -147,8 +154,29 @@ async function load(){
   renderAll();
 }
 
-function whoBtn(){ const w = localStorage.getItem("consEditor"); $("#btnWho").textContent = w ? "Editing as " + w : "Set your initials"; }
-$("#btnWho").onclick = () => { const w = (prompt("Your initials (recorded in the change log):", localStorage.getItem("consEditor") || "") || "").trim().toUpperCase(); if (w){ localStorage.setItem("consEditor", w); whoBtn(); } };
+function consList(){
+  const map = (data.consRota || {}).map || {};
+  return Object.keys(map).filter(i => !["FMCN","NET","AC","SF"].includes(i)).sort((a,b) => nameOf(a).localeCompare(nameOf(b)));
+}
+function consSelect(cls, selected, blankLabel){
+  const s = document.createElement("select"); s.className = cls;
+  const b = document.createElement("option"); b.value = ""; b.textContent = blankLabel || "—"; s.append(b);
+  for (const i of consList()){ const o = document.createElement("option"); o.value = i; o.textContent = i + " — " + nameOf(i); if (i === selected) o.selected = true; s.append(o); }
+  if (selected && !consList().includes(selected)){ const o = document.createElement("option"); o.value = selected; o.textContent = selected; o.selected = true; s.append(o); }
+  return s;
+}
+function whoBtn(){ const w = localStorage.getItem("consEditor"); $("#btnWho").textContent = w ? "Editing as " + w : "Who's editing?"; }
+function pickWho(cb){
+  const ov = document.createElement("div"); ov.id = "whoOverlay";
+  const box = document.createElement("div"); box.className = "box";
+  const t = document.createElement("b"); t.textContent = "Who are you? Changes are logged under your name.";
+  const sel = consSelect("cellsel", localStorage.getItem("consEditor") || "", "choose…");
+  const ok = document.createElement("button"); ok.className = "btn"; ok.style.width = "100%"; ok.textContent = "That's me";
+  ok.onclick = () => { if (!sel.value) return; localStorage.setItem("consEditor", sel.value); whoBtn(); ov.remove(); if (cb) cb(sel.value); };
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  box.append(t, sel, ok); ov.append(box); document.body.append(ov);
+}
+$("#btnWho").onclick = () => pickWho();
 
 function juniorsFor(dateISO){
   const wk = (data.weeks || {})[mondayOf(dateISO)];
@@ -170,7 +198,7 @@ function cellHTML(rec, key, d){
   const isCod = rec && cur && rec.cur.cod === cur && "ABCDE".includes(key);
   let h = "<span class='cell" + (diff ? " diff" : "") + (cur ? "" : " empty") + "' data-d='" + d + "' data-k='" + key + "' title='" +
     esc(nameOf(cur) || "nobody assigned") + (fin ? " · finishes " + fin : "") + (diff ? " · MANUAL — sheet says " + esc(auto || "nobody") : "") + "'>" + (esc(cur) || "—") + "</span>";
-  if (isCod) h += "<span class='codpill'>COD</span>";
+  if (isCod) h += "<span class='codpill' draggable='true' data-d='" + d + "' title='COD — drag onto another pod on this day to hand over referrals'>COD</span>";
   if (fin && cur) h += "<span class='fintime'>to " + fin + "</span>";
   return h;
 }
@@ -182,7 +210,7 @@ function renderRota(){
   let h = "<table class='rota'><tr><th></th>" + dates.map((d,i) => "<th>" + DAYS[i] + " " + fmt(d) + "</th>").join("") + "</tr>";
   for (const [p, label, barcol] of PODROWS){
     h += "<tr><td class='rowh'><span class='bar' style='background:" + barcol + "'></span>" + label + "</td>";
-    for (const d of dates) h += "<td style='background:var(--pod" + p + ")'>" + cellHTML(cons[d], p, d) + "</td>";
+    for (const d of dates) h += "<td style='background:var(--pod" + p + ")' data-date='" + d + "' data-pod='" + p + "'>" + cellHTML(cons[d], p, d) + "</td>";
     h += "</tr>";
     if (showJun){
       h += "<tr class='junrow'><td class='rowh'>juniors</td>";
@@ -209,7 +237,26 @@ function renderRota(){
   h += "</tr>";
   h += "</table>";
   $("#weekGrid").innerHTML = h;
-  $("#weekGrid").querySelectorAll(".cell").forEach(c => c.onclick = () => editCell(c.dataset.d, c.dataset.k));
+  $("#weekGrid").querySelectorAll(".cell").forEach(c => c.onclick = () => editCell(c.dataset.d, c.dataset.k, c));
+  /* COD pill drag: hand referrals to whoever covers the pod you drop it on (same day). */
+  $("#weekGrid").querySelectorAll(".codpill").forEach(pill => {
+    pill.ondragstart = e => { e.dataTransfer.setData("text/cod", pill.dataset.d); e.dataTransfer.effectAllowed = "move"; };
+  });
+  $("#weekGrid").querySelectorAll("td[data-pod]").forEach(td => {
+    td.ondragover = e => { if (e.dataTransfer.types.includes("text/cod")) { e.preventDefault(); td.classList.add("dropok"); } };
+    td.ondragleave = () => td.classList.remove("dropok");
+    td.ondrop = e => {
+      td.classList.remove("dropok");
+      const d = e.dataTransfer.getData("text/cod");
+      if (!d || d !== td.dataset.date) { if (d) toast("Drop it on another pod on the same day"); return; }
+      e.preventDefault();
+      const rec = ((data.consRota || {}).days || {})[d]; if (!rec) return;
+      const target = rec.cur[td.dataset.pod];
+      if (!target) { toast("No consultant on that pod to take COD"); return; }
+      if (target === rec.cur.cod) return;
+      ensureWho(() => applyEdit(d, "cod", target, "COD handed to " + target + " (Pod " + td.dataset.pod + ")"));
+    };
+  });
 }
 
 function renderFair(){
@@ -253,20 +300,23 @@ function renderLog(){
 
 function renderAll(){ renderRota(); renderFair(); renderStaff(); renderLog(); }
 
-async function editCell(d, k){
+function ensureWho(cb){
+  const w = localStorage.getItem("consEditor");
+  if (w) cb(w); else pickWho(cb);
+}
+
+const rowLabel = k => k.length === 1 ? "Pod " + k : k === "oncall" ? "on call" : k === "cod" ? "COD" : "Fairfield";
+
+async function applyEdit(d, k, ini, note){
   const cons = data.consRota; if (!cons) return;
   const blank = () => ({ A:"",B:"",C:"",D:"",E:"",oncall:"",cod:"",fgh:"",wkend:false,fin:{} });
   const rec = cons.days[d] || (cons.days[d] = { auto: blank(), cur: blank() });
-  let who = localStorage.getItem("consEditor") || "";
-  if (!who){ who = (prompt("Your initials (recorded in the change log):") || "").trim().toUpperCase(); if (!who) return; localStorage.setItem("consEditor", who); whoBtn(); }
-  const label = k.length === 1 ? "Pod " + k : k === "oncall" ? "on call" : k === "cod" ? "COD" : "Fairfield";
+  const who = localStorage.getItem("consEditor") || "?";
   const cur = rec.cur[k] || "";
-  const val = prompt("Who covers " + label + " on " + fmt(d) + "? Enter initials (blank = clear):", cur);
-  if (val === null) return;
-  const ini = val.trim().toUpperCase();
+  if (ini === cur) return;
   rec.cur[k] = ini;
   data.log = data.log || [];
-  data.log.unshift({ t: new Date().toISOString(), who: who + " (consultant page)", msg: "Consultant swap " + d + " " + label + ": " + (cur || "—") + " → " + (ini || "—") + (ini === (rec.auto[k] || "") ? "" : " (differs from rota sheet)") });
+  data.log.unshift({ t: new Date().toISOString(), who: who + " (consultant page)", msg: (note || ("Consultant swap " + d + " " + rowLabel(k) + ": " + (cur || "—") + " → " + (ini || "—"))) + (ini === (rec.auto[k] || "") ? "" : " (differs from rota sheet)") });
   if (data.log.length > 500) data.log.length = 500;
   data.savedAt = new Date().toISOString(); data.savedBy = who;
   state("saving");
@@ -276,6 +326,22 @@ async function editCell(d, k){
     toast("Saved — " + (ini || "cleared") + (ini === (rec.auto[k] || "") ? "" : " (flagged: differs from the rota sheet)"));
   } catch(e){ state("unsaved"); toast("Save failed — try again"); }
   renderAll();
+}
+
+function editCell(d, k, cellEl){
+  ensureWho(() => {
+    const rec = ((data.consRota || {}).days || {})[d];
+    const cur = (rec && rec.cur[k]) || "";
+    const sel = consSelect("cellsel", cur, "— nobody —");
+    sel.title = "Who covers " + rowLabel(k) + " on " + fmt(d);
+    cellEl.replaceWith(sel);
+    sel.focus();
+    let done = false;
+    const finish = commit => { if (done) return; done = true; if (commit && sel.value !== cur) applyEdit(d, k, sel.value); else renderRota(); };
+    sel.onchange = () => finish(true);
+    sel.onblur = () => finish(false);
+    sel.onkeydown = e => { if (e.key === "Escape") finish(false); };
+  });
 }
 
 function shiftWeek(n){
