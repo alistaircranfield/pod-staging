@@ -2761,7 +2761,12 @@ function checkDay(day, dateISO, di, wk){
   if (day.phone) {
     const hPod = PODS.find(p => day.pods[p].assign.some(a => a.id === day.phone));
     const maxCount = Math.max(...PODS.map(p => perPod[p].length));
-    if (hPod && perPod[hPod].length < maxCount) S("Phone holder isn't in the busiest pod — aim to put them where there's the most cover.");
+    // Only worth raising when a pod is genuinely bigger. On an even day — 3/3/3/3/2 — there is no
+    // busiest pod, so this fired wherever the holder happened to stand and buried the ambers that
+    // actually needed looking at.
+    if (hPod && maxCount - perPod[hPod].length >= 2)
+      S("Phone holder is in Pod " + hPod + " with " + perPod[hPod].length + ", while Pod " +
+        PODS.find(p => perPod[p].length === maxCount) + " has " + maxCount + " — aim to put them where there's the most cover.");
   }
   return issues;
 }
@@ -3679,7 +3684,9 @@ function autoFillDay(wk, di, wkKey, opts){
   const counts = {}, hasLD = {}, airwayIn = {};
   for (const p of PODS) {
     counts[p] = day.pods[p].assign.filter(a => a.id && countsInNumbers(a.id)).length;
-    hasLD[p] = day.pods[p].assign.some(a => a.id && a.shift === "LD");
+    // countsInNumbers, to match the day check: a supernumerary is learning/extra and is not the
+    // pod's long day. Without this the allocator believed a pod was covered when the board said red.
+    hasLD[p] = day.pods[p].assign.some(a => a.id && a.shift === "LD" && countsInNumbers(a.id));
     airwayIn[p] = day.pods[p].assign.filter(a => a.id && staffById(a.id)?.airway).length;
   }
   const totalPeople = PODS.reduce((n,p) => n + counts[p], 0) + unplaced.length;
@@ -3806,17 +3813,26 @@ function autoFillDay(wk, di, wkKey, opts){
      none. Rather than trusting each step to police itself, do the move and put it straight back if
      an invariant broke. */
   const nCount = q => day.pods[q].assign.filter(a => a.id && countsInNumbers(a.id)).length;
-  const hasLDin = q => day.pods[q].assign.some(a => a.id && a.shift === "LD");
+  const hasLDin = q => day.pods[q].assign.some(a => a.id && a.shift === "LD" && countsInNumbers(a.id));
   const invariantsHold = () => {
     const smallestOther = Math.min(...PODS.filter(q => q !== "E").map(nCount));
     if (nCount("E") > smallestOther) return false;
     if (hasLDin("E") && PODS.filter(q => q !== "E").some(q => !hasLDin(q))) return false;
     return true;
   };
+  /* A pod holding people but no long day is exactly what the pass below exists to fix — yet nothing
+     stopped a LATER pass undoing it. The phone-to-busiest swap and the airway swap both move long
+     days between pods, and invariantsHold() never looked at long-day cover, so a pod could quietly
+     lose its last one and the day finished red. Every one of the avoidable no-long-day days in the
+     stress run had a pod with two long days sitting next to the pod with none, which is the
+     signature of a fix being applied and then undone. So: count the gaps before and after. A move
+     may close one, it may never open one. */
+  const ldGaps = () => PODS.filter(q => nCount(q) > 0 && !hasLDin(q)).length;
   const tryMove = fn => {
+    const gapsBefore = ldGaps();
     const snap = PODS.map(q => day.pods[q].assign.slice());
     fn();
-    if (invariantsHold()) return true;
+    if (invariantsHold() && ldGaps() <= gapsBefore) return true;
     PODS.forEach((q, i) => { day.pods[q].assign = snap[i]; });
     return false;
   };
@@ -3826,7 +3842,7 @@ function autoFillDay(wk, di, wkKey, opts){
      three other pods each had two or three long days. Swap one across, keeping the counts the same. */
   {
     const podPeople = p => day.pods[p].assign.filter(a => a.id);
-    const ldIn = p => podPeople(p).filter(a => a.shift === "LD").length;
+    const ldIn = p => podPeople(p).filter(a => a.shift === "LD" && countsInNumbers(a.id)).length;
     const countedIn = p => podPeople(p).filter(a => countsInNumbers(a.id)).length;
     for (const p of PODS) {
       if (countedIn(p) < 1 || ldIn(p) > 0) continue;
@@ -3907,7 +3923,7 @@ function autoFillDay(wk, di, wkKey, opts){
       const rank = (a, from, to) => (isNeuroPod(from) && neuro(a) ? 2 : 0) + (isNeuroPod(to) && !neuro(a) ? 1 : 0);
       // A long day in every pod matters more than airway cover, so this must never strip the last
       // long day out of the donor either — only take an LD away if one is coming back.
-      const ldDonor = day.pods[donor].assign.filter(a => a.id && a.shift === "LD").length;
+      const ldDonor = day.pods[donor].assign.filter(a => a.id && a.shift === "LD" && countsInNumbers(a.id)).length;
       const airCands = day.pods[donor].assign
         .filter(a => a.id && staffById(a.id) && staffById(a.id).airway && !wouldBeThird(a.id, p))
         .filter(a => !(a.shift === "LD" && ldDonor <= 1
@@ -3918,7 +3934,7 @@ function autoFillDay(wk, di, wkKey, opts){
       // Swap like for like on shift where we can, so the long-day balance above isn't undone.
       // Never send away the pod's only long day to make room for airway cover — that just trades
       // one red for another. If the incoming person isn't an LD, whoever leaves mustn't be either.
-      const ldHere = day.pods[p].assign.filter(a => a.id && a.shift === "LD").length;
+      const ldHere = day.pods[p].assign.filter(a => a.id && a.shift === "LD" && countsInNumbers(a.id)).length;
       const backCands = day.pods[p].assign
         .filter(a => a.id && !(staffById(a.id) || {}).airway && !wouldBeThird(a.id, donor))
         .filter(a => air.shift === "LD" || !(a.shift === "LD" && ldHere <= 1))
