@@ -2328,8 +2328,7 @@ function renderDayRow(day, di, dateISO, issues){
     dlInner.append(el("button", { class: "fixday", title: "Correct this day with the fewest changes", onclick: () => fixDayDialog(di) },
       el("span", { html: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l6-6M14 5l5 5M12.5 6.5l5 5M9 9l6 6"/></svg>' }), "Fix"));
   }
-  if (!day.phone) dlInner.append(el("div", {}, phoneToken(di, "day")));
-  else if (!assigned.has(day.phone) && !pool[day.phone]) {
+  if (day.phone && !assigned.has(day.phone) && !pool[day.phone]) {
     const s = staffById(day.phone);
     if (s) dlInner.append(el("div", { style: "margin-top:.25rem" }, chip(s, { di, day })));
   }
@@ -2409,6 +2408,10 @@ function renderDayRow(day, di, dateISO, issues){
     wrap.append(plus, dlEl, pop);
     tray.append(wrap);
   }
+  // A phone nobody could be given sits here with everything else still to place, rather than
+  // hiding in the day label or the night column. It can be dragged straight onto a person.
+  if (!day.phone) tray.append(el("div", { style: "margin-top:.25rem" }, phoneToken(di, "day")));
+  if (!day.night.phone) tray.append(el("div", { style: "margin-top:.25rem" }, phoneToken(di, "night")));
   tr.append(tray);
   /* ---- pods ---- */
   for (const p of PODS) {
@@ -2481,8 +2484,7 @@ function renderDayRow(day, di, dateISO, issues){
           consSurname(crecN.cur.oncall))));
     }
   }
-  if (!day.night.phone) night.append(el("div", {}, phoneToken(di, "night")));
-  else if (!day.night.AB.includes(day.night.phone) && !day.night.CDE.includes(day.night.phone)) {
+  if (day.night.phone && !day.night.AB.includes(day.night.phone) && !day.night.CDE.includes(day.night.phone)) {
     const s = staffById(day.night.phone);
     if (s) night.append(el("div", { style: "margin-bottom:.2rem" }, chip(s, { di, day })));
   }
@@ -3446,20 +3448,57 @@ function nightAvailWindow(){
 function phoneOK(id){ const s = staffById(id); return !!s && canHoldPhone(s); }
 // Clears any phone sitting with someone who can't hold it. Runs on load and whenever skills change,
 // so removing a phone tick from the staff list releases every phone that person was holding.
+/* An allocation can outlive the thing it depended on: someone loses the phone skill, stops
+   shadowing, leaves Fairfield, goes inactive, or is deleted outright — and the day they were
+   allocated to carries on looking perfectly normal. This releases all of it in one pass, and
+   then hands each affected day back to the allocator so the gap is filled rather than left
+   empty. Clearing without refilling is how a wrong night phone became no night phone. */
 function sweepInvalidPhones(){
   if (!data || !data.weeks) return 0;
+  const gone = id => id && !staffById(id);                       // deleted from the staff list
+  const inactive = id => { const s = staffById(id); return s && s.active === false; };
+  const dead = id => gone(id) || inactive(id);
   let n = 0;
-  for (const w of Object.values(data.weeks)) {
-    for (const d of w.days) {
-      if (d.phone && !phoneOK(d.phone)) { d.phone = null; d.phoneSup = null; n++; }
-      if (d.night && d.night.phone && !phoneOK(d.night.phone)) { d.night.phone = null; n++; }
-    }
+  const touched = [];
+  for (const [key, w] of Object.entries(data.weeks)) {
+    w.days.forEach((d, di) => {
+      let hit = false;
+      if (d.phone && (!phoneOK(d.phone) || dead(d.phone))) { d.phone = null; d.phoneSup = null; n++; hit = true; }
+      // A supervisor who is no longer a supervisor isn't supervising anyone.
+      if (d.phoneSup && (!isPhoneSupervisor(staffById(d.phoneSup)) || dead(d.phoneSup))) { d.phoneSup = null; n++; }
+      // Same for a learner who is no longer marked as learning.
+      const sh = (d.shadow || []).filter(Boolean);
+      const keepSh = sh.filter(id => isPhoneShadow(staffById(id)) && !dead(id));
+      if (keepSh.length !== sh.length) { d.shadow = keepSh; n += sh.length - keepSh.length; }
+      if (d.night) {
+        if (d.night.phone && (!phoneOK(d.night.phone) || dead(d.night.phone))) { d.night.phone = null; n++; hit = true; }
+        for (const k of ["AB", "CDE", "super"]) {
+          const before = (d.night[k] || []).filter(Boolean);
+          const after = before.filter(id => !gone(id));
+          if (after.length !== before.length) { d.night[k] = after; n += before.length - after.length; }
+        }
+      }
+      // People deleted outright shouldn't be left sitting in a pod either.
+      for (const q of PODS) {
+        const b4 = d.pods[q].assign.length;
+        d.pods[q].assign = d.pods[q].assign.filter(a => !a.id || !gone(a.id));
+        if (d.pods[q].assign.length !== b4) n += b4 - d.pods[q].assign.length;
+        const s4 = (d.pods[q].super || []).length;
+        if (s4) { d.pods[q].super = d.pods[q].super.filter(id => !gone(id)); n += s4 - d.pods[q].super.length; }
+      }
+      if (hit) touched.push([key, di]);
+    });
+  }
+  // Hand every emptied day back so the phone gets re-allocated rather than left blank.
+  for (const [key, di] of touched) {
+    const w = data.weeks[key];
+    if (w) { try { autoFillDay(w, di, key, { phonesOnly: true }); } catch (e) {} }
   }
   return n;
 }
 // wkKey lets this run on a week other than the one on screen — needed when a skills change lands
 // and every week from that Monday onward has to be worked out again.
-function autoFillDay(wk, di, wkKey){
+function autoFillDay(wk, di, wkKey, opts){
   const key = wkKey || currentWeekKey;
   const day = wk.days[di];
   const dateISO = addDays(key, di);
@@ -3507,6 +3546,7 @@ function autoFillDay(wk, di, wkKey){
       .sort((a,b) => ((shadowHist[a.id] || 0) - (shadowHist[b.id] || 0)) || a.name.localeCompare(b.name));
     if (learners.length) { day.shadow = day.shadow || []; day.shadow.push(learners[0].id); }
   }
+  if (opts && opts.phonesOnly) return;
   // --- pods ---
   const unplaced = dayIds.filter(id => !assigned.has(id));
   const counts = {}, hasLD = {}, airwayIn = {};
@@ -4010,6 +4050,46 @@ function renderGate(sfx, cardSel, onShow){
     onShow();
   }
 }
+/* The password is asked for once, when the Rota team icon is clicked — not again on every page
+   inside. The per-page gates below stay as a backstop for anything that reaches a team page by
+   another route, but in normal use nobody ever sees them. */
+function teamUnlockDialog(then){
+  const m = $("#modal"); m.innerHTML = "";
+  const setting = !data.staffPw;
+  m.append(el("h3", {}, setting ? "Set a password for the rota team" : "Rota team"));
+  m.append(el("p", { style: "font-size:.85rem;color:#4a4f58;line-height:1.6;margin:0 0 .9rem" },
+    setting ? "Everything in here — the staff list, fairness, the change log and imports — sits behind one password shared by the rota team."
+            : "One password covers everything in here. You'll only be asked once on this device."));
+  const pw = el("input", { type: "password", placeholder: "Password", style: "width:100%" });
+  const msg = el("div", { style: "font-size:.78rem;color:var(--red);min-height:1em;margin-top:.35rem" });
+  m.append(pw, msg);
+  const go = async () => {
+    if (setting) {
+      if (pw.value.length < 4) { msg.textContent = "At least 4 characters."; return; }
+      data.staffPw = await sha256(pw.value);
+      store.sset("staffUnlocked", "1");
+      logEntry("Staff-list password set"); markDirty();
+    } else if (await sha256(pw.value) === data.staffPw) {
+      store.sset("staffUnlocked", "1");
+    } else { msg.textContent = "Wrong password."; return; }
+    closeModal(); renderAll(); then();
+  };
+  pw.onkeydown = e => { if (e.key === "Enter") go(); };
+  const btns = el("div", { class: "modalbtns" },
+    el("button", { class: "btn sec", onclick: closeModal }, "Cancel"),
+    el("button", { class: "btn", onclick: go }, setting ? "Set password" : "Unlock"));
+  m.append(btns);
+  if (!setting) m.append(el("div", { style: "text-align:center;margin-top:.6rem" },
+    el("a", { href: "#", style: "font-size:.72rem;color:var(--muted)", onclick: async e => {
+      e.preventDefault();
+      const typed = await uiPrompt("Resetting clears the password for everyone and is recorded in the change log with your name. Type RESET to confirm.", { title: "Reset the rota team password?", okLabel: "Reset", placeholder: "Type RESET", danger: true });
+      if (typed !== "RESET") { if (typed) toast("Not reset — you must type RESET exactly"); return; }
+      data.staffPw = null; store.sdel("staffUnlocked");
+      logEntry("Staff-list password reset"); markDirty(); closeModal(); renderAll();
+    }}, "Forgotten? Reset it")));
+  $("#modalBg").style.display = "flex";
+  setTimeout(() => pw.focus(), 40);
+}
 function renderStaffGate(){ renderGate("S", "#staffCard", renderStaff); }
 function renderTeamGate(){ renderGate("T", "#teamCard", renderAttention); }
 // Actually opening the Log page counts as reading the feedback. renderAll() redraws every page
@@ -4457,6 +4537,8 @@ function renderAll(){ renderWeek(); renderStaffGate(); renderFairGate(); renderI
 const PAGE_TITLES = { rota: "Pod Allocator", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", help: "How it works", team: "Needs attention" };
 const TEAM_TABS = ["team", "import", "staff", "fair", "log"];
 function switchTab(tab){
+  // Locked out? Ask once, here, then carry on to where they were going.
+  if (TEAM_TABS.includes(tab) && data && !staffUnlocked()) { teamUnlockDialog(() => switchTab(tab)); return; }
   document.querySelectorAll("aside button[data-tab]").forEach(x => x.classList.toggle("active", x.dataset.tab === tab));
   for (const t of ["rota","import","staff","fair","log","help","team"]) $("#tab-" + t).style.display = (tab === t) ? "" : "none";
   $("#pageTitle").textContent = PAGE_TITLES[tab];
