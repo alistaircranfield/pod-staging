@@ -3750,8 +3750,13 @@ function autoFillDay(wk, di, wkKey, opts){
       const neuro = a => !!(staffById(a.id) || {}).neuro;
       const isNeuroPod = q => q === "C" || q === "D";
       const rank = (a, from, to) => (isNeuroPod(from) && neuro(a) ? 2 : 0) + (isNeuroPod(to) && !neuro(a) ? 1 : 0);
+      // A long day in every pod matters more than airway cover, so this must never strip the last
+      // long day out of the donor either — only take an LD away if one is coming back.
+      const ldDonor = day.pods[donor].assign.filter(a => a.id && a.shift === "LD").length;
       const airCands = day.pods[donor].assign
         .filter(a => a.id && staffById(a.id) && staffById(a.id).airway && !wouldBeThird(a.id, p))
+        .filter(a => !(a.shift === "LD" && ldDonor <= 1
+                       && !day.pods[p].assign.some(x => x.id && x.shift === "LD" && !(staffById(x.id) || {}).airway)))
         .sort((x, y) => rank(x, donor, p) - rank(y, donor, p));
       const air = airCands[0];
       if (!air) continue;
