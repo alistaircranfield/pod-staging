@@ -130,10 +130,10 @@ td.nighttd .chip{display:flex}
 .chip{display:inline-flex;align-items:center;gap:.32rem;background:#fff;border:0.5px solid rgba(29,31,36,.05);border-radius:999px;padding:.2rem .55rem .2rem .26rem;font-size:.74rem;font-weight:600;margin:.15rem;cursor:grab;user-select:none;box-shadow:0 1px 3px rgba(29,31,36,.10);white-space:nowrap;max-width:100%;flex-wrap:nowrap}
 .chip:active{cursor:grabbing}
 .chip.dragging{opacity:.35}
-.chip .tagx,.hlp .tagx{font-size:.56rem;font-weight:800;border-radius:999px;padding:.09rem .34rem;background:var(--hair);color:var(--muted);flex-shrink:0;letter-spacing:.02em;display:inline-block;vertical-align:.08em}
-.chip .tagx.LD,.hlp .tagx.LD{background:#2c3e78;color:#fff}
-.chip .tagx.SD,.hlp .tagx.SD{background:#e8edf6;color:#3b558f}
-.chip .tagx.N,.hlp .tagx.N{background:#4a4460;color:#fff}
+.chip .tagx,.hlp .tagx,#modal .tagx{font-size:.56rem;font-weight:800;border-radius:999px;padding:.09rem .34rem;background:var(--hair);color:var(--muted);flex-shrink:0;letter-spacing:.02em;display:inline-block;vertical-align:.08em}
+.chip .tagx.LD,.hlp .tagx.LD,#modal .tagx.LD{background:#2c3e78;color:#fff}
+.chip .tagx.SD,.hlp .tagx.SD,#modal .tagx.SD{background:#e8edf6;color:#3b558f}
+.chip .tagx.N,.hlp .tagx.N,#modal .tagx.N{background:#4a4460;color:#fff}
 .chip .tagx.clickable{cursor:pointer;border-bottom:1px dotted currentColor}
 .chip .tagx.clickable:hover{outline:2px solid var(--accent-bg)}
 .chip.selected{outline:2px solid var(--accent);outline-offset:1px}
@@ -625,7 +625,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
               <li><span class="num">1</span><div>Days run down the left, pods across the top. Find your name on today’s row.</div></li>
               <li><span class="num">2</span><div>The name in the top right is the <b>consultant covering that pod</b> that day. In the Night team column it’s the consultant on call overnight.</div></li>
               <li><span class="num">3</span><div><span class="codpill" style="margin:0">COD</span> — the consultant taking referrals that day.</div></li>
-              <li><span class="num">4</span><div><span class="tagx LD">LD</span> long day, 8 till 8. <span class="tagx SD">SD</span> standard day, 8 till 4. <span class="tagx N">N</span> night — nights are in the Night team column.</div></li>
+              <li><span class="num">4</span><div><span class="tagx LD">LD</span> long day, 8am – 8.30pm. <span class="tagx SD">SD</span> standard day, 8am – 4pm. <span class="tagx N">N</span> night, 8pm – 8.30am — nights are in the Night team column.</div></li>
               <li><span class="num">5</span><div><span class="awdot">A</span> — airway trained.</div></li>
               <li><span class="num">6</span><div><span class="exicon"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style="vertical-align:-1px"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg></span> — holds the referral phone. Always someone on a long day. The night phone is the same icon with a small <b>N</b>.</div></li>
               <li><span class="num">7</span><div><span class="exicon eye"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px"><path d="M2.5 11s3.3-5.5 9.5-5.5S21.5 11 21.5 11 18.2 16.5 12 16.5 2.5 11 2.5 11z"/><circle cx="12" cy="11" r="2.3" fill="currentColor" stroke="none"/><path d="M8.5 20.5c1-1 2.2-1.5 3.5-1.5s2.5.5 3.5 1.5" stroke-width="1.7"/></svg></span> — shadowing the phone: someone learning from the holder, not holding it themselves.</div></li>
@@ -3797,17 +3797,27 @@ function keyDialog(){
   const row = (visual, text) => el("div", { style: "display:flex;align-items:center;gap:.8rem;margin:.5rem 0;font-size:.85rem" },
     el("span", { style: "min-width:86px;display:inline-flex;justify-content:flex-start;align-items:center;gap:.25rem" }, ...(Array.isArray(visual) ? visual : [visual])), text);
   const tag = (cls, txt) => el("span", { class: "tagx " + cls, style: "font-size:.6rem;font-weight:800;border-radius:999px;padding:.1rem .4rem" }, txt);
+  const dotRow = (cls, txt) => row(el("span", { class: "statusdot " + cls, style: "margin:0" }), txt);
+  const sub = txt => el("div", { style: "font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:1rem 0 .1rem" }, txt);
   m.append(
-    row(tag("LD", "LD"), "Long day, 8–8"),
-    row(tag("SD", "SD"), "Standard day, 8–4"),
-    row(tag("N", "N"), "Night"),
+    row(tag("LD", "LD"), "Long day, 8am – 8.30pm"),
+    row(tag("SD", "SD"), "Standard day, 8am – 4pm"),
+    row(tag("N", "N"), "Night, 8pm – 8.30am"),
     row(el("span", { class: "awdot" }, "A"), "Airway trained"),
-    row(el("span", { class: "phoneicon", html: PHONE_SVG }), "Holds the referral phone — drag it to another person to move it, click it to take it back"),
-    row(el("span", { class: "phoneicon night", html: PHONE_SVG + '<span style="font-size:.5rem;font-weight:800;margin-left:1px">N</span>' }), "Holds the night phone (marked N)"),
-    row(el("span", { class: "shadowicon", html: SHADOW_SVG }), "Shadowing the phone — a resident learning from the holder"),
-    row(el("span", { class: "tagx", style: "background:var(--hair);color:var(--muted);font-size:.6rem;font-weight:800;border-radius:999px;padding:.1rem .4rem" }, "OBS"), "Observer or student — on the rota, never counted"),
-    row([el("span", { class: "statusdot ok", style: "margin:0" }), el("span", { class: "statusdot soft", style: "margin:0" }), el("span", { class: "statusdot hard", style: "margin:0" }), el("span", { class: "statusdot none", style: "margin:0" })], "Day status: green all checks pass · amber aims · red issue · grey nothing allocated yet — click a dot for details"),
-    row(el("span", { style: "font-size:.7rem;color:var(--muted);font-weight:700" }, "Surname ▾"), "Consultant covering the pod (and “on call…” overnight, in the night column)")
+    row(el("span", { class: "phoneicon", html: PHONE_SVG }), "Holds the referral phone — drag it to another person to move it"),
+    row(el("span", { class: "phoneicon night", html: PHONE_SVG + '<span style="font-size:.5rem;font-weight:800;margin-left:1px">N</span>' }), "Holds the phone overnight"),
+    row(el("span", { class: "shadowicon", html: SHADOW_SVG }), "Shadowing the phone — learning it from the holder"),
+    row(el("span", { class: "tagx", style: "background:var(--hair);color:var(--muted);font-size:.6rem;font-weight:800;border-radius:999px;padding:.1rem .4rem" }, "OBS"), "Observer or student — never counted in pod numbers"),
+    row(el("span", { style: "font-size:.62rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em" }, "Super"), "Supernumerary — here, but not counted in the pod’s numbers"),
+    sub("Consultants"),
+    row(el("span", { style: "font-size:.7rem;color:var(--muted);font-weight:700" }, "Surname"), "Consultant covering the pod. In the Night column, the consultant on call."),
+    row(el("span", { class: "codpill", style: "margin:0" }, "COD"), "Consultant taking referrals that day"),
+    sub("Day status"),
+    dotRow("ok", "Nothing to flag"),
+    dotRow("soft", "Worth a look"),
+    dotRow("hard", "Needs sorting"),
+    dotRow("none", "Nothing allocated yet"),
+    el("div", { style: "font-size:.78rem;color:var(--muted);margin:.5rem 0 0" }, "Click a dot on the board to see what it’s flagging.")
   );
   m.append(el("div", { class: "modalbtns" }, el("button", { class: "btn", onclick: closeModal }, "Close")));
   $("#modalBg").style.display = "flex";
