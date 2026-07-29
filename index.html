@@ -3713,11 +3713,15 @@ function autoFillDay(wk, di, wkKey, opts){
       if (countedIn(p) < 1 || ldIn(p) > 0) continue;
       const donor = PODS.filter(q => q !== p && ldIn(q) > 1).sort((a, b) => ldIn(b) - ldIn(a))[0];
       if (!donor) continue;
-      const ld = day.pods[donor].assign.find(a => a.id && a.shift === "LD" && !wouldBeThird(a.id, p));
+      // A long day in every pod outranks never-a-third-pod: try to honour both, but if the only
+      // person who can go is someone who'd be picking up a third pod this week, send them anyway.
+      const ld = day.pods[donor].assign.find(a => a.id && a.shift === "LD" && !wouldBeThird(a.id, p))
+              || day.pods[donor].assign.find(a => a.id && a.shift === "LD");
       if (!ld) continue;
       // Strictly a swap. Moving somebody in without sending anybody back grows the pod, and if that
       // pod is E it immediately breaks the rule that E is never the biggest.
-      const sd = day.pods[p].assign.find(a => a.id && a.shift !== "LD" && !wouldBeThird(a.id, donor));
+      const sd = day.pods[p].assign.find(a => a.id && a.shift !== "LD" && !wouldBeThird(a.id, donor))
+              || day.pods[p].assign.find(a => a.id && a.shift !== "LD");
       day.pods[donor].assign = day.pods[donor].assign.filter(x => x !== ld);
       if (sd) {
         day.pods[p].assign = day.pods[p].assign.filter(x => x !== sd);
