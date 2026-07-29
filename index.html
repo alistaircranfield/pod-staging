@@ -284,9 +284,6 @@ td.col-A{background:var(--podA)} td.col-B{background:var(--podB)} td.col-C{backg
 .spill{display:inline-block;border-radius:999px;padding:.1rem .5rem;font-size:.68rem;font-weight:700;margin:.1rem .25rem .1rem 0;white-space:nowrap;line-height:1.5}
 .spill.info{background:var(--hair);color:var(--muted);border:1px solid var(--line)}
 .muted-sm{color:var(--muted);font-size:.8rem}
-.datescell{white-space:nowrap}
-.datescell .dt{font-size:.72rem;padding:.2rem .3rem;width:8.4rem}
-.datescell .todash{color:var(--muted);margin:0 .25rem}
 .rowacts{white-space:nowrap;text-align:right}
 .rowbtn{font-size:.72rem;font-weight:700;padding:.28rem .6rem;border-radius:8px;border:1px solid var(--line);background:var(--card);cursor:pointer;margin-left:.3rem}
 .rowbtn.edit:hover{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
@@ -295,6 +292,13 @@ td.col-A{background:var(--podA)} td.col-B{background:var(--podB)} td.col-C{backg
 .infoi{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--muted);color:#fff;font-size:.6rem;font-style:italic;font-weight:800;margin-left:.35rem;cursor:help;vertical-align:middle}
 .checks label{align-items:center}
 /* fairness */
+#driftBox:empty{display:none}
+#driftBox{margin-top:1.4rem;border-top:1px solid var(--hair);padding-top:1rem}
+.driftttl{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin-bottom:.35rem}
+.driftsub{font-size:.8rem;color:#4a4f58;line-height:1.6;margin-bottom:.6rem}
+.driftlist{display:flex;flex-wrap:wrap;gap:.4rem}
+.driftpill{display:inline-flex;align-items:center;gap:.4rem;background:var(--amber-bg,#fdf4e3);color:#8a5a00;border:1px solid #f0d9a8;border-radius:999px;padding:.2rem .6rem;font-size:.78rem;font-weight:600}
+.driftpill b{font-weight:800}
 .fair th{font-size:.6rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700}
 .fair th,.fair td{padding:.4rem .6rem;border-bottom:1px solid var(--hair);font-size:.82rem;text-align:center}
 .fair td:first-child,.fair th:first-child{text-align:left}
@@ -565,7 +569,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
       <div style="overflow-x:auto">
       <table id="staffTable">
         <thead><tr>
-          <th>Name</th><th>Grade</th><th>Skills</th><th>On the unit</th><th></th>
+          <th>Name</th><th>Grade</th><th>Skills</th><th></th>
         </tr></thead>
         <tbody id="staffBody"></tbody>
       </table>
@@ -586,7 +590,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
     </div>
     <div class="card" id="fairCard">
       <p style="font-size:.8rem;color:var(--muted);line-height:1.6">Everything here covers the last twelve months. The pod columns show how each person's days have been spread across pods A to E, so 100% in one column means they have never worked anywhere else. The phone columns show how often someone held the referral phone as a share of the days they were eligible to hold it, which is why a person who joined last month can be compared fairly against someone who has been here all year. Hover any figure for the counts behind it. Rows are ordered by total pod days.</p>
-      <div style="overflow-x:auto"><table class="fair" id="fairTable"></table></div>
+      <div style="overflow-x:auto"><table class="fair" id="fairTable"></table></div>\n      <div id="driftBox"></div>
     </div>
   </section>
 
@@ -825,11 +829,11 @@ function fmtDate(iso){ return new Date(iso + "T12:00:00").toLocaleDateString("en
 function weekLabel(key){ return fmtDate(key) + " – " + fmtDate(addDays(key,6)) + " " + key.slice(0,4); }
 
 function staffById(id){ return data.staff.find(s => s.id === id); }
+// Start/end dates were removed from the Staff page: they were guesswork against a rota written in
+// 3-month blocks, and a guessed end date turned every later day red. Who is on the unit now comes
+// from the Allocate roster instead. Any dates still sitting in old files are simply ignored.
 function isActiveOn(s, iso){
-  if (s.active === false) return false;
-  if (s.start && iso < s.start) return false;
-  if (s.end && iso > s.end) return false;
-  return true;
+  return s.active !== false;
 }
 function activeStaff(iso){ return data.staff.filter(s => isActiveOn(s, iso)).sort((a,b) => a.name.localeCompare(b.name)); }
 
@@ -1611,11 +1615,6 @@ function renderStaff(){
     for (const f of FLAGS) if (f[2] === "info" && s[f[0]]) skcell.append(el("span", { class: "spill info", title: f[4] || f[1] }, SKILL_SHORT[f[0]] || f[1]));
     if (!skcell.children.length) skcell.append(el("span", { class: "muted-sm" }, "—"));
     tr.append(skcell);
-    const st = el("input", { type: "date", class: "dt", title: "First day on the unit (blank = already here)" }); st.value = s.start || "";
-    st.onchange = () => { s.start = st.value || null; markDirty(); renderStaff(); renderWeek(); };
-    const en = el("input", { type: "date", class: "dt", title: "Last day on the unit (blank = ongoing)" }); en.value = s.end || "";
-    en.onchange = () => { s.end = en.value || null; markDirty(); renderStaff(); renderWeek(); };
-    tr.append(el("td", { class: "datescell" }, st, el("span", { class: "todash" }, "→"), en));
     tr.append(el("td", { class: "rowacts" },
       el("button", { class: "rowbtn edit", title: "Edit this person's details", onclick: () => staffModal(s) }, "Edit"),
       el("button", { class: "rowbtn del", title: "Remove from the pick-lists", onclick: async () => {
@@ -1626,7 +1625,7 @@ function renderStaff(){
     ));
     body.append(tr);
   }
-  if (!body.children.length) body.append(el("tr",{}, el("td",{colspan:"5",class:"empty"}, "No staff yet — click “+ Add person”.")));
+  if (!body.children.length) body.append(el("tr",{}, el("td",{colspan:"4",class:"empty"}, "No staff yet — click “+ Add person”.")));
 }
 
 function staffModal(s){
@@ -1641,10 +1640,7 @@ function staffModal(s){
   const grade = el("select");
   grade.append(el("option", { value: "" }, "— grade —"));
   for (const g of GRADES) grade.append(el("option", { value: g, ...(s.grade===g?{selected:1}:{}) }, g));
-  const start = el("input", { type: "date" }); start.value = s.start || "";
-  const end = el("input", { type: "date" }); end.value = s.end || "";
   m.append(el("div", { class: "frow" }, el("label", {}, "Full name", name, nameMsg), el("label", {}, "Grade", grade)));
-  m.append(el("div", { class: "frow" }, el("label", {}, "Start date (optional)", start), el("label", {}, "End date (optional)", end)));
   const cbs = {};
   const mkChecks = flags => {
     const box = el("div", { class: "checks" });
@@ -1676,7 +1672,6 @@ function staffModal(s){
     el("button", { class: "btn", onclick: () => {
       if (!name.value.trim()) { name.style.borderColor = "var(--red)"; nameMsg.textContent = "A name is required."; name.focus(); return; }
       s.name = name.value.trim(); s.grade = grade.value;
-      s.start = start.value || null; s.end = end.value || null;
       for (const k of Object.keys(cbs)) s[k] = cbs[k].checked;
       if (isNew) data.staff.push(s);
       logEntry((isNew ? "Added staff: " : "Edited staff: ") + s.name);
@@ -2464,7 +2459,6 @@ function checkDay(day, dateISO, di, wk){
     if (!ph) H("Phone holder is not on the staff list.");
     else if (!canHoldPhone(ph) && !isPhoneShadow(ph)) H(ph.name + " isn't phone-trained.");
     else if (isPhoneShadow(ph) && !supervisorOnDay(dayIds, ph.id)) H(ph.name + " is still learning the phone — no phone supervisor is on today to oversee them.");
-    if (ph && !isActiveOn(ph, dateISO)) H(ph.name + " is outside their start/end dates on this day.");
     if (ph) {
       let holderShift = null;
       for (const p of PODS){ const a = day.pods[p].assign.find(x => x.id === ph.id); if (a){ holderShift = a.shift; break; } }
@@ -2505,7 +2499,6 @@ function checkDay(day, dateISO, di, wk){
 
   for (const id of [...dayIds, ...nightIds]) {
     const s = staffById(id);
-    if (s && !isActiveOn(s, dateISO)) H(s.name + " is outside their start/end dates on this day.");
   }
   for (const id of nightIds) {
     const s = staffById(id);
@@ -3101,6 +3094,36 @@ function renderFairness(){
   }
   if (!rows.length) body.append(el("tr", {}, el("td", { colspan: "9", class: "empty" }, "No allocations saved yet.")));
   tbl.append(body);
+  renderDrift(rows);
+}
+
+/* Whoever is furthest behind goes first, every single day — so under its own steam the engine does
+   not let anyone drift. Drift means it was not the one choosing: the phone was already set by hand
+   on the days that person was available. Nobody notices until they leave, and then it is too late
+   to put right. This says it out loud while there is still time. */
+function renderDrift(rows){
+  const box = $("#driftBox");
+  if (!box) return;
+  box.innerHTML = "";
+  // Only people who could hold the phone, and only once they have enough long days for the figure
+  // to mean anything — under five and it is noise, not unfairness.
+  const eligible = rows.filter(r => canHoldPhone(r.s) && r.c.ldAvail >= 5)
+    .map(r => ({ s: r.s, rate: r.c.phone / r.c.ldAvail, held: r.c.phone, of: r.c.ldAvail }));
+  if (eligible.length < 4) return;
+  const sorted = [...eligible].sort((a,b) => a.rate - b.rate);
+  const mid = Math.floor(sorted.length / 2);
+  const median = sorted.length % 2 ? sorted[mid].rate : (sorted[mid-1].rate + sorted[mid].rate) / 2;
+  if (!median) return;
+  const behind = sorted.filter(x => x.rate < median * 0.6);
+  if (!behind.length) return;
+  box.append(el("div", { class: "driftttl" }, "Behind on the phone"));
+  box.append(el("div", { class: "driftsub" },
+    "These people have held the referral phone well below the rest of the team (under 60% of the median rate). "
+    + "Auto-fill will pick them first when they are next on a long day. If they are leaving soon, that may not be enough time — hand them the phone."));
+  const list = el("div", { class: "driftlist" });
+  for (const x of behind) list.append(el("span", { class: "driftpill", title: "Held on " + x.held + " of " + x.of + " long days" },
+    x.s.name, el("b", {}, Math.round(x.rate * 100) + "%")));
+  box.append(list);
 }
 function renderLog(){
   const box = $("#logList");
@@ -3233,6 +3256,40 @@ function historicCountWindow(getId){
   return n;
 }
 function phoneHistWindow(){ return historicCountWindow(dd => dd.phone); }
+/* Nobody carries the referral phone in their first two shifts. The rate maths alone would do the
+   opposite: a brand-new person has 0 holds over 0 days, which scores as rate 0 — the lowest there
+   is — so they sorted straight to the front and got the phone on day one.
+   Only applies to people who first appear AFTER our roster records begin. Without that guard, a
+   fresh data file would look like everybody had just arrived and nobody could hold the phone. */
+function rosterHistory(){
+  const seen = {};                       // id -> every date they were rostered
+  let earliest = null;
+  for (const w of Object.values(data.weeks)) {
+    if (!w.roster) continue;
+    for (const [dateISO, r] of Object.entries(w.roster)) {
+      if (earliest === null || dateISO < earliest) earliest = dateISO;
+      for (const id of Object.keys(r)) (seen[id] = seen[id] || []).push(dateISO);
+    }
+  }
+  for (const id in seen) seen[id].sort();
+  return {
+    tooNewForPhone(id, dateISO){
+      const d = seen[id];
+      if (!d || !d.length) return false;             // not in the roster at all — not our call to make
+      if (earliest === null || d[0] <= earliest) return false;  // already here when records start
+      let n = 0;
+      for (const x of d) { if (x < dateISO) n++; else break; }
+      return n < 2;
+    }
+  };
+}
+// Drop anyone in their first two shifts — unless that would leave the phone with nobody, in which
+// case cover beats etiquette.
+function settledFirst(cands, dateISO){
+  const hist = rosterHistory();
+  const settled = cands.filter(s => !hist.tooNewForPhone(s.id, dateISO));
+  return settled.length ? settled : cands;
+}
 // How many long-days each person has actually been available (rostered LD) within their own time on
 // the unit. Used to turn phone-holding into a fair RATE, so a newcomer isn't treated as "behind"
 // everyone just because they've had fewer days here — which used to front-load the phone onto them.
@@ -3269,7 +3326,7 @@ function autoFillDay(wk, di){
     const phoneRate = id => (phoneHist[id] || 0) / ((ldAvail[id] || 0) + 1);
     const weekPhone = {};                  // holds already this week, to rotate within the week first
     for (let k = 0; k < di; k++){ const pid = wk.days[k].phone; if (pid) weekPhone[pid] = (weekPhone[pid] || 0) + 1; }
-    const cands = dayIds.map(staffById).filter(s => s && canHoldPhone(s) && poolState(pool[s.id]) === "LD" && s.id !== day.phone)
+    const cands = settledFirst(dayIds.map(staffById).filter(s => s && canHoldPhone(s) && poolState(pool[s.id]) === "LD" && s.id !== day.phone), dateISO)
       .sort((a,b) => ((weekPhone[a.id] || 0) - (weekPhone[b.id] || 0)) || (phoneRate(a.id) - phoneRate(b.id)) || a.name.localeCompare(b.name));
     if (cands.length) { day.phone = cands[0].id; day.phoneSup = null; }
     // The phone holder must never be on a short day. If the current holder is SD and there's no long-day
@@ -3461,7 +3518,7 @@ function planDayFix(di){
     const phoneHist = phoneHistWindow(), ldAvail = ldAvailWindow();
     const rate = id => (phoneHist[id] || 0) / ((ldAvail[id] || 0) + 1);
     const weekPhone = {}; for (let k = 0; k < di; k++){ const pid = wk.days[k].phone; if (pid) weekPhone[pid] = (weekPhone[pid] || 0) + 1; }
-    const cands = dayIds.map(staffById).filter(s => s && canHoldPhone(s) && isLDpool(s.id))
+    const cands = settledFirst(dayIds.map(staffById).filter(s => s && canHoldPhone(s) && isLDpool(s.id)), dateISO)
       .sort((a,b) => ((weekPhone[a.id]||0)-(weekPhone[b.id]||0)) || (rate(a.id)-rate(b.id)) || a.name.localeCompare(b.name));
     if (cands.length) { day.phone = cands[0].id; day.phoneSup = null; }
     else unresolved.push("No long-day phone holder is rostered.");
