@@ -3770,6 +3770,12 @@ function planDayFix(di){
   const minFor = p => p === "E" ? 1 : 2;
   const unresolved = [];
   const placedNow = () => new Set(PODS.flatMap(p => day.pods[p].assign.map(a => a.id)).filter(Boolean));
+  // Fix this day moves people between pods to clear issues, and has to honour the never-a-third-pod
+  // rule while it does — otherwise fixing one problem quietly creates another the checks then flag.
+  const podsEarlierThisWeek = id => { const set = new Set();
+    for (let k = 0; k < di; k++) for (const q of PODS) if ((wk.days[k].pods[q].assign || []).some(a => a.id === id)) set.add(q);
+    return set; };
+  const wouldBeThirdPod = (id, p) => { const set = podsEarlierThisWeek(id); return set.size >= 2 && !set.has(p); };
   let guard = 0;
 
   // 1) Day phone — must be a long-day holder (not a learner)
@@ -3792,13 +3798,13 @@ function planDayFix(di){
       const donors = PODS.filter(q => q !== p && podCount(q) > minFor(q)).sort((a,b) => (podCount(b)-minFor(b)) - (podCount(a)-minFor(a)));
       let moved = false;
       for (const q of donors) {
-        const people = day.pods[q].assign.filter(a => a.id && countsIn(a.id));
+        const people = day.pods[q].assign.filter(a => a.id && countsIn(a.id) && !wouldBeThirdPod(a.id, p));
         let a = needLD ? people.find(x => x.shift === "LD" && podLDs(q) > 1) : null;
         if (!a) a = people.find(x => x.shift !== "LD") || people[0];
         if (a) { day.pods[q].assign = day.pods[q].assign.filter(x => x !== a); day.pods[p].assign.push({ id: a.id, shift: a.shift }); moved = true; break; }
       }
       if (!moved) {
-        const bench = dayIds.filter(id => !placedNow().has(id));
+        const bench = dayIds.filter(id => !placedNow().has(id) && !wouldBeThirdPod(id, p));
         const b = (needLD && bench.find(isLDpool)) || bench[0];
         if (b) { day.pods[p].assign.push({ id: b, shift: isLDpool(b) ? "LD" : "SD" }); moved = true; }
       }
