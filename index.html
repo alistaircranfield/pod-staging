@@ -3625,8 +3625,14 @@ function autoFillDay(wk, di, wkKey, opts){
       let score = (target[p] - counts[p]) * 3 - Math.max(0, counts[p] + 1 - target[p]) * 50 - counts[p] * 0.05;
       if (isLD && !hasLD[p]) score += 8;
       if (prior === p) score += 12;
+      // Reallocating after a skills change: hold everybody in the pod they were already in unless
+      // a hard rule makes it impossible. Ordinary continuity (+12) is only a nudge and lets people
+      // drift for no reason — nobody should find their pod changed because somebody else got a tick.
+      if (stick && stick[id] === p) score += 200;
       const wkSoFar = weekPodsSoFar[id];
-      if (wkSoFar && wkSoFar.size >= 2 && !wkSoFar.has(p)) score -= 2000;   // never a 3rd pod in a week
+      // Never a third pod in a week. This has to outweigh every other penalty combined, or a day
+      // where two pods are both awkward quietly buys a third one.
+      if (wkSoFar && wkSoFar.size >= 2 && !wkSoFar.has(p)) score -= 100000;
       // Senior airway residents (ST/CT/Anaes/ICM) stay off Pod E unless there's truly nowhere else.
       if (p === "E" && ["ST", "CT", "Anaes", "ICM"].includes(s.grade)) score -= 40;
       if (s.airway) {
@@ -3659,9 +3665,15 @@ function autoFillDay(wk, di, wkKey, opts){
     if (hPod) {
       const busiest = PODS.slice().sort((a,b) => counts[b] - counts[a] || (a==="E") - (b==="E"))[0];
       if (busiest !== hPod && counts[busiest] > counts[hPod]) {
-        const swap = day.pods[busiest].assign.find(a => a.id && a.id !== day.phone && a.shift === "LD");
+        // This swap happens after everyone is placed, so it has to re-check the never-a-third-pod
+        // rule itself — otherwise it quietly undoes it for the two people it moves.
+        const podsThisWeek = id => { const set = new Set();
+          for (let k = 0; k < di; k++) for (const q of PODS) if ((wk.days[k].pods[q].assign || []).some(a => a.id === id)) set.add(q);
+          return set; };
+        const wouldBeThird = (id, p) => { const set = podsThisWeek(id); return set.size >= 2 && !set.has(p); };
+        const swap = day.pods[busiest].assign.find(a => a.id && a.id !== day.phone && a.shift === "LD" && !wouldBeThird(a.id, hPod));
         const h = day.pods[hPod].assign.find(a => a.id === day.phone);
-        if (swap && h) {
+        if (swap && h && !wouldBeThird(day.phone, busiest)) {
           day.pods[hPod].assign = day.pods[hPod].assign.filter(x => x !== h);
           day.pods[busiest].assign = day.pods[busiest].assign.filter(x => x !== swap);
           day.pods[hPod].assign.push({ id: swap.id, shift: swap.shift });
@@ -4189,6 +4201,21 @@ function reallocateFrom(monISO, touchesPods){
   STICK_TO = null;
   return changed;
 }
+/* Placing people one day at a time and re-placing a whole block are different processes, so the
+   first re-run settles a few people who have nothing to do with the change. Running it until it
+   stops moving anybody means the stored rota is the settled one — and the next reallocation is a
+   genuine no-op rather than more drift. Two extra passes is always enough in testing. */
+function reallocateSettled(monISO, touchesPods){
+  let total = 0;
+  for (let pass = 0; pass < 3; pass++) {
+    const before = JSON.parse(JSON.stringify(data.weeks));
+    reallocateFrom(monISO, touchesPods);
+    const moved = diffWeeks(before, monISO).length;
+    total += moved;
+    if (!moved) break;
+  }
+  return total;
+}
 
 // What actually moved, in words, so it can be shown before anything is committed.
 function diffWeeks(before, monISO){
@@ -4256,7 +4283,7 @@ async function applyDuePendingSkills(silent){
   const from = due.map(x => x.from).sort()[0];
   const touchesPods = due.some(x => Object.keys(x.add).some(k => POD_SKILLS.includes(k)));
   const before = JSON.parse(JSON.stringify(data.weeks));
-  reallocateFrom(from, touchesPods);
+  reallocateSettled(from, touchesPods);
   const moves = diffWeeks(before, from);
   logEntry("Skills change started for " + due.map(x => x.name).join(", ") + " — weeks from " + niceDate(from)
     + " worked out again (" + moves.length + " change" + (moves.length === 1 ? "" : "s") + ")");
