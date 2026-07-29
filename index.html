@@ -162,7 +162,6 @@ body.viewmode .chip{cursor:default}
 body.viewmode .zone .hint{visibility:hidden}
 body.viewmode td.tray:empty{display:none}
 .viewonly #weekGrid,.viewonly #importCard,.viewonly #staffCard,.viewonly .trayadd{pointer-events:none}
-.viewonly .relaycard,.viewonly .relaycard *{pointer-events:auto}
 .fbar{height:6px;background:var(--hair);border-radius:99px;width:64px;display:inline-block;margin-left:.45rem;vertical-align:middle;overflow:hidden}
 .fbar-fill{height:100%;border-radius:99px;background:var(--accent);display:block}
 .chip .x{border:0;background:none;color:#c2c6cc;cursor:pointer;font-size:.75rem;padding:0 0 0 .1rem;line-height:1}
@@ -542,11 +541,6 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
           <li>Already-entered consultants are simply overwritten by the file</li>
         </ol>
       </div>
-      <div class="card relaycard" style="grid-column:1 / -1">
-        <h2>Shared saving</h2>
-        <p class="impdesc" id="relayStatus">Checking…</p>
-        <button class="btn sec" id="btnRelaySetup" style="align-self:flex-start">Set up shared saving</button>
-      </div>
     </div>
   </section>
 
@@ -591,8 +585,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
       </div>
     </div>
     <div class="card" id="fairCard">
-      <h2>Fairness — pod days &amp; phone-holding (last 12 months)</h2>
-      <p style="font-size:.8rem;color:var(--muted);margin-top:-.2rem">Pod columns: how each person's pod days split across A–E (100% = always the same pod). Phone columns: how often they held the phone on the days they were actually on the unit — so it's fair whether someone's been here one month or twelve (100% = every eligible day). Hover any % for the raw count. Sorted by most pod days.</p>
+      <p style="font-size:.8rem;color:var(--muted);line-height:1.6">Everything here covers the last twelve months. The pod columns show how each person's days have been spread across pods A to E, so 100% in one column means they have never worked anywhere else. The phone columns show how often someone held the referral phone as a share of the days they were eligible to hold it, which is why a person who joined last month can be compared fairly against someone who has been here all year. Hover any figure for the counts behind it. Rows are ordered by total pod days.</p>
       <div style="overflow-x:auto"><table class="fair" id="fairTable"></table></div>
     </div>
   </section>
@@ -609,7 +602,6 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
       </div>
     </div>
     <div class="card" id="logCard">
-      <h2>Change log</h2>
       <div id="logList"></div>
     </div>
   </section>
@@ -939,7 +931,6 @@ async function enterEditInner(){
       if (!/^https:\/\/\S+(powerplatform|logic\.azure|flow\.microsoft)\S*$/i.test(u)) { uiAlert("That doesn't look like the flow's URL — it should start with https:// and contain powerplatform.", { title: "Link not recognised" }); return; }
       data.relayUrl = u;
       logEntry("Shared saving link set");
-      if (typeof updateRelayStatus === "function") updateRelayStatus();
       applyEnvClasses();
     }
   }
@@ -2924,28 +2915,6 @@ function bindDropzone(zoneId, resultId, expected){
 function initImportPage(){
   bindDropzone("dropRota", "importResultRota", "rota");
   bindDropzone("dropCons", "importResultCons", "cons");
-  updateRelayStatus();
-  const b = $("#btnRelaySetup");
-  if (b) b.onclick = async () => {
-    const url = await uiPrompt("Paste the flow's HTTP URL from Power Automate (trigger “When a Teams webhook request is received”). It's stored inside the rota file, so this is only ever done once.", { title: "Shared saving setup", okLabel: "Save link", placeholder: "https://…powerplatform.com/…", value: relayUrl() });
-    if (url === null) return;
-    const u = (url || "").trim();
-    if (u && !/^https:\/\/\S+(powerplatform|logic\.azure|flow\.microsoft)\S*$/i.test(u)) { uiAlert("That doesn't look like a Power Automate trigger URL — it should start with https:// and contain powerplatform.", { title: "Link not recognised" }); return; }
-    const had = relayUrl();
-    data.relayUrl = u || undefined;
-    logEntry(u ? "Shared saving link " + (had ? "updated" : "set") : "Shared saving link removed");
-    await saveFile(false);
-    updateRelayStatus();
-    applyEnvClasses();
-    if (u) toast("Shared saving is on — everyone can now edit from Teams or any browser");
-  };
-}
-function updateRelayStatus(){
-  const s = $("#relayStatus");
-  if (!s) return;
-  s.textContent = relayUrl()
-    ? "Active — edits made in Teams or any browser save straight to the shared file. The link travels inside the file; nobody else needs to set anything up."
-    : "Not set up — without it, editing needs one-time file access on each computer. Create the Power Automate flow, then paste its URL here.";
 }
 function showImportPreview(parsed, box){
   box.innerHTML = "";
@@ -3613,6 +3582,30 @@ const TRIAL_END = "2026-09-02";                 // button disappears after this 
 const FEEDBACK_TO = "alistair.cranfield@nca.nhs.uk";
 function trialOn(){ return todayISO() <= TRIAL_END; }
 
+/* Also emails it straight out, so nobody has to remember to look at the log.
+   Best-effort and deliberately silent: if the email flow is down the feedback is still
+   saved, and the sender is told it worked — because as far as they're concerned it did. */
+async function emailFeedback(entry){
+  const url = (window.__POD_KEYS || {}).fb;
+  if (!url) return;
+  const who = entry.name ? entry.name : "anonymous";
+  const lines = [
+    entry.kind + " — " + who,
+    "",
+    entry.msg,
+    "",
+    "Sent " + new Date(entry.t).toLocaleString("en-GB") + " from the Pod Allocator trial.",
+    entry.name ? "" : "This person chose to send it anonymously; there is no way to identify them."
+  ];
+  try {
+    await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subject: "Pod Allocator feedback — " + entry.kind + " (" + who + ")",
+        text: lines.join("\n")
+      }) });
+  } catch (e) { /* saved anyway — nothing to tell the sender */ }
+}
+
 async function sendFeedback(entry){
   const cur = await readSelf();
   const base = (cur && Array.isArray(cur.staff)) ? cur : data;
@@ -3621,6 +3614,7 @@ async function sendFeedback(entry){
   if (base.feedback.length > 300) base.feedback.length = 300;
   const ok = await relayFetch(JSON.stringify(base));
   if (ok) { data.feedback = base.feedback; }
+  emailFeedback(entry);
   return ok;
 }
 
