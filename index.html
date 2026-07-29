@@ -295,11 +295,20 @@ td.col-A{background:var(--podA)} td.col-B{background:var(--podB)} td.col-C{backg
 .rowbtn.check:hover{background:var(--red);color:#fff}
 .vcell{white-space:nowrap}
 .pendpill{display:inline-block;margin-left:.3rem;font-size:.6rem;font-weight:700;background:var(--accent-bg);color:var(--accent);border-radius:999px;padding:.1rem .4rem}
-/* rota-team group in the side menu */
-#teamNav{display:none}
-body.teamopen #teamNav{display:block}
-aside button.sub{font-size:.66rem;opacity:.85}
-aside button.sub.active{opacity:1}
+/* Rota-team pages get their own panel beside the rail — only there once the icon is clicked, so
+   the rail itself never grows and residents never see any of it. */
+#teamPanel{display:none;width:186px;flex-shrink:0;background:var(--card);border-right:.5px solid var(--line);padding:1rem .55rem;position:sticky;top:0;height:100vh;overflow-y:auto}
+body.teamopen #teamPanel{display:block}
+.tpttl{font-size:.58rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);padding:0 .55rem;margin-bottom:.6rem}
+.tpi{display:flex;align-items:center;gap:.6rem;width:100%;background:none;border:0;font:inherit;font-size:.82rem;font-weight:600;color:#4a4f58;padding:.52rem .55rem;border-radius:10px;cursor:pointer;text-align:left}
+.tpi svg{width:16px;height:16px;flex-shrink:0;opacity:.55}
+.tpi:hover{background:var(--hair)}
+.tpi.active{background:var(--accent-bg);color:var(--accent)}
+.tpi.active svg{opacity:1}
+.tpback{display:none;align-items:center;gap:.35rem;background:none;border:0;font:inherit;font-size:.78rem;font-weight:600;color:var(--muted);padding:.4rem .55rem .7rem;cursor:pointer}
+.tpback svg{width:15px;height:15px}
+.tpc{margin-left:auto;background:var(--red);color:#fff;font-size:.58rem;font-weight:800;border-radius:999px;padding:.05rem .35rem;display:none}
+.tpc.on{display:inline-block}
 .navbadge{position:absolute;top:-3px;right:-5px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--red);color:#fff;font-size:.58rem;font-weight:800;display:none;align-items:center;justify-content:center;line-height:1;box-shadow:0 0 0 2px var(--card)}
 .navbadge.on{display:inline-flex}
 aside button .ic{position:relative}
@@ -405,6 +414,16 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
   body.navopen #navbackdrop{opacity:1;pointer-events:auto}
   #content{min-width:0}
   main{padding:.4rem .7rem calc(1.6rem + env(safe-area-inset-bottom))}
+  /* Phone: there's no room beside the icons, so the panel takes their place inside the slide-out
+     menu and "Menu" hands it back. */
+  #teamPanel{position:fixed;top:0;left:0;bottom:0;height:auto;width:238px;transform:translateX(-104%);
+    transition:transform .22s ease;z-index:122;border-right:1px solid var(--line);
+    padding:1rem .7rem calc(1rem + env(safe-area-inset-bottom));overflow-y:auto;box-shadow:0 10px 50px rgba(0,0,0,.3)}
+  body.teamopen.navopen:not(.railback) #teamPanel{transform:none}
+  .tpback{display:flex}
+  .tpi{font-size:.95rem;padding:.7rem .8rem;gap:.7rem}
+  .tpi svg{width:19px;height:19px}
+  .tpttl{font-size:.6rem;margin-bottom:.5rem}
   #topbar{flex-wrap:wrap;min-height:auto;padding:.6rem .8rem .3rem;gap:.4rem;align-items:center}
   #topbar h1{font-size:1.15rem;width:auto;margin-right:auto}
   .hbtn{font-size:.72rem;padding:.55rem .7rem;white-space:nowrap}
@@ -492,14 +511,16 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
   <button data-tab="help" class="smallb"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.2A2.5 2.5 0 0112 7.5c1.4 0 2.5 1 2.5 2.2 0 1.5-1.6 1.9-2.5 3v.6"/><circle cx="12" cy="16.6" r=".4" fill="currentColor"/></svg></span>Help</button>
   <div class="aside-spacer"></div>
   <button class="smallb" id="btnTeam"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3.6v5c0 4.3-3 8.1-7.5 9.4-4.5-1.3-7.5-5.1-7.5-9.4v-5z"/></svg><span class="navbadge" id="teamBadge"></span></span>Rota team</button>
-  <div id="teamNav">
-  <button data-tab="team" class="smallb sub"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l8.5 15h-17z"/><path d="M12 10v4"/><circle cx="12" cy="16.6" r=".5" fill="currentColor"/></svg></span>Attention</button>
-  <button data-tab="staff" class="smallb"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19.5c.8-3.3 3.3-5 6.2-5s5.4 1.7 6.2 5"/><path d="M15.5 5.5a3.2 3.2 0 011.6 6"/><path d="M17.6 14.6c2.2.5 3.7 2 4.2 4.4"/></svg></span>Staff</button>
-  <button data-tab="fair" class="smallb"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l3-8 4 14 3-8h4"/></svg></span>Fairness</button>
-  <button data-tab="log" class="smallb"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>Log</button>
-  <button data-tab="import" class="smallb"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M4 20h16"/></svg></span>Import</button>
-  </div>
 </aside>
+<nav id="teamPanel">
+  <button id="tpBack" class="tpback"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>Menu</button>
+  <div class="tpttl">Rota team</div>
+  <button data-tab="team" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l8.5 15h-17z"/><path d="M12 10v4"/><circle cx="12" cy="16.6" r=".5" fill="currentColor"/></svg>Attention<span class="tpc" id="tabAttnCount"></span></button>
+  <button data-tab="staff" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19.5c.8-3.3 3.3-5 6.2-5s5.4 1.7 6.2 5"/><path d="M15.5 5.5a3.2 3.2 0 011.6 6"/></svg>Staff</button>
+  <button data-tab="fair" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l3-8 4 14 3-8h4"/></svg>Fairness</button>
+  <button data-tab="log" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Change log</button>
+  <button data-tab="import" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M4 20h16"/></svg>Import</button>
+</nav>
 <div id="navbackdrop"></div>
 <div id="content">
 <div id="topbar">
@@ -661,7 +682,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
     </div>
   </section>
 
-  <section id="tab-help">
+  <section id="tab-help" style="display:none">
     <div class="card hlp">
       <p class="lead">This is the pod allocation for the unit. It updates itself from Allocate roughly every two hours through the day, so short-notice changes appear on their own. Anyone can look; changing it needs the team password.</p>
 
@@ -4153,10 +4174,12 @@ function attentionItems(){
 }
 function attentionCount(){ return attentionItems().reduce((n, x) => n + x.n, 0); }
 function updateTeamBadge(){
-  const b = $("#teamBadge"); if (!b) return;
   const n = data ? attentionCount() : 0;
-  b.textContent = n > 99 ? "99+" : String(n);
-  b.classList.toggle("on", n > 0);
+  const txt = n > 99 ? "99+" : String(n);
+  const b = $("#teamBadge");
+  if (b) { b.textContent = txt; b.classList.toggle("on", n > 0); }
+  const t = $("#tabAttnCount");
+  if (t) { t.textContent = txt; t.classList.toggle("on", n > 0); }
 }
 function niceDate(iso){
   try { return new Date(iso + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }); }
@@ -4440,14 +4463,15 @@ function switchTab(tab){
   // The rota-team pages stay folded away until you go in, so residents only ever see two items.
   document.body.classList.toggle("teamopen", TEAM_TABS.includes(tab));
   const bt = $("#btnTeam"); if (bt) bt.classList.toggle("active", TEAM_TABS.includes(tab));
+  document.querySelectorAll("#teamPanel .tpi").forEach(x => x.classList.toggle("active", x.dataset.tab === tab));
   if (tab === "team") renderTeamGate();
   if (tab === "staff") renderStaffGate();
   if (tab === "fair") renderFairGate();
   if (tab === "import") renderImportGate();
   if (tab === "log") { renderLogGate(); markFeedbackRead(); }
 }
-document.querySelectorAll("aside button[data-tab]").forEach(b => b.onclick = () => switchTab(b.dataset.tab));
-$("#btnTeam").onclick = () => switchTab("team");
+document.querySelectorAll("aside button[data-tab], #teamPanel .tpi").forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+$("#btnTeam").onclick = () => { document.body.classList.remove("railback"); switchTab("team"); };
 $("#btnWho").onclick = changeEditor;
 $("#btnEdit").onclick = enterEdit;
 $("#btnFeedback").onclick = feedbackDialog;
@@ -4461,10 +4485,11 @@ $("#btnUndo").onclick = undo;
 $("#btnRedo").onclick = redo;
 $("#btnKey").onclick = keyDialog;
 // Mobile hamburger → slide-out side menu (drawer). Closes on backdrop tap or when a page is chosen.
-$("#hamburger").onclick = () => document.body.classList.toggle("navopen");
+$("#hamburger").onclick = () => { document.body.classList.remove("railback"); document.body.classList.toggle("navopen"); };
+$("#tpBack").onclick = () => document.body.classList.add("railback");
 $("#navbackdrop").onclick = () => document.body.classList.remove("navopen");
 $("#navclose").onclick = () => document.body.classList.remove("navopen");
-document.querySelectorAll("aside button[data-tab]").forEach(b => b.addEventListener("click", () => document.body.classList.remove("navopen")));
+document.querySelectorAll("aside button[data-tab], #teamPanel .tpi").forEach(b => b.addEventListener("click", () => document.body.classList.remove("navopen")));
 $("#btnResetDemo").onclick = async () => {
   if (await uiConfirm("Clear your changes and reload the demo with the original sample data?", { title: "Reset demo?", okLabel: "Reset", danger: true })) {
     try { localStorage.removeItem(DEMO_KEY); } catch(e){}
