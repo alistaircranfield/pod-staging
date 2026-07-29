@@ -388,7 +388,9 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
   .hbtn{font-size:.72rem;padding:.55rem .7rem;white-space:nowrap}
   #btnWho{font-size:.66rem;padding:.5rem .55rem;max-width:34vw;overflow:hidden;text-overflow:ellipsis}
   #saveState{font-size:.66rem}
-  body:not(.viewmode) #btnPublish{display:none}
+  /* No room for it on a phone, and it spills the header onto a second line. Printing is a
+     desk job anyway — the button is still there on a laptop. */
+  #btnPublish{display:none}
   .weekbar{display:grid;grid-template-columns:auto 1fr auto;gap:.5rem .4rem;align-items:center;background:#fff;border:0.5px solid rgba(29,31,36,.05);box-shadow:0 1px 3px rgba(29,31,36,.10);border-radius:16px;padding:.55rem .6rem;margin-bottom:.5rem}
   .weekbar b{min-width:0;font-size:1.05rem;white-space:nowrap;text-align:center;cursor:pointer}
   .weekbar b small{display:block;font-size:.66rem;color:#8a8f98;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
@@ -447,6 +449,13 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
   td.col-A,td.col-B,td.col-C,td.col-D,td.col-E{position:relative}
   td.col-A .conswrap,td.col-B .conswrap,td.col-C .conswrap,td.col-D .conswrap,td.col-E .conswrap{position:absolute;top:.62rem;right:.7rem;left:auto;margin:0;min-height:0;max-width:62%;justify-content:flex-end}
   td.col-A .conssel,td.col-B .conssel,td.col-C .conssel,td.col-D .conssel,td.col-E .conssel{font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:0;margin:0;line-height:1.1;text-align:right;appearance:none;-webkit-appearance:none;color:var(--muted);background:transparent;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
+/* Small phones: tighten the header just enough to keep it on one line. */
+@media (max-width:440px){
+  #topbar{padding:.55rem .6rem .3rem;gap:.3rem}
+  #topbar h1{font-size:1rem}
+  #topbar h1 small{font-size:.55rem}
+  .hbtn{font-size:.68rem;padding:.5rem .55rem}
 }
 @media print{ aside,#topbar,.weekbar,button,#toast{display:none!important} body{background:#fff} }
 </style>
