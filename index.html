@@ -118,6 +118,11 @@ td.daylabel .d{font-weight:700;font-size:1.05rem;letter-spacing:-.01em}
 .slotrow{display:flex;align-items:center;gap:.3rem;margin-bottom:.3rem}
 .slotrow select{flex:1;min-width:0}
 /* Night drop zones need to be worth aiming at — 22px of empty strip wasn't. */
+.zone/* On call sits on the POD A & B line rather than above it — that gap was pure dead space. */
+td.nighttd{position:relative}
+td.nighttd .conswrap{position:absolute;top:.5rem;right:.55rem;left:auto;margin:0;min-height:0;max-width:62%;justify-content:flex-end;z-index:2}
+td.nighttd .conswrap .conssel,td.nighttd .conswrap .consauto{font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:right}
+td.nighttd .subhead:first-of-type{margin-top:0;padding-right:6.5rem}
 .zone.nzone{min-height:46px;border-radius:10px;padding:.2rem;transition:background .12s}
 body:not(.viewmode) .nzone{outline:1px dashed transparent;outline-offset:-2px}
 body:not(.viewmode) .nzone:empty,body:not(.viewmode) .nzone:has(.hint){outline-color:var(--line)}
@@ -522,6 +527,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
   <div class="tpttl">Rota team</div>
   <button data-tab="team" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l8.5 15h-17z"/><path d="M12 10v4"/><circle cx="12" cy="16.6" r=".5" fill="currentColor"/></svg>Attention<span class="tpc" id="tabAttnCount"></span></button>
   <button data-tab="staff" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19.5c.8-3.3 3.3-5 6.2-5s5.4 1.7 6.2 5"/><path d="M15.5 5.5a3.2 3.2 0 011.6 6"/></svg>Staff</button>
+  <button data-tab="feedback" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg>Feedback<span class="tpc" id="tabFbCount"></span></button>
   <button data-tab="fair" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l3-8 4 14 3-8h4"/></svg>Fairness</button>
   <button data-tab="log" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Change log</button>
   <button data-tab="import" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M4 20h16"/></svg>Import</button>
@@ -651,6 +657,13 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
     </div>
     <div class="card" id="teamCard">
       <div id="attnList" class="attn"></div>
+    </div>
+  </section>
+
+  <section id="tab-feedback" style="display:none">
+    <div class="card" id="feedbackCard">
+      <p style="font-size:.8rem;color:var(--muted);line-height:1.6">Everything sent through the Feedback button during the trial, newest first. Each one is emailed out as it arrives, so this is the record rather than the alert.</p>
+      <div id="fbList"></div>
     </div>
   </section>
 
@@ -2425,7 +2438,22 @@ function renderDayRow(day, di, dateISO, issues){
   for (const p of PODS) {
     const pod = day.pods[p];
     const col = el("td", { class: "col-" + p });
-    makeZone(col, di, id => { const keepShift = currentAssignShift(day, id); removeAssign(day, id); pod.assign.push({ id, shift: keepShift != null ? keepShift : shiftFromPool(pool, id) }); logEntry(staffById(id).name + " → Pod " + p + " (" + dayShort(di) + ")"); }, oid => { const o = (day.obs || []).find(x => x.oid === oid); if (o) { o.pod = p; logEntry("Observer " + o.name + " → Pod " + p + " (" + dayShort(di) + ")"); } });
+    /* Supernumeraries and observers are never part of a pod's numbers, so dropping them into the
+       pod itself makes it look staffed when it isn't. They go in the Super box underneath instead. */
+    makeZone(col, di, id => {
+      const s = staffById(id);
+      if (s && s.supernum) {
+        removeAssign(day, id);
+        pod.super = pod.super || [];
+        if (!pod.super.includes(id)) pod.super.push(id);
+        logEntry(s.name + " → Pod " + p + " (supernumerary) (" + dayShort(di) + ")");
+        return;
+      }
+      const keepShift = currentAssignShift(day, id);
+      removeAssign(day, id);
+      pod.assign.push({ id, shift: keepShift != null ? keepShift : shiftFromPool(pool, id) });
+      logEntry(s.name + " → Pod " + p + " (" + dayShort(di) + ")");
+    }, oid => { const o = (day.obs || []).find(x => x.oid === oid); if (o) { o.pod = p; logEntry("Observer " + o.name + " → Pod " + p + " (" + dayShort(di) + ")"); } });
     const consAll = data.staff.filter(s => s.grade === "CON" && isActiveOn(s, dateISO));
     if (consAll.length || pod.cons) {
       if (pod.cons && !staffById(pod.cons)) { const rid = matchConsInitials(pod.cons); if (rid) pod.cons = rid; }
@@ -2635,7 +2663,6 @@ function checkDay(day, dateISO, di, wk){
 
   const nCount = nightCountables(day).length;
   if (nCount < 4) H("Night team has " + nCount + " countable staff — minimum 4 (one doubles up to cover Pod E).");
-  else if (nCount === 4) I("Night team of 4 — one person doubles up to cover Pod E.");
 
   const transferDay = [...new Set(dayIds)].filter(id => { const s = staffById(id); return s && s.transfer && !s.supernum; }).length;
   // Depends on who's rostered — an aim rather than a block.
@@ -2657,7 +2684,10 @@ function checkDay(day, dateISO, di, wk){
   const airwayPerPod = PODS.map(p => perPod[p].filter(id => staffById(id)?.airway).length);
   const podsWithNone = PODS.filter((p,i) => p !== "E" && airwayPerPod[i] === 0 && perPod[p].length > 0);
   const maxAirway = Math.max(...airwayPerPod.slice(0,4));
-  if (podsWithNone.length && maxAirway >= 2) S("Airway cover uneven: pod(s) " + podsWithNone.join(", ") + " have none while another has " + maxAirway + ".");
+  // A pod with nobody airway-trained while another has two or more is a gap, not an aim — the unit
+  // runs on one airway-trained person per pod.
+  if (podsWithNone.length && maxAirway >= 2) H("Pod(s) " + podsWithNone.join(", ") + " have nobody airway-trained while another pod has " + maxAirway + ".");
+  else if (podsWithNone.length) S("Pod(s) " + podsWithNone.join(", ") + " have nobody airway-trained — none to spare elsewhere.");
 
   // Pod E should be the smallest — flag if it's carrying more than another pod
   if (dayIds.length) {
@@ -2969,7 +2999,9 @@ function matchConsInitials(code){
 function consLabel(s){
   const parts = s.name.trim().split(/\s+/);
   const sur = parts[parts.length-1];
-  const dup = data.staff.some(x => x.id !== s.id && x.grade === "CON" && x.name.trim().split(/\s+/).pop().toLowerCase() === sur.toLowerCase());
+  const dup = data.staff.some(x => x.id !== s.id && x.grade === "CON"
+    && x.name.trim().toLowerCase() !== s.name.trim().toLowerCase()
+    && x.name.trim().split(/\s+/).pop().toLowerCase() === sur.toLowerCase());
   return dup ? sur + " (" + parts[0][0] + ")" : sur;
 }
 /* Consultant-rota initials → surname, for the resident board. Initials mean nothing to a resident. */
@@ -2979,7 +3011,12 @@ function consSurname(ini){
   if (!full) return ini;
   const parts = String(full).trim().split(/\s+/);
   const sur = parts[parts.length-1];
-  const dup = Object.keys(map).some(k => k !== ini && String(map[k]).trim().split(/\s+/).pop().toLowerCase() === sur.toLowerCase());
+  // The same consultant sits in the initials map under more than one code (NET and NEK are both
+  // Natalie Khokhar), so comparing surnames alone made her a duplicate of herself.
+  const me = String(full).trim().toLowerCase();
+  const dup = Object.keys(map).some(k => k !== ini
+    && String(map[k]).trim().toLowerCase() !== me
+    && String(map[k]).trim().split(/\s+/).pop().toLowerCase() === sur.toLowerCase());
   return dup ? sur + " (" + parts[0][0] + ")" : sur;
 }
 function showConsImportPreview(weeks, box){
@@ -3641,7 +3678,7 @@ function autoFillDay(wk, di, wkKey, opts){
       }
       // Neuro-trained lean towards Pods C & D (the neuro pods) — a nudge, not a rule, so it still
       // yields to keeping the pods evenly sized. Aims for roughly two-thirds of their shifts on C/D.
-      if (s.neuro && (p === "C" || p === "D")) score += 3.5;
+      if (s.neuro && (p === "C" || p === "D")) score += 11;
       // Long days fill A–D before E: E is always the pod that misses out on a long day when they're
       // short, so never give E a long-day resident while any A–D pod still has none.
       if (isLD && p === "E" && PODS.filter(q => q !== "E").some(q => !hasLD[q])) score -= 1000;
@@ -3658,6 +3695,83 @@ function autoFillDay(wk, di, wkKey, opts){
       if (s.airway) airwayIn[bestP]++;
     }
   }
+  // Post-placement steps move people between pods, so each has to re-check the never-a-third-pod
+  // rule itself — otherwise they quietly undo it for whoever they move.
+  const podsEarlier = id => { const set = new Set();
+    for (let k = 0; k < di; k++) for (const q of PODS) if ((wk.days[k].pods[q].assign || []).some(a => a.id === id)) set.add(q);
+    return set; };
+  const wouldBeThird = (id, p) => { const set = podsEarlier(id); return set.size >= 2 && !set.has(p); };
+
+  /* Every pod with people in it needs a long day. This only ever existed inside Fix this day, so a
+     week that was auto-filled and never "fixed" could sit with Pod E on short days all day while
+     three other pods each had two or three long days. Swap one across, keeping the counts the same. */
+  {
+    const podPeople = p => day.pods[p].assign.filter(a => a.id);
+    const ldIn = p => podPeople(p).filter(a => a.shift === "LD").length;
+    const countedIn = p => podPeople(p).filter(a => countsInNumbers(a.id)).length;
+    for (const p of PODS) {
+      if (countedIn(p) < 1 || ldIn(p) > 0) continue;
+      const donor = PODS.filter(q => q !== p && ldIn(q) > 1).sort((a, b) => ldIn(b) - ldIn(a))[0];
+      if (!donor) continue;
+      const ld = day.pods[donor].assign.find(a => a.id && a.shift === "LD" && !wouldBeThird(a.id, p));
+      if (!ld) continue;
+      // Strictly a swap. Moving somebody in without sending anybody back grows the pod, and if that
+      // pod is E it immediately breaks the rule that E is never the biggest.
+      const sd = day.pods[p].assign.find(a => a.id && a.shift !== "LD" && !wouldBeThird(a.id, donor));
+      day.pods[donor].assign = day.pods[donor].assign.filter(x => x !== ld);
+      if (sd) {
+        day.pods[p].assign = day.pods[p].assign.filter(x => x !== sd);
+        day.pods[donor].assign.push({ id: sd.id, shift: sd.shift });
+      } else {
+        // Nobody to send back. Moving one way is still worth it, but only where it doesn't leave
+        // the donor under strength or make Pod E the biggest.
+        const cnt = q => day.pods[q].assign.filter(a => a.id && countsInNumbers(a.id)).length;
+        const donorFloor = donor === "E" ? 1 : 2;
+        const breaksE = p === "E" && cnt("E") + 1 > Math.min(...PODS.filter(q => q !== "E").map(cnt));
+        if (cnt(donor) < donorFloor || breaksE) { day.pods[donor].assign.push(ld); continue; }
+      }
+      day.pods[p].assign.push({ id: ld.id, shift: "LD" });
+    }
+  }
+
+  /* One airway-trained person in every staffed pod. Scoring only nudged towards this, so a day
+     could finish with two pods holding three airway residents between them and another holding
+     none. Alongside the long day, this is the floor the unit actually runs on. */
+  {
+    const podPeople = p => day.pods[p].assign.filter(a => a.id);
+    const airIn = p => podPeople(p).filter(a => staffById(a.id) && staffById(a.id).airway).length;
+    const countedIn = p => podPeople(p).filter(a => countsInNumbers(a.id)).length;
+    for (const p of PODS) {
+      if (countedIn(p) < 1 || airIn(p) > 0) continue;
+      const donor = PODS.filter(q => q !== p && airIn(q) > 1).sort((a, b) => airIn(b) - airIn(a))[0];
+      if (!donor) continue;
+      // Don't undo the neuro placement while fixing airway: take someone off C/D last, and send
+      // someone to C/D first, if they're on a neuro placement.
+      const neuro = a => !!(staffById(a.id) || {}).neuro;
+      const isNeuroPod = q => q === "C" || q === "D";
+      const rank = (a, from, to) => (isNeuroPod(from) && neuro(a) ? 2 : 0) + (isNeuroPod(to) && !neuro(a) ? 1 : 0);
+      const airCands = day.pods[donor].assign
+        .filter(a => a.id && staffById(a.id) && staffById(a.id).airway && !wouldBeThird(a.id, p))
+        .sort((x, y) => rank(x, donor, p) - rank(y, donor, p));
+      const air = airCands[0];
+      if (!air) continue;
+      // Swap like for like on shift where we can, so the long-day balance above isn't undone.
+      // Never send away the pod's only long day to make room for airway cover — that just trades
+      // one red for another. If the incoming person isn't an LD, whoever leaves mustn't be either.
+      const ldHere = day.pods[p].assign.filter(a => a.id && a.shift === "LD").length;
+      const backCands = day.pods[p].assign
+        .filter(a => a.id && !(staffById(a.id) || {}).airway && !wouldBeThird(a.id, donor))
+        .filter(a => air.shift === "LD" || !(a.shift === "LD" && ldHere <= 1))
+        .sort((x, y) => (rank(x, p, donor) - rank(y, p, donor)) || ((y.shift === air.shift) - (x.shift === air.shift)));
+      const back = backCands[0];
+      if (!back) continue;
+      day.pods[donor].assign = day.pods[donor].assign.filter(x => x !== air);
+      day.pods[p].assign = day.pods[p].assign.filter(x => x !== back);
+      day.pods[p].assign.push({ id: air.id, shift: air.shift });
+      day.pods[donor].assign.push({ id: back.id, shift: back.shift });
+    }
+  }
+
   // Phone holder should sit in the busiest pod — they're tied up on calls, so put them where there's
   // the most cover. Swap them with a long-day person from the biggest pod (keeps every count the same).
   if (day.phone) {
@@ -3665,12 +3779,6 @@ function autoFillDay(wk, di, wkKey, opts){
     if (hPod) {
       const busiest = PODS.slice().sort((a,b) => counts[b] - counts[a] || (a==="E") - (b==="E"))[0];
       if (busiest !== hPod && counts[busiest] > counts[hPod]) {
-        // This swap happens after everyone is placed, so it has to re-check the never-a-third-pod
-        // rule itself — otherwise it quietly undoes it for the two people it moves.
-        const podsThisWeek = id => { const set = new Set();
-          for (let k = 0; k < di; k++) for (const q of PODS) if ((wk.days[k].pods[q].assign || []).some(a => a.id === id)) set.add(q);
-          return set; };
-        const wouldBeThird = (id, p) => { const set = podsThisWeek(id); return set.size >= 2 && !set.has(p); };
         const swap = day.pods[busiest].assign.find(a => a.id && a.id !== day.phone && a.shift === "LD" && !wouldBeThird(a.id, hPod));
         const h = day.pods[hPod].assign.find(a => a.id === day.phone);
         if (swap && h && !wouldBeThird(day.phone, busiest)) {
@@ -3963,15 +4071,11 @@ function feedbackDialog(){
   anonBox.onchange = () => { anon = anonBox.checked; nameIn.style.display = anon ? "none" : ""; nameLbl.style.display = anon ? "none" : ""; };
   anonWrap.append(anonBox, el("span", {}, "Send anonymously — nothing about me is recorded"));
   m.append(anonWrap);
-  const note = el("p", { class: "fixsub", style: "margin-top:.7rem" }, "Stays inside the Trust — it's saved in the same SharePoint file as the rota.");
+  const note = el("p", { class: "fixsub", style: "margin-top:.7rem" }, "Stays inside the Trust — saved in the same SharePoint file as the rota, and emailed straight to the rota lead.");
   m.append(note);
   const btns = el("div", { class: "modalbtns" });
   btns.append(
     el("button", { class: "btn sec", onclick: closeModal }, "Cancel"),
-    el("button", { class: "btn sec", onclick: () => {
-        const body = encodeURIComponent((msg.value || "") + "\n\n— sent from the Pod Allocator");
-        location.href = "mailto:" + FEEDBACK_TO + "?subject=" + encodeURIComponent("Pod Allocator feedback: " + kind) + "&body=" + body;
-      } }, "Email it instead"),
     el("button", { class: "btn", onclick: async () => {
         const text = (msg.value || "").trim();
         if (!text) { msg.focus(); return; }
@@ -3979,7 +4083,7 @@ function feedbackDialog(){
         toast("Sending…");
         const ok = await sendFeedback({ t: new Date().toISOString(), kind,
           name: anon ? "" : (nameIn.value || "").trim(), msg: text });
-        toast(ok ? "Thanks — that's been sent" : "Couldn't send just now — try Email it instead");
+        toast(ok ? "Thanks — that's been sent" : "Couldn't send just now — please try again in a moment");
       } }, "Send")
   );
   m.append(btns);
@@ -4319,25 +4423,36 @@ function attentionItems(){
     body: pend.slice(0, 4).map(x => x.name + " from " + niceDate(x.from)).join(" · ") + (pend.length > 4 ? " and " + (pend.length - 4) + " more" : ""),
     go: () => switchTab("staff") });
 
-  const unread = (data.feedback || []).filter(f => !f.read).length;
-  if (unread) out.push({ n: unread, title: "Trial feedback not read yet",
-    body: unread === 1 ? "One message from the team." : unread + " messages from the team.",
-    go: () => switchTab("log") });
-
   return out;
 }
-function attentionCount(){ return attentionItems().reduce((n, x) => n + x.n, 0); }
+// Feedback has its own page so it doesn't clog this list, but it still counts on the badge.
+function unreadFeedback(){ return ((data && data.feedback) || []).filter(f => !f.read).length; }
+function attentionCount(){ return attentionItems().reduce((n, x) => n + x.n, 0) + unreadFeedback(); }
 function updateTeamBadge(){
   const n = data ? attentionCount() : 0;
   const txt = n > 99 ? "99+" : String(n);
   const b = $("#teamBadge");
   if (b) { b.textContent = txt; b.classList.toggle("on", n > 0); }
+  const attnOnly = data ? attentionItems().reduce((a, x) => a + x.n, 0) : 0;
   const t = $("#tabAttnCount");
-  if (t) { t.textContent = txt; t.classList.toggle("on", n > 0); }
+  if (t) { t.textContent = String(attnOnly); t.classList.toggle("on", attnOnly > 0); }
+  const f = $("#tabFbCount"); const u = data ? unreadFeedback() : 0;
+  if (f) { f.textContent = String(u); f.classList.toggle("on", u > 0); }
 }
 function niceDate(iso){
   try { return new Date(iso + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }); }
   catch(e){ return iso; }
+}
+function renderFeedback(){
+  const box = $("#fbList"); if (!box) return;
+  box.innerHTML = "";
+  const fb = (data && data.feedback) || [];
+  if (!fb.length) { box.append(el("div", { class: "attnclear" }, el("b", {}, "Nothing yet"), "Messages sent with the Feedback button appear here.")); return; }
+  for (const f of fb.slice(0, 300)) {
+    box.append(el("div", { class: "logrow" + (f.read ? "" : " unread") },
+      el("div", { class: "t" }, new Date(f.t).toLocaleString("en-GB") + " — " + (f.name || "anonymous")),
+      (f.kind ? f.kind + ": " : "") + f.msg));
+  }
 }
 function renderAttention(){
   const box = $("#attnList"); if (!box) return;
@@ -4608,13 +4723,13 @@ function resolveSyncClash(i, how){
   toast(how === "take" ? "Changed to Optima's version: " + c.allocate : "Kept " + (c.app || "blank") + " — Optima won't override it");
 }
 function renderAll(){ renderWeek(); renderStaffGate(); renderFairGate(); renderImportGate(); renderLogGate(); renderTeamGate(); renderSyncReview(); updateTeamBadge(); }
-const PAGE_TITLES = { rota: "Pod Allocator", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", help: "How it works", team: "Needs attention" };
-const TEAM_TABS = ["team", "import", "staff", "fair", "log"];
+const PAGE_TITLES = { rota: "Pod Allocator", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", help: "How it works", team: "Needs attention", feedback: "Trial feedback" };
+const TEAM_TABS = ["team", "import", "staff", "fair", "log", "feedback"];
 function switchTab(tab){
   // Locked out? Ask once, here, then carry on to where they were going.
   if (TEAM_TABS.includes(tab) && data && !staffUnlocked()) { teamUnlockDialog(() => switchTab(tab)); return; }
   document.querySelectorAll("aside button[data-tab]").forEach(x => x.classList.toggle("active", x.dataset.tab === tab));
-  for (const t of ["rota","import","staff","fair","log","help","team"]) $("#tab-" + t).style.display = (tab === t) ? "" : "none";
+  for (const t of ["rota","import","staff","fair","log","help","team","feedback"]) $("#tab-" + t).style.display = (tab === t) ? "" : "none";
   $("#pageTitle").textContent = PAGE_TITLES[tab];
   // The rota-team pages stay folded away until you go in, so residents only ever see two items.
   document.body.classList.toggle("teamopen", TEAM_TABS.includes(tab));
@@ -4624,7 +4739,8 @@ function switchTab(tab){
   if (tab === "staff") renderStaffGate();
   if (tab === "fair") renderFairGate();
   if (tab === "import") renderImportGate();
-  if (tab === "log") { renderLogGate(); markFeedbackRead(); }
+  if (tab === "log") renderLogGate();
+  if (tab === "feedback") { renderFeedback(); markFeedbackRead(); }
 }
 document.querySelectorAll("aside button[data-tab], #teamPanel .tpi").forEach(b => b.onclick = () => switchTab(b.dataset.tab));
 $("#btnTeam").onclick = () => { document.body.classList.remove("railback"); switchTab("team"); };
