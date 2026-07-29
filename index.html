@@ -3350,12 +3350,14 @@ function phoneOK(id){ const s = staffById(id); return !!s && canHoldPhone(s); }
 // so removing a phone tick from the staff list releases every phone that person was holding.
 function sweepInvalidPhones(){
   if (!data || !data.weeks) return 0;
-  let n = 0;
-  for (const w of Object.values(data.weeks)) {
-    for (const d of w.days) {
+  const from = todayISO();          // today onwards only — the past is a record of what happened,
+  let n = 0;                        // and rewriting it would also distort the fairness history
+  for (const [key, w] of Object.entries(data.weeks)) {
+    w.days.forEach((d, i) => {
+      if (addDays(key, i) < from) return;
       if (d.phone && !phoneOK(d.phone)) { d.phone = null; d.phoneSup = null; n++; }
       if (d.night && d.night.phone && !phoneOK(d.night.phone)) { d.night.phone = null; n++; }
-    }
+    });
   }
   return n;
 }
