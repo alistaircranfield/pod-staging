@@ -3731,7 +3731,40 @@ function autoFillDay(wk, di, wkKey, opts){
     }
     weekPodsSoFar[id] = set;
   }
-  const order = [...unplaced].sort((a,b) => {
+  /* IDEMPOTENCE. A reallocation photographs where everybody is and is meant to put them back unless
+     a rule says otherwise. But the snapshot was only a +200 nudge that evaporated the moment a pod
+     reached its share, and the placement queue was itself derived from days this same pass had
+     already rebuilt — so Tuesday's ordering depended on Monday's outcome, and one difference
+     propagated through the week. A re-run over unchanged data moved a hundred-odd people for no
+     reason: it buries any real change in noise, makes the before-you-save preview unreadable, and on
+     the board it looks like people being shuffled at random.
+
+     So reinstate the snapshot FIRST, reserving the capacity, in an order fixed by name rather than
+     by however the previous run happened to build its lists. Only the genuine difference — newcomers,
+     and anyone whose old pod no longer has room — goes through the scoring below. A reallocation
+     preserves; a fresh auto-fill (no snapshot) still derives everything from the rules. */
+  const held = new Set();
+  if (stick) {
+    const byName = (a, b) => (staffById(a)?.name || String(a)).localeCompare(staffById(b)?.name || String(b));
+    for (const id of [...unplaced].sort(byName)) {
+      const p = stick[id];
+      const s = staffById(id);
+      if (!s || !p || !PODS.includes(p)) continue;
+      const counted = countsInNumbers(id);
+      if (counted && counts[p] >= target[p]) continue;      // no room: let the scoring decide
+      const wkSoFar = weekPodsSoFar[id];
+      if (wkSoFar && wkSoFar.size >= 2 && !wkSoFar.has(p)) continue;   // would be a third pod
+      const isLD = poolState(pool[id]) === "LD";
+      // One exception to holding: a long day in Pod E. Whether that is allowed depends on every other
+      // pod having one, which isn't known until the day is filled — so leave it to the scoring below,
+      // which already ranks that rule above continuity.
+      if (isLD && p === "E") continue;
+      day.pods[p].assign.push({ id, shift: isLD ? "LD" : "SD" });
+      held.add(id);
+      if (counted) { counts[p]++; if (isLD) hasLD[p] = true; if (s.airway) airwayIn[p]++; }
+    }
+  }
+  const order = [...unplaced].filter(id => !held.has(id)).sort((a,b) => {
     const ha = priorMap[a] ? 0 : 1, hb = priorMap[b] ? 0 : 1;
     const A = pool[a], B = pool[b];
     const la = poolState(A) === "LD" ? 0 : 1, lb = poolState(B) === "LD" ? 0 : 1;
@@ -3782,7 +3815,7 @@ function autoFillDay(wk, di, wkKey, opts){
       }
       // Neuro-trained lean towards Pods C & D (the neuro pods) — a nudge, not a rule, so it still
       // yields to keeping the pods evenly sized. Aims for roughly two-thirds of their shifts on C/D.
-      if (s.neuro && (p === "C" || p === "D")) score += 11;
+      if (s.neuro && (p === "C" || p === "D")) score += 5;
       // Long days fill A–D before E: E is always the pod that misses out on a long day when they're
       // short, so never give E a long-day resident while any A–D pod still has none.
       // -4000, not -1000: it has to outrank the weekend Saturday-pod hold (-3000) or a Sunday long
@@ -3855,17 +3888,20 @@ function autoFillDay(wk, di, wkKey, opts){
          smallest. And no pod is stripped of its own last long day to plug another — that just moves
          the gap — hence ldIn(q) > 1. If nothing qualifies, the pod is left short and the day check
          flags it, rather than a chain of swaps to paper over one missing long day. */
+      // Ordered by name, not by position in the pod's list — that list is in the order people were
+      // placed, so the same rota built two different ways used to get two different repairs.
+      const byName = (x, y) => (nameOf(x.id) || "").localeCompare(nameOf(y.id) || "");
       let donor = null, ld = null;
-      for (const q of PODS.filter(q => q !== p && ldIn(q) > 1).sort((a, b) => ldIn(b) - ldIn(a))) {
-        const cand = day.pods[q].assign.find(a => a.id && a.shift === "LD" && a.id !== day.phone && !wouldBeThird(a.id, p))
-                  || day.pods[q].assign.find(a => a.id && a.shift === "LD" && a.id !== day.phone);
+      for (const q of PODS.filter(q => q !== p && ldIn(q) > 1).sort((a, b) => ldIn(b) - ldIn(a) || a.localeCompare(b))) {
+        const pool_ = day.pods[q].assign.filter(a => a.id && a.shift === "LD" && a.id !== day.phone).sort(byName);
+        const cand = pool_.find(a => !wouldBeThird(a.id, p)) || pool_[0];
         if (cand) { donor = q; ld = cand; break; }
       }
       if (!ld) continue;
       // Strictly a swap. Moving somebody in without sending anybody back grows the pod, and if that
       // pod is E it immediately breaks the rule that E is never the biggest.
-      const sd = day.pods[p].assign.find(a => a.id && a.shift !== "LD" && !wouldBeThird(a.id, donor))
-              || day.pods[p].assign.find(a => a.id && a.shift !== "LD");
+      const sdPool = day.pods[p].assign.filter(a => a.id && a.shift !== "LD").sort(byName);
+      const sd = sdPool.find(a => !wouldBeThird(a.id, donor)) || sdPool[0];
       tryMove(() => {
         day.pods[donor].assign = day.pods[donor].assign.filter(x => x !== ld);
         if (sd) {
@@ -3915,7 +3951,7 @@ function autoFillDay(wk, di, wkKey, opts){
     const countedIn = p => podPeople(p).filter(a => countsInNumbers(a.id)).length;
     for (const p of PODS) {
       if (countedIn(p) < 1 || airIn(p) > 0) continue;
-      const donor = PODS.filter(q => q !== p && airIn(q) > 1).sort((a, b) => airIn(b) - airIn(a))[0];
+      const donor = PODS.filter(q => q !== p && airIn(q) > 1).sort((a, b) => airIn(b) - airIn(a) || a.localeCompare(b))[0];
       if (!donor) continue;
       // Don't undo the neuro placement while fixing airway: take someone off C/D last, and send
       // someone to C/D first, if they're on a neuro placement.
@@ -3929,7 +3965,7 @@ function autoFillDay(wk, di, wkKey, opts){
         .filter(a => a.id && staffById(a.id) && staffById(a.id).airway && !wouldBeThird(a.id, p))
         .filter(a => !(a.shift === "LD" && ldDonor <= 1
                        && !day.pods[p].assign.some(x => x.id && x.shift === "LD" && !(staffById(x.id) || {}).airway)))
-        .sort((x, y) => rank(x, donor, p) - rank(y, donor, p));
+        .sort((x, y) => (rank(x, donor, p) - rank(y, donor, p)) || (nameOf(x.id) || "").localeCompare(nameOf(y.id) || ""));
       const air = airCands[0];
       if (!air) continue;
       // Swap like for like on shift where we can, so the long-day balance above isn't undone.
@@ -3939,7 +3975,8 @@ function autoFillDay(wk, di, wkKey, opts){
       const backCands = day.pods[p].assign
         .filter(a => a.id && !(staffById(a.id) || {}).airway && !wouldBeThird(a.id, donor))
         .filter(a => air.shift === "LD" || !(a.shift === "LD" && ldHere <= 1))
-        .sort((x, y) => (rank(x, p, donor) - rank(y, p, donor)) || ((y.shift === air.shift) - (x.shift === air.shift)));
+        .sort((x, y) => (rank(x, p, donor) - rank(y, p, donor)) || ((y.shift === air.shift) - (x.shift === air.shift))
+                     || (nameOf(x.id) || "").localeCompare(nameOf(y.id) || ""));
       const back = backCands[0];
       if (!back) continue;
       tryMove(() => {
