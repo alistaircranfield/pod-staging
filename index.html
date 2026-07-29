@@ -117,6 +117,11 @@ td.daylabel .d{font-weight:700;font-size:1.05rem;letter-spacing:-.01em}
 .w.acc{opacity:.5}
 .slotrow{display:flex;align-items:center;gap:.3rem;margin-bottom:.3rem}
 .slotrow select{flex:1;min-width:0}
+/* Night drop zones need to be worth aiming at — 22px of empty strip wasn't. */
+.zone.nzone{min-height:46px;border-radius:10px;padding:.2rem;transition:background .12s}
+body:not(.viewmode) .nzone{outline:1px dashed transparent;outline-offset:-2px}
+body:not(.viewmode) .nzone:empty,body:not(.viewmode) .nzone:has(.hint){outline-color:var(--line)}
+.nzone.dragover{background:var(--accent-bg);outline-color:var(--accent)!important}
 .subhead{font-size:.58rem;font-weight:700;color:#a7adb5;text-transform:uppercase;letter-spacing:.08em;margin:.55rem 0 .25rem}
 /* Night column: line the names up with the other columns, and one person per row. */
 td.nighttd .subhead:first-child{margin-top:0}
@@ -2239,6 +2244,7 @@ function makeZone(cell, di, onDropId, onDropObs, onDropPhone){
   cell.addEventListener("click", e => {
     if (!canEdit() || !tapPick || tapPick.di !== di || Date.now() - dragEndedAt < 400) return;
     if (e.target.closest(".chip") || e.target.closest("select") || e.target.closest("input") || e.target.closest("button") || e.target.closest(".ptoken")) return;
+    e.stopPropagation();
     const pick = tapPick; tapPick = null;
     if (pick.obs) { if (onDropObs) onDropObs(pick.obs); else { renderWeek(); return; } }
     else onDropId(pick.id);
@@ -2251,7 +2257,9 @@ function makeZone(cell, di, onDropId, onDropObs, onDropPhone){
   cell.addEventListener("dragover", e => { e.preventDefault(); cell.classList.add("dragover"); });
   cell.addEventListener("dragleave", () => cell.classList.remove("dragover"));
   cell.addEventListener("drop", e => {
-    e.preventDefault(); cell.classList.remove("dragover");
+    // Zones nest (the night column contains a zone per night pod). Without this the inner zone and
+    // the column would both handle the same drop and place the person twice.
+    e.preventDefault(); e.stopPropagation(); cell.classList.remove("dragover");
     if (!canEdit()) return;
     let payload;
     try { payload = JSON.parse(e.dataTransfer.getData("text/plain")); } catch(err){ return; }
@@ -2464,6 +2472,15 @@ function renderDayRow(day, di, dateISO, issues){
   }
   /* ---- night ---- */
   const night = el("td", { class: "nighttd", style: "background:var(--night-bg)" });
+  // The zones only cover a fraction of this column's height; the rest was dead. Anywhere in the
+  // column now drops into the smaller of the two night halves, so aim roughly and it still lands.
+  makeZone(night, di, id => {
+    removeAssign(day, id);
+    const k = (day.night.CDE || []).length < (day.night.AB || []).length ? "CDE" : "AB";
+    day.night[k] = day.night[k] || [];
+    day.night[k].push(id);
+    logEntry(staffById(id).name + " → nights (" + dayShort(di) + ")");
+  });
   {
     const consAllN = data.staff.filter(s => s.grade === "CON" && isActiveOn(s, dateISO));
     if (consAllN.length || day.nightCons) {
@@ -2488,25 +2505,35 @@ function renderDayRow(day, di, dateISO, issues){
     const s = staffById(day.night.phone);
     if (s) night.append(el("div", { style: "margin-bottom:.2rem" }, chip(s, { di, day })));
   }
-  const nightZone = (label, arr, filt) => {
+  /* Take the LIST BY NAME, never by reference. removeAssign() rebuilds day.night.AB and .CDE with
+     filter(), which hands back new arrays — so a captured reference is orphaned the moment somebody
+     is dropped, and the push landed on a discarded array. That's why people could be dragged onto
+     the night pods and simply never appear. */
+  const nightZone = (label, key, filt) => {
     night.append(el("div", { class: "subhead" }, label));
-    const z = el("div", { style: "min-height:22px" });
-    makeZone(z, di, id => { removeAssign(day, id); arr.push(id); logEntry(staffById(id).name + " → night " + label + " (" + dayShort(di) + ")"); });
+    const z = el("div", { class: "nzone" });
+    makeZone(z, di, id => {
+      removeAssign(day, id);                       // may replace day.night[key]
+      day.night[key] = day.night[key] || [];
+      day.night[key].push(id);                     // ...so look it up again, here
+      logEntry(staffById(id).name + " → night " + label + " (" + dayShort(di) + ")");
+    });
+    const arr = day.night[key] || [];
     const shown = arr.filter(id => staffById(id) && (!filt || filt(id)));
-    for (const id of shown) z.append(chip(staffById(id), { di, day, tag: "N", onRemove: () => { const i = arr.indexOf(id); if (i >= 0) arr.splice(i, 1); logEntry("Removed " + staffById(id).name + " from night " + label + " (" + dayShort(di) + ")"); markDirty(); renderWeek(); } }));
-    if (!shown.length && !filt) z.append(el("div", { class: "hint" }, "drop staff"));
+    for (const id of shown) z.append(chip(staffById(id), { di, day, tag: "N", onRemove: () => { day.night[key] = (day.night[key] || []).filter(x => x !== id); logEntry("Removed " + staffById(id).name + " from night " + label + " (" + dayShort(di) + ")"); markDirty(); renderWeek(); } }));
+    if (!shown.length) z.append(el("div", { class: "hint" }, "drop staff"));
     night.append(z);
   };
-  nightZone("Pod A & B", day.night.AB);
+  nightZone("Pod A & B", "AB");
   // With FIVE on nights, the phone holder covers Pod E alone (it's quieter) — shown under its
   // own heading. With four, the same two people cover C, D & E and only the phone rotates.
   const nTot = (day.night.AB || []).length + (day.night.CDE || []).length;
   const nPh = day.night.phone;
   if (nTot >= 5 && nPh && (day.night.CDE || []).includes(nPh)) {
-    nightZone("Pod C & D", day.night.CDE, id => id !== nPh);
-    nightZone("Pod E", day.night.CDE, id => id === nPh);
+    nightZone("Pod C & D", "CDE", id => id !== nPh);
+    nightZone("Pod E", "CDE", id => id === nPh);
   } else {
-    nightZone("Pod C, D & E", day.night.CDE);
+    nightZone("Pod C, D & E", "CDE");
   }
   if (day.night.super.length || (canEdit() && activeStaff(dateISO).some(s => s.supernum))) {
     night.append(el("div", { class: "subhead" }, "Super"));
