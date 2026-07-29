@@ -291,9 +291,31 @@ td.col-A{background:var(--podA)} td.col-B{background:var(--podB)} td.col-C{backg
 .rowbtn.del:hover{background:#fdecec}
 .infoi{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--muted);color:#fff;font-size:.6rem;font-style:italic;font-weight:800;margin-left:.35rem;cursor:help;vertical-align:middle}
 .checks label{align-items:center}
+.rowbtn.check{background:var(--red-bg);color:var(--red);font-weight:700}
+.rowbtn.check:hover{background:var(--red);color:#fff}
+.vcell{white-space:nowrap}
+.pendpill{display:inline-block;margin-left:.3rem;font-size:.6rem;font-weight:700;background:var(--accent-bg);color:var(--accent);border-radius:999px;padding:.1rem .4rem}
+/* rota-team group in the side menu */
+#teamNav{display:none}
+body.teamopen #teamNav{display:block}
+aside button.sub{font-size:.66rem;opacity:.85}
+aside button.sub.active{opacity:1}
+.navbadge{position:absolute;top:-3px;right:-5px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:var(--red);color:#fff;font-size:.58rem;font-weight:800;display:none;align-items:center;justify-content:center;line-height:1;box-shadow:0 0 0 2px var(--card)}
+.navbadge.on{display:inline-flex}
+aside button .ic{position:relative}
+/* attention panel */
+.attn{display:flex;flex-direction:column;gap:.55rem}
+.attnrow{display:flex;align-items:flex-start;gap:.7rem;border:0.5px solid rgba(29,31,36,.06);border-radius:14px;padding:.7rem .85rem;background:#fff;box-shadow:0 1px 3px rgba(29,31,36,.06);cursor:pointer;text-align:left;width:100%;font:inherit}
+.attnrow:hover{border-color:var(--accent)}
+.attnrow .n{min-width:26px;height:26px;border-radius:8px;background:var(--red-bg);color:var(--red);font-size:.8rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.attnrow .tx b{display:block;font-size:.88rem;margin-bottom:.1rem}
+.attnrow .tx span{font-size:.78rem;color:var(--muted);line-height:1.5}
+.attnclear{text-align:center;padding:2.4rem 1rem;color:var(--muted)}
+.attnclear b{display:block;font-size:1rem;color:var(--ink);margin-bottom:.3rem}
 /* fairness */
 #driftBox:empty{display:none}
 #driftBox{margin-top:1.4rem;border-top:1px solid var(--hair);padding-top:1rem}
+.logrow.unread{border-left:2px solid var(--accent);padding-left:.6rem}
 .driftttl{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin-bottom:.35rem}
 .driftsub{font-size:.8rem;color:#4a4f58;line-height:1.6;margin-bottom:.6rem}
 .driftlist{display:flex;flex-wrap:wrap;gap:.4rem}
@@ -469,10 +491,14 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
   <button data-tab="rota" class="active"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg></span>Pods</button>
   <button data-tab="help" class="smallb"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.2A2.5 2.5 0 0112 7.5c1.4 0 2.5 1 2.5 2.2 0 1.5-1.6 1.9-2.5 3v.6"/><circle cx="12" cy="16.6" r=".4" fill="currentColor"/></svg></span>Help</button>
   <div class="aside-spacer"></div>
-  <button data-tab="import" class="smallb"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M4 20h16"/></svg></span>Import</button>
+  <button class="smallb" id="btnTeam"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3.6v5c0 4.3-3 8.1-7.5 9.4-4.5-1.3-7.5-5.1-7.5-9.4v-5z"/></svg><span class="navbadge" id="teamBadge"></span></span>Rota team</button>
+  <div id="teamNav">
+  <button data-tab="team" class="smallb sub"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l8.5 15h-17z"/><path d="M12 10v4"/><circle cx="12" cy="16.6" r=".5" fill="currentColor"/></svg></span>Attention</button>
   <button data-tab="staff" class="smallb"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19.5c.8-3.3 3.3-5 6.2-5s5.4 1.7 6.2 5"/><path d="M15.5 5.5a3.2 3.2 0 011.6 6"/><path d="M17.6 14.6c2.2.5 3.7 2 4.2 4.4"/></svg></span>Staff</button>
   <button data-tab="fair" class="smallb"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l3-8 4 14 3-8h4"/></svg></span>Fairness</button>
   <button data-tab="log" class="smallb"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>Log</button>
+  <button data-tab="import" class="smallb"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M4 20h16"/></svg></span>Import</button>
+  </div>
 </aside>
 <div id="navbackdrop"></div>
 <div id="content">
@@ -578,11 +604,27 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
       <div style="overflow-x:auto">
       <table id="staffTable">
         <thead><tr>
-          <th>Name</th><th>Grade</th><th>Skills</th><th></th>
+          <th>Name</th><th>Grade</th><th>Skills</th><th>Checked</th><th></th>
         </tr></thead>
         <tbody id="staffBody"></tbody>
       </table>
       </div>
+    </div>
+  </section>
+
+  <section id="tab-team" style="display:none">
+    <div id="teamGate" class="gatebox" style="display:none">
+      <div class="card">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+        <b id="gateTitleT">Locked — staff password</b>
+        <input type="password" id="gatePwT" placeholder="Password">
+        <button class="btn" id="gateBtnT" style="width:100%">Unlock</button>
+        <div id="gateMsgT" style="font-size:.78rem;color:var(--red);min-height:1em;margin-top:.3rem"></div>
+        <a href="#" id="gateResetT" style="font-size:.72rem;color:var(--muted)">Forgotten? Reset it</a>
+      </div>
+    </div>
+    <div class="card" id="teamCard">
+      <div id="attnList" class="attn"></div>
     </div>
   </section>
 
@@ -1450,7 +1492,11 @@ function loadData(d){
     if (s.phoneSupervisor === undefined) s.phoneSupervisor = false;
     if (s.phoneSupervisor) s.phoneHolder = true;   // supervisor always counts as a holder
     if (s.phoneHolder) s.phoneShadow = false;      // a holder isn't a learner
+    // Anyone already on the list predates the check, so treat them as done — otherwise the badge
+    // opens on day one with the whole unit in it and nobody reads it again.
+    if (s.verified === undefined) s.verified = true;
   }
+  data.pendingSkills = data.pendingSkills || [];
   for (const wk of Object.values(data.weeks)) {
     if (!("roster" in wk)) wk.roster = null;
     if (!wk.accepted) wk.accepted = [];
@@ -1471,6 +1517,7 @@ function loadData(d){
   // without this a name that was valid when it was set quietly stays put and looks fine.
   const released = sweepInvalidPhones();
   if (released) logEntry("Released " + released + " phone allocation" + (released === 1 ? "" : "s") + " held by someone not phone-trained");
+  try { applyDuePendingSkills(true); } catch(e){}
   dirty = false;
   loadedSavedAt = d.savedAt || null;
   undoStack = []; redoStack = []; lastState = JSON.stringify(data);
@@ -1628,6 +1675,17 @@ function renderStaff(){
     for (const f of FLAGS) if (f[2] === "info" && s[f[0]]) skcell.append(el("span", { class: "spill info", title: f[4] || f[1] }, SKILL_SHORT[f[0]] || f[1]));
     if (!skcell.children.length) skcell.append(el("span", { class: "muted-sm" }, "—"));
     tr.append(skcell);
+    // New people are allocated straight away, but somebody has to confirm their skills are right.
+    // This lives here, on the rota team's page — never on the board the residents see.
+    const vcell = el("td", { class: "vcell" });
+    const pend = (data.pendingSkills || []).filter(x => x.id === s.id);
+    if (s.verified === false) {
+      vcell.append(el("button", { class: "rowbtn check", title: "Confirm their skills are right", onclick: () => {
+        s.verified = true; logEntry("Checked new starter: " + s.name); markDirty(); renderStaff(); updateTeamBadge();
+      }}, "Check"));
+    } else vcell.append(el("span", { class: "muted-sm" }, "✓"));
+    for (const x of pend) vcell.append(el("span", { class: "pendpill", title: "Waiting to start" }, "from " + niceDate(x.from)));
+    tr.append(vcell);
     tr.append(el("td", { class: "rowacts" },
       el("button", { class: "rowbtn edit", title: "Edit this person's details", onclick: () => staffModal(s) }, "Edit"),
       el("button", { class: "rowbtn del", title: "Remove from the pick-lists", onclick: async () => {
@@ -1638,7 +1696,7 @@ function renderStaff(){
     ));
     body.append(tr);
   }
-  if (!body.children.length) body.append(el("tr",{}, el("td",{colspan:"4",class:"empty"}, "No staff yet — click “+ Add person”.")));
+  if (!body.children.length) body.append(el("tr",{}, el("td",{colspan:"5",class:"empty"}, "No staff yet — click “+ Add person”.")));
 }
 
 function staffModal(s){
@@ -1685,18 +1743,33 @@ function staffModal(s){
     el("button", { class: "btn", onclick: () => {
       if (!name.value.trim()) { name.style.borderColor = "var(--red)"; nameMsg.textContent = "A name is required."; name.focus(); return; }
       s.name = name.value.trim(); s.grade = grade.value;
-      for (const k of Object.keys(cbs)) s[k] = cbs[k].checked;
-      if (isNew) data.staff.push(s);
+      // Skills gained by an existing person don't take effect here and now — they're queued to start
+      // on a Monday. Skills taken away bite immediately. Everything else saves as normal.
+      const added = [], addMap = {};
+      if (!isNew) for (const k of SKILL_KEYS) if (cbs[k] && cbs[k].checked && !s[k]) { added.push(SKILL_SHORT[k] || k); addMap[k] = true; }
+      for (const k of Object.keys(cbs)) { if (addMap[k]) continue; s[k] = cbs[k].checked; }
+      if (isNew) { for (const k of Object.keys(cbs)) s[k] = cbs[k].checked; data.staff.push(s); }
       logEntry((isNew ? "Added staff: " : "Edited staff: ") + s.name);
       // Untick someone's phone skill and they let go of every phone they were holding.
       const freed = sweepInvalidPhones();
       if (freed) logEntry("Released " + freed + " phone allocation" + (freed === 1 ? "" : "s") + " after the skills change");
-      markDirty(); closeModal(); renderStaff(); renderWeek();
+      markDirty(); closeModal(); renderStaff(); renderWeek(); updateTeamBadge();
+      if (added.length) queueSkillGain(s, added, addMap);
     }}, isNew ? "Add" : "Save")
   ));
   $("#modalBg").style.display = "flex";
 }
 function closeModal(){ $("#modalBg").style.display = "none"; }
+// Ask when the new skill starts, show exactly what it would move, then queue or land it.
+async function queueSkillGain(s, added, addMap){
+  const from = await askWhenSkillStarts(s.name, added);
+  if (!from) { toast("Skills saved — the new ones weren't started"); return; }
+  data.pendingSkills = data.pendingSkills || [];
+  data.pendingSkills.push({ id: s.id, name: s.name, add: addMap, from, by: editorName(), at: new Date().toISOString() });
+  logEntry(s.name + " gains " + added.join(", ") + " from " + niceDate(from));
+  markDirty(); renderStaff(); updateTeamBadge();
+  toast(s.name + ": " + added.join(", ") + " starts " + niceDate(from));
+}
 
 /* ================= WEEK EDITOR ================= */
 function getWeek(key){
@@ -1704,8 +1777,11 @@ function getWeek(key){
   return data.weeks[key];
 }
 
+// Look the date up in the week that actually contains it, not the one on screen. This used to read
+// currentWeekKey, which meant anything asking about a date outside the visible week silently got
+// nothing back — including the allocator, when it works out a week other than the one you're on.
 function rosterFor(dateISO){
-  const wk = data.weeks[currentWeekKey];
+  const wk = data.weeks[mondayOf(dateISO)];
   return (wk && wk.roster && wk.roster[dateISO]) || null;
 }
 function fghFor(dateISO){
@@ -2985,7 +3061,7 @@ function showImportPreview(parsed, box){
       const key = normName(u.p.forenames + " " + u.p.surname);
       if (!u.choice) { if (!data.ignoredNames.includes(key)) data.ignoredNames.push(key); continue; }
       if (u.choice === "__new__") {
-        const s = { id: uid(), name: u.p.forenames.split(" ")[0] + " " + u.p.surname, grade: gradeFromText(u.p.gradeText), airway: /(-|–) ?A/i.test(Object.values(u.p.duties).join(" ")) || Object.values(u.p.duties).some(c => /airway/i.test(c)), phoneHolder: false, phoneSupervisor: false, phoneShadow: false, nights: false, fgh: false, transfer: false, supernum: false, start: null, end: null, active: true, aliases: [key] };
+        const s = { id: uid(), name: u.p.forenames.split(" ")[0] + " " + u.p.surname, grade: gradeFromText(u.p.gradeText), airway: /(-|–) ?A/i.test(Object.values(u.p.duties).join(" ")) || Object.values(u.p.duties).some(c => /airway/i.test(c)), phoneHolder: false, phoneSupervisor: false, phoneShadow: false, nights: false, fgh: false, transfer: false, supernum: false, start: null, end: null, active: true, verified: false, aliases: [key] };
         applyGradeSkills(s); // default skills for their grade (e.g. ST → airway+transfer, ACCP → transfer)
         data.staff.push(s); put(s.id, u.p); added++;
       } else {
@@ -3151,10 +3227,11 @@ function renderLog(){
     box.append(el("div", { style: "font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:.2rem 0 .5rem" },
       "Trial feedback (" + fb.length + ")"));
     for (const f of fb.slice(0, 100)) {
-      box.append(el("div", { class: "logrow" },
+      box.append(el("div", { class: "logrow" + (f.read ? "" : " unread") },
         el("div", { class: "t" }, new Date(f.t).toLocaleString("en-GB") + " — " + (f.name || "anonymous")),
         (f.kind ? f.kind + ": " : "") + f.msg));
     }
+
     box.append(el("div", { style: "font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:1.1rem 0 .5rem" }, "Changes"));
   }
   if (!data || !data.log.length) { box.append(el("div", { class: "empty" }, "No changes logged yet.")); return; }
@@ -3242,11 +3319,11 @@ function publishedNext(fname){
 
 
 /* ================= AUTO-FILL ================= */
-function priorPodFor(id, wk, beforeDi){
+function priorPodFor(id, wk, beforeDi, wkKey){
   for (let di = beforeDi - 1; di >= 0; di--)
     for (const p of PODS)
       if (wk.days[di].pods[p].assign.some(a => a.id === id)) return p;
-  const prev = data.weeks[addDays(currentWeekKey, -7)];
+  const prev = data.weeks[addDays(wkKey || currentWeekKey, -7)];
   if (prev) {
     const podCount = {};
     prev.days.forEach(dd => { for (const p of PODS) if (dd.pods[p].assign.some(a => a.id === id)) podCount[p] = (podCount[p] || 0) + 1; });
@@ -3359,9 +3436,12 @@ function sweepInvalidPhones(){
   }
   return n;
 }
-function autoFillDay(wk, di){
+// wkKey lets this run on a week other than the one on screen — needed when a skills change lands
+// and every week from that Monday onward has to be worked out again.
+function autoFillDay(wk, di, wkKey){
+  const key = wkKey || currentWeekKey;
   const day = wk.days[di];
-  const dateISO = addDays(currentWeekKey, di);
+  const dateISO = addDays(key, di);
   const pool = poolFor(day, dateISO);
   const assigned = assignedIds(day);
   // Fairfield people never get auto-allocated to a pod — they only come from the Allocate roster + manual moves.
@@ -3419,7 +3499,7 @@ function autoFillDay(wk, di){
   // Spare people (the remainder) go to A–D, never E — but rotate WHICH of A–D gets the extra by day and
   // week so no single pod (previously always A) ends up consistently bigger over time.
   const AD = ["A", "B", "C", "D"];
-  const wkOrd = Math.floor((Date.parse(currentWeekKey) || 0) / 6048e5);
+  const wkOrd = Math.floor((Date.parse(key) || 0) / 6048e5);
   const startOff = (((di + wkOrd) % 4) + 4) % 4;
   const remPods = new Set(AD.slice(startOff).concat(AD.slice(0, startOff)).slice(0, Math.min(remCount, 4)));
   const target = {};
@@ -3428,7 +3508,8 @@ function autoFillDay(wk, di){
   // else takes their slot), and the keep-same-pod bonus below is strong enough to win
   // whenever their pod still has room under the even-spread targets.
   const priorMap = {};
-  for (const id of unplaced) priorMap[id] = priorPodFor(id, wk, di);
+  const stick = STICK_TO && STICK_TO[dateISO];
+  for (const id of unplaced) priorMap[id] = (stick && stick[id]) || priorPodFor(id, wk, di, key);
   // HARD RULE: nobody works more than TWO different pods in a week. A third pod is only
   // ever possible when every other pod is genuinely unavailable.
   const weekPodsSoFar = {};
@@ -3865,7 +3946,7 @@ async function sha256(s){
 }
 function staffUnlocked(){ return store.sget("staffUnlocked") === "1" || (data && !data.staffPw); }
 function gateRefs(sfx){
-  const gates = { S: "#staffGate", F: "#fairGate", I: "#importGate", L: "#logGate" };
+  const gates = { S: "#staffGate", F: "#fairGate", I: "#importGate", L: "#logGate", T: "#teamGate" };
   return { gate: $(gates[sfx]), title: $("#gateTitle"+sfx), pw: $("#gatePw"+sfx), btn: $("#gateBtn"+sfx), msg: $("#gateMsg"+sfx), reset: $("#gateReset"+sfx) };
 }
 function renderGate(sfx, cardSel, onShow){
@@ -3909,6 +3990,194 @@ function renderGate(sfx, cardSel, onShow){
   }
 }
 function renderStaffGate(){ renderGate("S", "#staffCard", renderStaff); }
+function renderTeamGate(){ renderGate("T", "#teamCard", renderAttention); }
+// Actually opening the Log page counts as reading the feedback. renderAll() redraws every page
+// whether it's on screen or not, so this must never live inside renderLog.
+function markFeedbackRead(){
+  const fb = (data && data.feedback) || [];
+  if (!fb.some(f => !f.read)) return;
+  if (!staffUnlocked()) return;                 // still behind the password — they haven't seen it
+  fb.forEach(f => f.read = true);
+  markDirty(); updateTeamBadge();
+}
+
+/* ================= SKILLS CHANGES =================
+   Taking a skill away bites straight away — somebody who can't hold the phone shouldn't be holding
+   it in an hour's time. Adding one is the opposite: the rota is already written months ahead, and
+   people check a week in advance, so a new skill starts on a Monday you choose and everything from
+   that Monday is worked out again. Whole weeks only, so nobody's pod changes on a Wednesday. */
+const POD_SKILLS = ["airway", "neuro", "supernum"];       // change who belongs in which pod
+const PHONE_SKILLS = ["phoneHolder", "phoneSupervisor", "phoneShadow"];  // change only who carries the phone
+function nextMonday(fromISO){
+  let d = addDays(mondayOf(fromISO || todayISO()), 7);
+  return d;
+}
+// Every week we hold from this Monday onward, in order.
+function weeksFrom(monISO){ return Object.keys(data.weeks).filter(k => k >= monISO).sort(); }
+
+// Re-run the allocation for every week from a Monday. Pod-class changes clear the pods first so
+// placement can genuinely reconsider; the continuity bonus and the two-pods-a-week rule then pull
+// almost everyone back to where they were, which is what makes the disruption small.
+let STICK_TO = null;    // {dateISO: {staffId: pod}} — where everyone was before we started
+function reallocateFrom(monISO, touchesPods){
+  let changed = 0;
+  // Snapshot first, so every day is pulled back toward where it already was.
+  STICK_TO = {};
+  for (const key of weeksFrom(monISO)) {
+    data.weeks[key].days.forEach((day, di) => {
+      const m = {};
+      for (const p of PODS) for (const a of day.pods[p].assign) if (a.id) m[a.id] = p;
+      STICK_TO[addDays(key, di)] = m;
+    });
+  }
+  for (const key of weeksFrom(monISO)) {
+    const wk = data.weeks[key];
+    if (touchesPods) {
+      for (const day of wk.days) {
+        for (const p of PODS) day.pods[p].assign = day.pods[p].assign.filter(a => !a.id);
+        day.phone = null; day.phoneSup = null; day.shadow = [];
+        if (day.night) day.night.phone = null;
+      }
+    } else {
+      for (const day of wk.days) { day.phone = null; day.phoneSup = null; day.shadow = []; if (day.night) day.night.phone = null; }
+    }
+    wk.days.forEach((day, di) => autoFillDay(wk, di, key));
+    changed++;
+  }
+  STICK_TO = null;
+  return changed;
+}
+
+// What actually moved, in words, so it can be shown before anything is committed.
+function diffWeeks(before, monISO){
+  const moves = [];
+  for (const key of weeksFrom(monISO)) {
+    const b = before[key], a = data.weeks[key];
+    if (!b || !a) continue;
+    a.days.forEach((day, di) => {
+      const dateISO = addDays(key, di);
+      const podOf = (w, id) => PODS.find(p => w.days[di].pods[p].assign.some(x => x.id === id));
+      const ids = new Set([...PODS.flatMap(p => a.days[di].pods[p].assign.map(x => x.id)),
+                           ...PODS.flatMap(p => b.days[di].pods[p].assign.map(x => x.id))].filter(Boolean));
+      for (const id of ids) {
+        const pb = podOf(b, id), pa = podOf(a, id);
+        if (pb && pa && pb !== pa) moves.push(nameOf(id) + ": Pod " + pb + " → Pod " + pa + " on " + niceDate(dateISO));
+      }
+      if (b.days[di].phone !== day.phone && (b.days[di].phone || day.phone))
+        moves.push("Phone: " + (nameOf(b.days[di].phone) || "nobody") + " → " + (nameOf(day.phone) || "nobody") + " on " + niceDate(dateISO));
+      const bn = b.days[di].night ? b.days[di].night.phone : null, an = day.night ? day.night.phone : null;
+      if (bn !== an && (bn || an))
+        moves.push("Night phone: " + (nameOf(bn) || "nobody") + " → " + (nameOf(an) || "nobody") + " on " + niceDate(dateISO));
+    });
+  }
+  return moves;
+}
+function nameOf(id){ const s = id && staffById(id); return s ? s.name : ""; }
+
+// Ask when a newly-added skill should start, then queue it.
+async function askWhenSkillStarts(name, added){
+  const opts = [["1", "Next Monday"], ["2", "In 2 weeks"], ["3", "In 3 weeks"]];
+  const m = $("#modal"); m.innerHTML = "";
+  m.append(el("h3", {}, "When should this start?"));
+  m.append(el("p", { style: "font-size:.85rem;color:#4a4f58;line-height:1.6;margin:0 0 .9rem" },
+    name + " is gaining " + added.join(", ") + ". The rota is already written weeks ahead, so this starts on a Monday and everything from that Monday is worked out again."));
+  let pick = "1";
+  const seg = el("div", { class: "seg" });
+  opts.forEach(([v, l]) => {
+    const b = el("button", { class: "segbtn" + (v === pick ? " on" : ""), onclick: () => { pick = v; [...seg.children].forEach(c => c.classList.toggle("on", c.dataset.v === v)); } }, l);
+    b.dataset.v = v; seg.append(b);
+  });
+  m.append(seg);
+  const wkLbl = el("div", { style: "font-size:.78rem;color:var(--muted);margin-top:.6rem" });
+  const dateFor = v => addDays(nextMonday(), (parseInt(v, 10) - 1) * 7);
+  const refresh = () => wkLbl.textContent = "Starts " + niceDate(dateFor(pick)) + ".";
+  seg.querySelectorAll("button").forEach(b => b.addEventListener("click", refresh));
+  refresh();
+  m.append(wkLbl);
+  return new Promise(res => {
+    m.append(el("div", { class: "modalbtns" },
+      el("button", { class: "btn sec", onclick: () => { closeModal(); res(null); } }, "Cancel"),
+      el("button", { class: "btn", onclick: () => { closeModal(); res(dateFor(pick)); } }, "Queue it")));
+    $("#modalBg").style.display = "flex";
+  });
+}
+
+// Land any queued change whose Monday has arrived.
+async function applyDuePendingSkills(silent){
+  const due = (data.pendingSkills || []).filter(x => x.from <= todayISO());
+  if (!due.length) return 0;
+  for (const x of due) {
+    const s = staffById(x.id);
+    if (s) for (const [k, v] of Object.entries(x.add)) s[k] = v;
+  }
+  data.pendingSkills = (data.pendingSkills || []).filter(x => x.from > todayISO());
+  const from = due.map(x => x.from).sort()[0];
+  const touchesPods = due.some(x => Object.keys(x.add).some(k => POD_SKILLS.includes(k)));
+  const before = JSON.parse(JSON.stringify(data.weeks));
+  reallocateFrom(from, touchesPods);
+  const moves = diffWeeks(before, from);
+  logEntry("Skills change started for " + due.map(x => x.name).join(", ") + " — weeks from " + niceDate(from)
+    + " worked out again (" + moves.length + " change" + (moves.length === 1 ? "" : "s") + ")");
+  if (!silent) toast("Skills change applied from " + niceDate(from) + " — " + moves.length + " changes");
+  return due.length;
+}
+
+/* ================= ATTENTION =================
+   Everything the rota team has to act on, in one place, counted on the side-menu badge.
+   Deliberately NOT the red/amber day dots — those live on the board where the day is. This is
+   for things that would otherwise sit unnoticed: people to check, clashes, changes about to land. */
+function attentionItems(){
+  if (!data) return [];
+  const out = [];
+  const clashes = (data.syncReview || []).length;
+  if (clashes) out.push({ n: clashes, title: "Allocate disagrees with the board",
+    body: clashes === 1 ? "One day where somebody's shift here doesn't match Optima. Pick which is right." : clashes + " days where somebody's shift here doesn't match Optima. Pick which is right.",
+    go: () => { switchTab("rota"); setTimeout(() => { const e = $("#syncReview"); if (e) e.scrollIntoView({ behavior: "smooth", block: "center" }); }, 60); } });
+
+  const unver = data.staff.filter(s => s.verified === false && s.active !== false);
+  if (unver.length) out.push({ n: unver.length, title: "New people to check",
+    body: unver.slice(0, 6).map(s => s.name).join(", ") + (unver.length > 6 ? " and " + (unver.length - 6) + " more" : "") + " — added automatically from Optima. Confirm their skills are right.",
+    go: () => switchTab("staff") });
+
+  const pend = (data.pendingSkills || []);
+  if (pend.length) out.push({ n: pend.length, title: "Skills changes waiting to start",
+    body: pend.slice(0, 4).map(x => x.name + " from " + niceDate(x.from)).join(" · ") + (pend.length > 4 ? " and " + (pend.length - 4) + " more" : ""),
+    go: () => switchTab("staff") });
+
+  const unread = (data.feedback || []).filter(f => !f.read).length;
+  if (unread) out.push({ n: unread, title: "Trial feedback not read yet",
+    body: unread === 1 ? "One message from the team." : unread + " messages from the team.",
+    go: () => switchTab("log") });
+
+  return out;
+}
+function attentionCount(){ return attentionItems().reduce((n, x) => n + x.n, 0); }
+function updateTeamBadge(){
+  const b = $("#teamBadge"); if (!b) return;
+  const n = data ? attentionCount() : 0;
+  b.textContent = n > 99 ? "99+" : String(n);
+  b.classList.toggle("on", n > 0);
+}
+function niceDate(iso){
+  try { return new Date(iso + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }); }
+  catch(e){ return iso; }
+}
+function renderAttention(){
+  const box = $("#attnList"); if (!box) return;
+  box.innerHTML = "";
+  const items = attentionItems();
+  if (!items.length) {
+    box.append(el("div", { class: "attnclear" }, el("b", {}, "Nothing needs attention"),
+      "New people, clashes with Optima and anything else worth a look will appear here."));
+    return;
+  }
+  for (const it of items) {
+    const row = el("button", { class: "attnrow", onclick: it.go },
+      el("span", { class: "n" }, String(it.n)),
+      el("span", { class: "tx" }, el("b", {}, it.title), el("span", {}, it.body)));
+    box.append(row);
+  }
+}
 function renderFairGate(){ renderGate("F", "#fairCard", renderFairness); }
 function renderImportGate(){ renderGate("I", "#importCard", () => {}); }
 function renderLogGate(){ renderGate("L", "#logCard", renderLog); }
@@ -4161,18 +4430,24 @@ function resolveSyncClash(i, how){
   markDirty(); renderAll();
   toast(how === "take" ? "Changed to Optima's version: " + c.allocate : "Kept " + (c.app || "blank") + " — Optima won't override it");
 }
-function renderAll(){ renderWeek(); renderStaffGate(); renderFairGate(); renderImportGate(); renderLogGate(); renderSyncReview(); }
-const PAGE_TITLES = { rota: "Pod Allocator", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", help: "How it works" };
+function renderAll(){ renderWeek(); renderStaffGate(); renderFairGate(); renderImportGate(); renderLogGate(); renderTeamGate(); renderSyncReview(); updateTeamBadge(); }
+const PAGE_TITLES = { rota: "Pod Allocator", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", help: "How it works", team: "Needs attention" };
+const TEAM_TABS = ["team", "import", "staff", "fair", "log"];
 function switchTab(tab){
   document.querySelectorAll("aside button[data-tab]").forEach(x => x.classList.toggle("active", x.dataset.tab === tab));
-  for (const t of ["rota","import","staff","fair","log","help"]) $("#tab-" + t).style.display = (tab === t) ? "" : "none";
+  for (const t of ["rota","import","staff","fair","log","help","team"]) $("#tab-" + t).style.display = (tab === t) ? "" : "none";
   $("#pageTitle").textContent = PAGE_TITLES[tab];
+  // The rota-team pages stay folded away until you go in, so residents only ever see two items.
+  document.body.classList.toggle("teamopen", TEAM_TABS.includes(tab));
+  const bt = $("#btnTeam"); if (bt) bt.classList.toggle("active", TEAM_TABS.includes(tab));
+  if (tab === "team") renderTeamGate();
   if (tab === "staff") renderStaffGate();
   if (tab === "fair") renderFairGate();
   if (tab === "import") renderImportGate();
-  if (tab === "log") renderLogGate();
+  if (tab === "log") { renderLogGate(); markFeedbackRead(); }
 }
 document.querySelectorAll("aside button[data-tab]").forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+$("#btnTeam").onclick = () => switchTab("team");
 $("#btnWho").onclick = changeEditor;
 $("#btnEdit").onclick = enterEdit;
 $("#btnFeedback").onclick = feedbackDialog;
