@@ -1467,6 +1467,10 @@ function loadData(d){
       if (nv && !d.staff.some(s => s.id === nv)) { const rid = matchConsInitials(nv); if (rid) dd.nightCons = rid; }
     }
   }
+  // Release any phone left with somebody who can't carry it. Skills get edited after the fact, and
+  // without this a name that was valid when it was set quietly stays put and looks fine.
+  const released = sweepInvalidPhones();
+  if (released) logEntry("Released " + released + " phone allocation" + (released === 1 ? "" : "s") + " held by someone not phone-trained");
   dirty = false;
   loadedSavedAt = d.savedAt || null;
   undoStack = []; redoStack = []; lastState = JSON.stringify(data);
@@ -1684,6 +1688,9 @@ function staffModal(s){
       for (const k of Object.keys(cbs)) s[k] = cbs[k].checked;
       if (isNew) data.staff.push(s);
       logEntry((isNew ? "Added staff: " : "Edited staff: ") + s.name);
+      // Untick someone's phone skill and they let go of every phone they were holding.
+      const freed = sweepInvalidPhones();
+      if (freed) logEntry("Released " + freed + " phone allocation" + (freed === 1 ? "" : "s") + " after the skills change");
       markDirty(); closeModal(); renderStaff(); renderWeek();
     }}, isNew ? "Add" : "Save")
   ));
@@ -2080,16 +2087,18 @@ async function assignPhoneTo(day, type, s){
   } else if (type === "day") {
     const dayIds = dayAllAssigned(day);
     // Not phone-trained at all?
-    if (!canHoldPhone(s) && !isPhoneShadow(s) && !(await uiConfirm(s.name + " isn't marked with any phone skill on the staff list.", { title: "Give them the phone anyway?", okLabel: "Give phone", danger: true }))) { tapPhone = null; renderWeek(); return; }
-    // A learner (shadow) can only carry it if a supervisor is on today.
-    if (isPhoneShadow(s) && !supervisorOnDay(dayIds, s.id) && !(await uiConfirm(s.name + " is still learning the phone and no phone supervisor is on today. Give them the phone anyway?", { title: "No supervisor on today", okLabel: "Give phone anyway", danger: true }))) { tapPhone = null; renderWeek(); return; }
+    // Not phone-trained — refused outright. There is no override for this.
+    if (!canHoldPhone(s) && !isPhoneShadow(s)) { await uiAlert(s.name + " isn't marked as a phone holder on the staff list, so can't carry the referral phone. If that's wrong, tick the phone skill against them on the Staff page first.", { title: "Not a phone holder" }); tapPhone = null; renderWeek(); return; }
+    // A learner can only carry it with a supervisor on the same day — also no override.
+    if (isPhoneShadow(s) && !supervisorOnDay(dayIds, s.id)) { await uiAlert(s.name + " is still learning the phone and no phone supervisor is on today, so can't carry it.", { title: "No supervisor on today" }); tapPhone = null; renderWeek(); return; }
     // The phone holder must be on a long day — this is a hard rule, no override.
     const hs = holderShift(day, s.id);
     if (hs && hs !== "LD") { await uiAlert(s.name + " is on a short day, so can't hold the referral phone — the phone holder must be on a long day (LD). Switch them to a long day first, or give the phone to someone who's already LD.", { title: "Phone holder must be a long day" }); tapPhone = null; renderWeek(); return; }
     day.phone = s.id;
     day.shadow = (day.shadow || []).filter(x => x !== s.id);
   } else {
-    if (!canHoldPhone(s) && !(await uiConfirm(s.name + " isn't a qualified phone holder. The night phone needs a holder — a learner can't hold it at night. Give them the night phone anyway?", { title: "Night phone needs a holder", okLabel: "Give phone anyway", danger: true }))) { tapPhone = null; renderWeek(); return; }
+    // Nights are holders only — a learner can never carry it overnight, and there's no override.
+    if (!canHoldPhone(s)) { await uiAlert(s.name + " isn't a qualified phone holder, so can't carry the phone overnight. If that's wrong, tick the phone skill against them on the Staff page first.", { title: "Not a phone holder" }); tapPhone = null; renderWeek(); return; }
     day.night.phone = s.id;
   }
   tapPhone = null;
@@ -3316,6 +3325,40 @@ function ldAvailWindow(){
   }
   return n;
 }
+// Nights each person has actually been rostered for — the fair denominator for the night phone,
+// mirroring ldAvailWindow() for days.
+function nightAvailWindow(){
+  const n = {};
+  for (const w of Object.values(data.weeks)) {
+    if (!w.roster) continue;
+    for (const [dateISO, r] of Object.entries(w.roster)) {
+      for (const [id, v] of Object.entries(r)) {
+        const s = staffById(id);
+        if (!s || !isActiveOn(s, dateISO)) continue;
+        if (v.kind === "night") n[id] = (n[id] || 0) + 1;
+      }
+    }
+  }
+  return n;
+}
+/* The phone is never handed to somebody who isn't trained to carry it — not by auto-fill, not by
+   Fix this day, not by hand, and not by a stale entry left behind when someone's skills change.
+   If no trained holder is on, the phone stays unallocated and the day is flagged. An empty slot
+   the coordinators can see beats a name that looks settled and isn't safe. */
+function phoneOK(id){ const s = staffById(id); return !!s && canHoldPhone(s); }
+// Clears any phone sitting with someone who can't hold it. Runs on load and whenever skills change,
+// so removing a phone tick from the staff list releases every phone that person was holding.
+function sweepInvalidPhones(){
+  if (!data || !data.weeks) return 0;
+  let n = 0;
+  for (const w of Object.values(data.weeks)) {
+    for (const d of w.days) {
+      if (d.phone && !phoneOK(d.phone)) { d.phone = null; d.phoneSup = null; n++; }
+      if (d.night && d.night.phone && !phoneOK(d.night.phone)) { d.night.phone = null; n++; }
+    }
+  }
+  return n;
+}
 function autoFillDay(wk, di){
   const day = wk.days[di];
   const dateISO = addDays(currentWeekKey, di);
@@ -3327,7 +3370,9 @@ function autoFillDay(wk, di){
   // Reassign if unset OR if the current holder is on a short day and a long-day holder is available
   // (an SD holder can slip in from the imported roster — the phone should sit with a long day if we have one).
   const holderShift = day.phone ? (currentAssignShift(day, day.phone) || (pool[day.phone] ? poolState(pool[day.phone]) : null)) : null;
-  if (!day.phone || holderShift === "SD") {
+  // Reassign when the phone is unset, sitting with a short day, or sitting with somebody who isn't
+  // trained to carry it (skills can change after the fact and leave a stale name behind).
+  if (!day.phone || holderShift === "SD" || !phoneOK(day.phone)) {
     const phoneHist = phoneHistWindow();   // historic holds within each person's time on the unit
     const ldAvail = ldAvailWindow();       // long-days each person has actually been available for
     // Fair share = holds per long-day they could have held. A newcomer with few days here is judged on
@@ -3337,10 +3382,22 @@ function autoFillDay(wk, di){
     for (let k = 0; k < di; k++){ const pid = wk.days[k].phone; if (pid) weekPhone[pid] = (weekPhone[pid] || 0) + 1; }
     const cands = settledFirst(dayIds.map(staffById).filter(s => s && canHoldPhone(s) && poolState(pool[s.id]) === "LD" && s.id !== day.phone), dateISO)
       .sort((a,b) => ((weekPhone[a.id] || 0) - (weekPhone[b.id] || 0)) || (phoneRate(a.id) - phoneRate(b.id)) || a.name.localeCompare(b.name));
+    // No trained long-day holder on? Leave it unallocated and flagged. Never fudge it.
     if (cands.length) { day.phone = cands[0].id; day.phoneSup = null; }
-    // The phone holder must never be on a short day. If the current holder is SD and there's no long-day
-    // holder to take it, leave it unassigned (flagged) rather than leaving it with a short-day person.
-    else if (holderShift === "SD") { day.phone = null; day.phoneSup = null; }
+    else { day.phone = null; day.phoneSup = null; }
+  }
+  // --- night phone: same rules. A qualified holder from the night team, spread by rate, avoiding
+  //     two nights running where possible. Nobody suitable on? It stays empty and flagged. ---
+  if (!day.night.phone || !phoneOK(day.night.phone)) {
+    const nightIds = [...new Set([...(day.night.AB || []), ...(day.night.CDE || [])].filter(Boolean))];
+    const nHist = historicCountWindow(dd => dd.night && dd.night.phone);
+    const nAvail = nightAvailWindow();
+    const nRate = id => (nHist[id] || 0) / ((nAvail[id] || 0) + 1);
+    const prevNight = di > 0 ? wk.days[di-1].night.phone : null;
+    const nCands = settledFirst(nightIds.map(staffById).filter(s => s && canHoldPhone(s)), dateISO)
+      .sort((a,b) => ((a.id === prevNight ? 1 : 0) - (b.id === prevNight ? 1 : 0))
+                  || (nRate(a.id) - nRate(b.id)) || a.name.localeCompare(b.name));
+    day.night.phone = nCands.length ? nCands[0].id : null;
   }
   // --- auto-assign a learner to shadow the phone, if one's here and a supervisor is on ---
   if (day.phone && !(day.shadow || []).length && dayIds.some(id => isPhoneSupervisor(staffById(id)))) {
@@ -3530,7 +3587,7 @@ function planDayFix(di){
     const cands = settledFirst(dayIds.map(staffById).filter(s => s && canHoldPhone(s) && isLDpool(s.id)), dateISO)
       .sort((a,b) => ((weekPhone[a.id]||0)-(weekPhone[b.id]||0)) || (rate(a.id)-rate(b.id)) || a.name.localeCompare(b.name));
     if (cands.length) { day.phone = cands[0].id; day.phoneSup = null; }
-    else unresolved.push("No long-day phone holder is rostered.");
+    else { day.phone = null; day.phoneSup = null; unresolved.push("No trained long-day phone holder is rostered — the phone is left unallocated."); }
   }
 
   // 2) Bring every pod up to its minimum by moving spares from the most over-staffed pod (or the bench)
