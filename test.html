@@ -3646,6 +3646,12 @@ function autoFillDay(wk, di, wkKey, opts){
   // Reassign when the phone is unset, sitting with a short day, or sitting with somebody who isn't
   // trained to carry it (skills can change after the fact and leave a stale name behind).
   if (!day.phone || holderShift === "SD" || !phoneOK(day.phone)) {
+    // Reinstate the snapshot holder first — still rostered, still a long day, still trained. Only
+    // when they fail one of those does the fair-share pick below choose somebody new.
+    const kept = STICK_PHONE && STICK_PHONE[dateISO] && STICK_PHONE[dateISO].day;
+    if (kept && pool[kept] && poolState(pool[kept]) === "LD" && phoneOK(kept) && dayIds.includes(kept)) {
+      day.phone = kept; day.phoneSup = null;
+    } else {
     const phoneHist = phoneHistWindow();   // historic holds within each person's time on the unit
     const ldAvail = ldAvailWindow();       // long-days each person has actually been available for
     // Fair share = holds per long-day they could have held. A newcomer with few days here is judged on
@@ -3658,11 +3664,14 @@ function autoFillDay(wk, di, wkKey, opts){
     // No trained long-day holder on? Leave it unallocated and flagged. Never fudge it.
     if (cands.length) { day.phone = cands[0].id; day.phoneSup = null; }
     else { day.phone = null; day.phoneSup = null; }
+    }
   }
   // --- night phone: same rules. A qualified holder from the night team, spread by rate, avoiding
   //     two nights running where possible. Nobody suitable on? It stays empty and flagged. ---
   if (!day.night.phone || !phoneOK(day.night.phone)) {
     const nightIds = [...new Set([...(day.night.AB || []), ...(day.night.CDE || [])].filter(Boolean))];
+    const keptN = STICK_PHONE && STICK_PHONE[dateISO] && STICK_PHONE[dateISO].night;
+    if (keptN && phoneOK(keptN) && nightIds.includes(keptN)) { day.night.phone = keptN; } else {
     const nHist = historicCountWindow(dd => dd.night && dd.night.phone);
     const nAvail = nightAvailWindow();
     const nRate = id => (nHist[id] || 0) / ((nAvail[id] || 0) + 1);
@@ -3671,6 +3680,7 @@ function autoFillDay(wk, di, wkKey, opts){
       .sort((a,b) => ((a.id === prevNight ? 1 : 0) - (b.id === prevNight ? 1 : 0))
                   || (nRate(a.id) - nRate(b.id)) || a.name.localeCompare(b.name));
     day.night.phone = nCands.length ? nCands[0].id : null;
+    }
   }
   // --- auto-assign a learner to shadow the phone, if one's here and a supervisor is on ---
   if (day.phone && !(day.shadow || []).length && dayIds.some(id => isPhoneSupervisor(staffById(id)))) {
@@ -4536,15 +4546,24 @@ function weeksFrom(monISO){ return Object.keys(data.weeks).filter(k => k >= monI
 // placement can genuinely reconsider; the continuity bonus and the two-pods-a-week rule then pull
 // almost everyone back to where they were, which is what makes the disruption small.
 let STICK_TO = null;    // {dateISO: {staffId: pod}} — where everyone was before we started
+/* And who was carrying the phone. A reallocation deliberately clears every phone so a stale holder
+   is swept — but clearing it also threw away the answer, and the fair-share pick that replaced it
+   reads a history that this same pass is halfway through rewriting. So the same input produced a
+   different holder run to run, and because the holder is then swapped into the busiest pod, two more
+   people moved with them: 15 of the 17 days that churned on a no-op reallocation were days where the
+   phone had changed hands for no reason. Same principle as the pods — a reallocation preserves, a
+   fresh auto-fill derives. */
+let STICK_PHONE = null; // {dateISO: {day: staffId, night: staffId}}
 function reallocateFrom(monISO, touchesPods){
   let changed = 0;
   // Snapshot first, so every day is pulled back toward where it already was.
-  STICK_TO = {};
+  STICK_TO = {}; STICK_PHONE = {};
   for (const key of weeksFrom(monISO)) {
     data.weeks[key].days.forEach((day, di) => {
       const m = {};
       for (const p of PODS) for (const a of day.pods[p].assign) if (a.id) m[a.id] = p;
       STICK_TO[addDays(key, di)] = m;
+      STICK_PHONE[addDays(key, di)] = { day: day.phone || null, night: (day.night && day.night.phone) || null };
     });
   }
   for (const key of weeksFrom(monISO)) {
@@ -4561,7 +4580,7 @@ function reallocateFrom(monISO, touchesPods){
     wk.days.forEach((day, di) => autoFillDay(wk, di, key));
     changed++;
   }
-  STICK_TO = null;
+  STICK_TO = null; STICK_PHONE = null;
   return changed;
 }
 /* Placing people one day at a time and re-placing a whole block are different processes, so the
