@@ -43,6 +43,14 @@ aside button.smallb{opacity:.85}
 /* The issues/aims summary pills are only useful while editing; the per-day dots stay for everyone. */
 body.viewmode #summaryBanner{display:none}
 .hbtn:hover{filter:brightness(.95)}
+/* Icon-only header buttons — square, so they don't shout louder than the page. */
+.hbtn.hicon{padding:.42rem;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center}
+.hbtn.hicon svg{width:19px;height:19px;display:block}
+/* Feedback is a trial-only ask, so it earns one quiet pulse and nothing more. */
+#btnFeedback{position:relative;border-color:#c7cdf2;color:var(--accent);background:var(--accent-bg)}
+#btnFeedback::after{content:"";position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:50%;background:var(--accent);animation:fbpulse 2.8s ease-out infinite}
+@keyframes fbpulse{0%{box-shadow:0 0 0 0 rgba(76,93,214,.45)}65%{box-shadow:0 0 0 7px rgba(76,93,214,0)}100%{box-shadow:0 0 0 0 rgba(76,93,214,0)}}
+@media (prefers-reduced-motion:reduce){#btnFeedback::after{animation:none}}
 #saveState{font-size:.72rem;font-weight:600;padding:.25rem .65rem;border-radius:999px}
 .demopill{font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8a5a00;background:#fdf3e0;border:1px solid #f0dfc0;padding:.2rem .5rem;border-radius:999px;margin-left:.6rem;vertical-align:middle}
 body:not(.demo) .demopill{display:none}
@@ -309,6 +317,18 @@ td.col-A{background:var(--podA)} td.col-B{background:var(--podB)} td.col-C{backg
    the rail itself never grows and residents never see any of it. */
 #teamPanel{display:none;width:186px;flex-shrink:0;background:var(--card);border-right:.5px solid var(--line);padding:1rem .55rem;position:sticky;top:0;height:100vh;overflow-y:auto}
 body.teamopen #teamPanel{display:block}
+/* Locked: the second-level menu isn't there at all yet, and the page is nothing but the box. */
+body.teamlocked #teamPanel{display:none!important}
+.lockwrap{display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 190px);padding:1rem}
+.lockcard{width:100%;max-width:340px;text-align:center}
+.lockic{width:52px;height:52px;margin:0 auto .9rem;border-radius:16px;background:var(--accent-bg);color:var(--accent);display:flex;align-items:center;justify-content:center}
+.lockic svg{width:26px;height:26px}
+.lockcard b{display:block;font-size:1.05rem}
+.lockcard p{font-size:.8rem;color:var(--muted);line-height:1.55;margin:.35rem 0 1.1rem}
+.lockcard input{width:100%;text-align:center;padding:.6rem;font-size:.9rem}
+.lockcard #lockMsg{font-size:.78rem;color:var(--red);min-height:1.2em;margin:.35rem 0}
+.lockcard #lockBtn{width:100%;padding:.62rem}
+.lockcard #lockReset{display:inline-block;margin-top:.9rem;font-size:.72rem;color:var(--muted)}
 .tpttl{font-size:.58rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);padding:0 .55rem;margin-bottom:.6rem}
 .tpi{display:flex;align-items:center;gap:.6rem;width:100%;background:none;border:0;font:inherit;font-size:.82rem;font-weight:600;color:#4a4f58;padding:.52rem .55rem;border-radius:10px;cursor:pointer;text-align:left}
 .tpi svg{width:16px;height:16px;flex-shrink:0;opacity:.55}
@@ -544,17 +564,17 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
   <div><h1 id="pageTitle">Pod Allocator</h1><div style="font-size:.58rem;font-weight:800;letter-spacing:.09em;color:var(--accent);margin-top:-1px">RESIDENT ROTA</div></div>
   <span class="demopill" title="Private sandbox — nothing here touches the live rota. Changes save only on this device.">Demo</span>
   <div class="spacer"></div>
+  <button class="hbtn ghost" id="btnFeedback" title="Tell us what works and what doesn't — named or anonymous">Feedback</button>
   <button class="hbtn ghost" id="btnResetDemo" style="font-size:.72rem;padding:.35rem .7rem" title="Clear your changes and reload the sample data">Reset demo</button>
   <button class="hbtn ghost" id="btnWho" style="font-size:.75rem;padding:.35rem .7rem;color:var(--muted)" title="Changes are logged under this name — click to change who's editing"></button>
   <span id="saveState"></span>
-  <button class="hbtn ghost" id="btnKey" title="What the symbols and colours mean">Key</button>
-  <button class="hbtn ghost" id="btnFeedback" title="Tell us what works and what doesn't — named or anonymous">Feedback</button>
+  <button class="hbtn ghost hicon" id="btnKey" title="What the symbols and colours mean" aria-label="Key"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12" r="4"/><path d="M12 12h9"/><path d="M17.5 12v3.2"/><path d="M20.5 12v2.2"/></svg></button>
   <button class="hbtn" id="btnEdit" title="Unlock to edit — drag people between pods, add locums and edit the Fairfield column">Edit</button>
   <button class="hbtn ghost" id="btnDone" title="Back to read-only view">Done</button>
   <button class="hbtn ghost" id="btnUndo" title="Undo last change (Ctrl+Z)">↩ Undo</button>
   <button class="hbtn ghost" id="btnRedo" title="Redo (Ctrl+Y / Ctrl+Shift+Z)">↪ Redo</button>
   <button class="hbtn ghost" id="btnSave" style="opacity:.7;font-size:.75rem" title="Everything saves on its own — this only forces an immediate save">Save now</button>
-  <button class="hbtn" id="btnPublish" title="Save a read-only copy of this week for printing or posting in Teams chat">Print copy</button>
+  <button class="hbtn hicon" id="btnPublish" title="Print copy — a clean read-only copy of this week for the wall or Teams" aria-label="Print copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9V4h10v5"/><path d="M7 18H5.5A1.5 1.5 0 014 16.5v-5A1.5 1.5 0 015.5 10h13a1.5 1.5 0 011.5 1.5v5a1.5 1.5 0 01-1.5 1.5H17"/><rect x="7" y="15" width="10" height="6" rx="1"/></svg></button>
 </div>
 <main>
   <section id="tab-rota">
@@ -645,6 +665,22 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
         </tr></thead>
         <tbody id="staffBody"></tbody>
       </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Nothing but the password. The rota-team menu and every page behind it stay hidden until
+       this clears, so a resident who taps the shield sees a locked door and not a menu. -->
+  <section id="tab-lock" style="display:none">
+    <div class="lockwrap">
+      <div class="lockcard">
+        <div class="lockic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8.2 10.5V7.8a3.8 3.8 0 017.6 0v2.7"/></svg></div>
+        <b id="lockTitle">Rota team</b>
+        <p id="lockSub">One password covers the staff list, fairness, the change log, feedback and imports.</p>
+        <input type="password" id="lockPw" placeholder="Password" autocomplete="current-password">
+        <div id="lockMsg"></div>
+        <button class="btn" id="lockBtn">Unlock</button>
+        <a href="#" id="lockReset">Forgotten? Reset it</a>
       </div>
     </div>
   </section>
@@ -3686,6 +3722,11 @@ function autoFillDay(wk, di, wkKey, opts){
     let bestP = null, bestScore = -Infinity;
     for (const p of PODS) {
       let score = (target[p] - counts[p]) * 3 - Math.max(0, counts[p] + 1 - target[p]) * 50 - counts[p] * 0.05;
+      // HARD: never put a fifth person in Pod A while Pod E is still empty. The -50 above was only a
+      // preference, and continuity (+12) plus the E-goes-last ordering below could out-vote it person
+      // after person until A finished with four and E with none. Nobody may go into a pod that has
+      // already met its share while another pod is still short of its own.
+      if (counts[p] >= target[p] && PODS.some(q => q !== p && counts[q] < target[q])) score -= 5000;
       if (isLD && !hasLD[p]) score += 8;
       if (prior === p) score += 12;
       // Reallocating after a skills change: hold everybody in the pod they were already in unless
@@ -3698,7 +3739,16 @@ function autoFillDay(wk, di, wkKey, opts){
       const wkSoFar = weekPodsSoFar[id];
       // Never a third pod in a week. This has to outweigh every other penalty combined, or a day
       // where two pods are both awkward quietly buys a third one.
-      if (wkSoFar && wkSoFar.size >= 2 && !wkSoFar.has(p)) score -= 100000;
+      // ...unless the pod is short-handed and the alternatives are already full. A pod left empty (or
+      // a pod of five next to a pod of one) is a red on the board every day of the week; somebody
+      // seeing a third pod once is not. Balance wins, everything else still yields to the rule.
+      // ...unless this is the emptiest pod and it's still short. A pod left empty (or a pod of five
+      // next to a pod of one) is a red on the board every day of the week; somebody seeing a third
+      // pod once is not. Only ever bought to top up the pod that's furthest behind — never to shave
+      // one off a pod that's merely a person light.
+      const emptiest = counts[p] <= Math.min(...PODS.map(q => counts[q]));
+      if (wkSoFar && wkSoFar.size >= 2 && !wkSoFar.has(p))
+        score -= (counts[p] < target[p] && emptiest ? 2000 : 100000);
       // Senior airway residents (ST/CT/Anaes/ICM) stay off Pod E unless there's truly nowhere else.
       if (p === "E" && ["ST", "CT", "Anaes", "ICM"].includes(s.grade)) score -= 40;
       if (s.airway) {
@@ -3713,7 +3763,9 @@ function autoFillDay(wk, di, wkKey, opts){
       if (isLD && p === "E" && PODS.filter(q => q !== "E").some(q => !hasLD[q])) score -= 1000;
       // Keep Pod E the smallest — never put someone there if it would make E bigger than another pod,
       // so any spare cover goes A → B → C → D before E. Decisive penalty so E is never the largest.
-      if (p === "E" && counts.E + 1 > Math.min(...PODS.filter(q => q !== "E").map(q => counts[q]))) score -= 1000;
+      // Must outrank the balance penalty below it, or evening the pods up can itself make E the
+      // biggest — which is the one thing E is never allowed to be.
+      if (p === "E" && counts.E + 1 > Math.min(...PODS.filter(q => q !== "E").map(q => counts[q]))) score -= 50000;
       if (score > bestScore) { bestScore = score; bestP = p; }
     }
     day.pods[bestP].assign.push({ id, shift: isLD ? "LD" : "SD" });
@@ -3857,15 +3909,20 @@ function autoFillDay(wk, di, wkKey, opts){
 
   const nightAssigned = new Set([...day.night.AB, ...day.night.CDE]);
   const nightUnplaced = nightIds.filter(id => !nightAssigned.has(id) && !assignedIds(day).has(id) || (id === day.night.phone && !nightAssigned.has(id)));
-  // phone holder covers a pod — put them in C,D&E first
-  for (const id of [...new Set(nightUnplaced)]) {
+  // phone holder covers a pod — put them in C,D&E first (only worth doing when five are on and
+  // somebody actually splits off to cover Pod E; with four, continuity below decides instead)
+  const nightCountedAll = nightIds.filter(id => countsInNumbers(id)).length;
+  if (nightCountedAll >= 5) for (const id of [...new Set(nightUnplaced)]) {
     if (id === day.night.phone) { day.night.CDE.push(id); nightAssigned.add(id); }
   }
   // The phone holder covers Pod E on their own when five are on, so they have to sit in C/D/E.
   // The roster often lands them in A & B, and the placement above only ever moves people who
   // weren't already somewhere — so they stayed put, the phone sat in the wrong half, and Pod E
   // never split out. Swap them with someone from C/D/E instead.
-  if (day.night.phone && (day.night.AB || []).includes(day.night.phone)) {
+  // ...but only once there are five on. With four, nobody splits off to cover Pod E on their own,
+  // so C/D/E is no quieter than A & B and dragging the phone across just shuffles two people
+  // between pods every time the phone rotates. Rotate the phone, leave the pods alone.
+  if (nightCountedAll >= 5 && day.night.phone && (day.night.AB || []).includes(day.night.phone)) {
     const ph = day.night.phone;
     const swapWith = (day.night.CDE || []).find(id => id !== ph);
     day.night.AB = day.night.AB.filter(id => id !== ph);
@@ -3877,6 +3934,24 @@ function autoFillDay(wk, di, wkKey, opts){
   }
   // Keep people in the SAME night pods across a run of nights — only the phone rotates.
   const prevNight = di > 0 ? wk.days[di - 1].night : null;
+  const nightAirwayFix = () => {
+    // One airway-trained each side. The phone holder used to be dragged into C/D/E every night and
+    // sometimes fixed this by accident; now the pods hold still, it has to be done deliberately.
+    // It's decided from the night team alone, so it lands the same way every night of a run.
+    const air = h => (day.night[h] || []).filter(id => (staffById(id) || {}).airway).length;
+    if (air("AB") + air("CDE") < 2) return;
+    const full = air("AB") === 0 ? "CDE" : air("CDE") === 0 ? "AB" : null;
+    if (!full) return;
+    const empty = full === "AB" ? "CDE" : "AB";
+    // Never move the phone holder out of C/D/E — they cover Pod E on their own when five are on.
+    const out = (day.night[full] || []).find(id => (staffById(id) || {}).airway
+      && !(full === "CDE" && id === day.night.phone));
+    const back = (day.night[empty] || []).find(id => !(staffById(id) || {}).airway
+      && !(empty === "CDE" && id === day.night.phone));
+    if (!out || !back) return;
+    day.night[full] = day.night[full].filter(id => id !== out).concat(back);
+    day.night[empty] = day.night[empty].filter(id => id !== back).concat(out);
+  };
   for (const id of nightUnplaced) {
     if (nightAssigned.has(id)) continue;
     const wasAB = prevNight && (prevNight.AB || []).includes(id);
@@ -3887,6 +3962,7 @@ function autoFillDay(wk, di, wkKey, opts){
     else day.night.CDE.push(id);
     nightAssigned.add(id);
   }
+  nightAirwayFix();
 }
 async function autoFillWeek(){
   const wk = getWeek(currentWeekKey);
@@ -4272,6 +4348,46 @@ function renderGate(sfx, cardSel, onShow){
 /* The password is asked for once, when the Rota team icon is clicked — not again on every page
    inside. The per-page gates below stay as a backstop for anything that reaches a team page by
    another route, but in normal use nobody ever sees them. */
+/* The lock is a page of its own, not a dialog: click the shield, the whole pane becomes the
+   password box, and only when it clears do the menu and the pages appear behind it. */
+let LOCK_THEN = null;
+function showLockScreen(then){
+  LOCK_THEN = then;
+  const setting = !data.staffPw;
+  document.body.classList.add("teamlocked");
+  document.body.classList.remove("teamopen");
+  document.body.classList.remove("navopen");   // on a phone the drawer would sit on top of the box
+  for (const t of ["rota","import","staff","fair","log","help","team","feedback","lock"])
+    $("#tab-" + t).style.display = (t === "lock") ? "" : "none";
+  $("#pageTitle").textContent = "Rota team";
+  document.querySelectorAll("aside button[data-tab]").forEach(x => x.classList.remove("active"));
+  const bt = $("#btnTeam"); if (bt) bt.classList.add("active");
+  $("#lockTitle").textContent = setting ? "Set a rota team password" : "Rota team";
+  $("#lockSub").textContent = setting
+    ? "Pick one password for the rota team. It covers the staff list, fairness, the change log, feedback and imports."
+    : "One password covers the staff list, fairness, the change log, feedback and imports. You'll only be asked once on this device.";
+  $("#lockBtn").textContent = setting ? "Set password" : "Unlock";
+  $("#lockReset").style.display = setting ? "none" : "";
+  $("#lockMsg").textContent = "";
+  $("#lockPw").value = "";
+  setTimeout(() => $("#lockPw").focus(), 40);
+}
+async function lockSubmit(){
+  const pw = $("#lockPw").value;
+  if (!data.staffPw) {
+    if (pw.length < 4) { $("#lockMsg").textContent = "At least 4 characters."; return; }
+    data.staffPw = await sha256(pw);
+    store.sset("staffUnlocked", "1");
+    logEntry("Staff-list password set"); markDirty();
+  } else if (await sha256(pw) === data.staffPw) {
+    store.sset("staffUnlocked", "1");
+  } else { $("#lockMsg").textContent = "Wrong password."; $("#lockPw").select(); return; }
+  $("#lockPw").value = "";
+  document.body.classList.remove("teamlocked");
+  const then = LOCK_THEN; LOCK_THEN = null;
+  renderAll();
+  (then || (() => switchTab("team")))();
+}
 function teamUnlockDialog(then){
   const m = $("#modal"); m.innerHTML = "";
   const setting = !data.staffPw;
@@ -4783,9 +4899,10 @@ const PAGE_TITLES = { rota: "Pod Allocator", import: "Import", staff: "Staff & a
 const TEAM_TABS = ["team", "import", "staff", "fair", "log", "feedback"];
 function switchTab(tab){
   // Locked out? Ask once, here, then carry on to where they were going.
-  if (TEAM_TABS.includes(tab) && data && !staffUnlocked()) { teamUnlockDialog(() => switchTab(tab)); return; }
+  if (TEAM_TABS.includes(tab) && data && !staffUnlocked()) { showLockScreen(() => switchTab(tab)); return; }
+  document.body.classList.remove("teamlocked");
   document.querySelectorAll("aside button[data-tab]").forEach(x => x.classList.toggle("active", x.dataset.tab === tab));
-  for (const t of ["rota","import","staff","fair","log","help","team","feedback"]) $("#tab-" + t).style.display = (tab === t) ? "" : "none";
+  for (const t of ["rota","import","staff","fair","log","help","team","feedback","lock"]) $("#tab-" + t).style.display = (tab === t) ? "" : "none";
   $("#pageTitle").textContent = PAGE_TITLES[tab];
   // The rota-team pages stay folded away until you go in, so residents only ever see two items.
   document.body.classList.toggle("teamopen", TEAM_TABS.includes(tab));
@@ -4824,6 +4941,16 @@ $("#btnKey").onclick = keyDialog;
 // Mobile hamburger → slide-out side menu (drawer). Closes on backdrop tap or when a page is chosen.
 $("#hamburger").onclick = () => { document.body.classList.remove("railback"); document.body.classList.toggle("navopen"); };
 $("#tpBack").onclick = () => document.body.classList.add("railback");
+$("#lockBtn").onclick = lockSubmit;
+$("#lockPw").onkeydown = e => { if (e.key === "Enter") lockSubmit(); };
+$("#lockReset").onclick = async e => {
+  e.preventDefault();
+  const typed = await uiPrompt("Resetting clears the password for everyone and is recorded in the change log with your name. Type RESET to confirm.", { title: "Reset the rota team password?", okLabel: "Reset", placeholder: "Type RESET", danger: true });
+  if (typed !== "RESET") { if (typed) toast("Not reset — you must type RESET exactly"); return; }
+  data.staffPw = null; store.sdel("staffUnlocked");
+  logEntry("Staff-list password reset"); markDirty();
+  showLockScreen(LOCK_THEN);
+};
 $("#navbackdrop").onclick = () => document.body.classList.remove("navopen");
 $("#navclose").onclick = () => document.body.classList.remove("navopen");
 document.querySelectorAll("aside button[data-tab], #teamPanel .tpi").forEach(b => b.addEventListener("click", () => document.body.classList.remove("navopen")));
