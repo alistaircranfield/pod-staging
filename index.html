@@ -3658,6 +3658,20 @@ function autoFillDay(wk, di, wkKey, opts){
   for (const id of [...new Set(nightUnplaced)]) {
     if (id === day.night.phone) { day.night.CDE.push(id); nightAssigned.add(id); }
   }
+  // The phone holder covers Pod E on their own when five are on, so they have to sit in C/D/E.
+  // The roster often lands them in A & B, and the placement above only ever moves people who
+  // weren't already somewhere — so they stayed put, the phone sat in the wrong half, and Pod E
+  // never split out. Swap them with someone from C/D/E instead.
+  if (day.night.phone && (day.night.AB || []).includes(day.night.phone)) {
+    const ph = day.night.phone;
+    const swapWith = (day.night.CDE || []).find(id => id !== ph);
+    day.night.AB = day.night.AB.filter(id => id !== ph);
+    if (swapWith) {
+      day.night.CDE = day.night.CDE.filter(id => id !== swapWith);
+      day.night.AB.push(swapWith);
+    }
+    day.night.CDE.push(ph);
+  }
   // Keep people in the SAME night pods across a run of nights — only the phone rotates.
   const prevNight = di > 0 ? wk.days[di - 1].night : null;
   for (const id of nightUnplaced) {
