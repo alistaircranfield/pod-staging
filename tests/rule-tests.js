@@ -289,6 +289,30 @@ async function main() {
     ok("Sunday stays balanced while holding the Saturday pods", unbalanced === 0, unbalanced + " unbalanced days");
   }
 
+  // 9c) A supernumerary long day does not count as the pod's long day ---------------------
+  console.log("Supernumerary long days");
+  {
+    // The day check ignores supernumeraries when it asks whether a pod has a long day, but the
+    // allocator used to count them — so it believed a pod was covered while the board showed red.
+    let bad = 0, ex = "";
+    for (let t = 0; t < 120; t++) {
+      const ppl = [];
+      // Five or more counted long days on, so one per pod is always achievable, plus a couple of
+      // supernumerary long days to make sure they are not mistaken for the real thing.
+      for (let i = 0; i < 5 + rnd(3); i++) ppl.push({ shift: "LD" });
+      for (let i = 0; i < 4 + rnd(8); i++) ppl.push({ shift: "SD" });
+      for (let i = 0; i < 1 + rnd(2); i++) ppl.push({ shift: "LD", supernum: true });
+      const { wk, day } = seedDay(api, rnd(7), ppl);
+      api.autoFillDay(wk, wk.days.indexOf(day));
+      for (const q of P) {
+        const counted = day.pods[q].assign.filter(a => a.id && api.countsInNumbers(a.id));
+        if (!counted.length) continue;
+        if (!counted.some(a => a.shift === "LD")) { bad++; ex = q + " " + JSON.stringify(day.pods[q].assign.map(a => a.shift)); }
+      }
+    }
+    ok("a pod's long day is never a supernumerary standing in for one", bad === 0, bad + " pods left uncovered, e.g. " + ex);
+  }
+
   // 10) Auto-filled days pass their own hard checks (no residual H issues) -----------------
   console.log("Self-consistency of the checker");
   {
