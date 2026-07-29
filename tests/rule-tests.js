@@ -245,6 +245,50 @@ async function main() {
     ok("supernumerary excluded from counted numbers", total === 2, "counted=" + total);
   }
 
+  // 9b) Weekend pairs: Sunday holds Saturday's pods, bar the one swap that gives E a long day ----
+  console.log("Weekend continuity");
+  {
+    // The real weekend shape: nine on, one long day and one short day per pod (E has the single),
+    // and the LD/SD roles swap within each pair between Saturday and Sunday. Left alone, that role
+    // swap used to scatter people across pods; now the Saturday pods are held.
+    const runWeekend = (satRoles, sunRoles) => {
+      const wkKey = api.mondayOf(api.todayISO());
+      api.setWeek(wkKey);
+      const wk = api.getWeek(wkKey);
+      wk.roster = null;
+      wk.days[5] = api.blankDay(); wk.days[6] = api.blankDay();
+      const people = satRoles.map((sh, i) => mkStaff(api, { airway: i % 3 === 0, phoneHolder: true }));
+      people.forEach((s, i) => {
+        wk.days[5].extras.push({ id: s.id, kind: "day", code: satRoles[i] });
+        wk.days[6].extras.push({ id: s.id, kind: "day", code: sunRoles[i] });
+      });
+      api.autoFillDay(wk, 5, wkKey);
+      api.autoFillDay(wk, 6, wkKey);
+      const moved = people.filter(s => podOf(api, wk.days[5], s.id) !== podOf(api, wk.days[6], s.id));
+      return { wk, people, moved };
+    };
+    // Nine on: four pods of two plus Pod E's single. Every pair swaps roles overnight, and E's
+    // long day drops to a short day — the exact collision that used to move four people.
+    const sat = ["LD","SD","LD","SD","LD","SD","LD","SD","LD"];
+    const sun = ["SD","LD","SD","LD","SD","LD","LD","LD","SD"];
+    let worstMoved = 0, ldGaps = 0, unbalanced = 0;
+    for (let t = 0; t < 40; t++) {
+      const { wk, moved } = runWeekend(sat, sun);
+      worstMoved = Math.max(worstMoved, moved.length);
+      const sun6 = wk.days[6];
+      const c = podCounts(api, sun6);
+      const counted = P.reduce((n, p) => n + c[p], 0);
+      if (Math.max(...P.map(p => c[p])) - Math.min(...P.map(p => c[p])) > 1) unbalanced++;
+      const ld = {}; for (const q of P) ld[q] = sun6.pods[q].assign.filter(a => a.id && a.shift === "LD").length;
+      // Five long days across five pods: every pod that has anybody in it should have one.
+      if (P.some(q => c[q] > 0 && ld[q] === 0)) ldGaps++;
+      if (counted !== 9) ldGaps++;
+    }
+    ok("Sunday moves at most two people out of their Saturday pod", worstMoved <= 2, "worst = " + worstMoved);
+    ok("Sunday still gives every occupied pod a long day", ldGaps === 0, ldGaps + " days with a gap");
+    ok("Sunday stays balanced while holding the Saturday pods", unbalanced === 0, unbalanced + " unbalanced days");
+  }
+
   // 10) Auto-filled days pass their own hard checks (no residual H issues) -----------------
   console.log("Self-consistency of the checker");
   {
