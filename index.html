@@ -2747,7 +2747,9 @@ function checkDay(day, dateISO, di, wk){
   const maxAirway = Math.max(...airwayPerPod.slice(0,4));
   // A pod with nobody airway-trained while another has two or more is a gap, not an aim — the unit
   // runs on one airway-trained person per pod.
-  if (podsWithNone.length && maxAirway >= 2) H("Pod(s) " + podsWithNone.join(", ") + " have nobody airway-trained while another pod has " + maxAirway + ".");
+  // Amber, not red: airway spread is an aim the rota can rarely guarantee, and a red every time it
+  // slipped drowned out the things that genuinely need sorting. Worth a look, not something broken.
+  if (podsWithNone.length && maxAirway >= 2) S("Pod(s) " + podsWithNone.join(", ") + " have nobody airway-trained while another pod has " + maxAirway + ".");
   else if (podsWithNone.length) S("Pod(s) " + podsWithNone.join(", ") + " have nobody airway-trained — none to spare elsewhere.");
 
   // Pod E should be the smallest — flag if it's carrying more than another pod
@@ -3696,6 +3698,20 @@ function autoFillDay(wk, di, wkKey, opts){
   const priorMap = {};
   const stick = STICK_TO && STICK_TO[dateISO];
   for (const id of unplaced) priorMap[id] = (stick && stick[id]) || priorPodFor(id, wk, di, key);
+  /* WEEKEND PAIRS. Saturday and Sunday are covered by the same small group — in practice one long
+     day and one short day per pod, the two swapping roles between the days. The ordinary rules broke
+     that pairing every Sunday: the long days fall on a different five people, so one pod inherits two
+     and another none, and unpicking that moved four people to fix a single collision. On a Sunday,
+     therefore, everybody who worked the Saturday goes back into their Saturday pod. The
+     long-day-in-every-pod repair further down then makes the ONE swap that gives Pod E its long day,
+     instead of a chain of four. Weekends only — weekday crews are large and turn over daily, so there
+     is no pairing to preserve. Ranked below the balance rule and below E-never-biggest, so an uneven
+     weekend still evens out, but above continuity, long-day spread, airway and never-a-third-pod. */
+  const weekendHold = {};
+  if (di === 6) {
+    const sat = wk.days[5];
+    for (const q of PODS) for (const a of (sat.pods[q].assign || [])) if (a.id) weekendHold[a.id] = q;
+  }
   // HARD RULE: nobody works more than TWO different pods in a week. A third pod is only
   // ever possible when every other pod is genuinely unavailable.
   const weekPodsSoFar = {};
@@ -3726,6 +3742,8 @@ function autoFillDay(wk, di, wkKey, opts){
       // after person until A finished with four and E with none. Nobody may go into a pod that has
       // already met its share while another pod is still short of its own.
       if (counts[p] >= target[p] && PODS.some(q => q !== p && counts[q] < target[q])) score -= 5000;
+      // Sunday: hold the Saturday pod (see WEEKEND PAIRS above).
+      if (weekendHold[id] && weekendHold[id] !== p) score -= 3000;
       if (isLD && !hasLD[p]) score += 8;
       if (prior === p) score += 12;
       // Reallocating after a skills change: hold everybody in the pod they were already in unless
@@ -3759,7 +3777,9 @@ function autoFillDay(wk, di, wkKey, opts){
       if (s.neuro && (p === "C" || p === "D")) score += 11;
       // Long days fill A–D before E: E is always the pod that misses out on a long day when they're
       // short, so never give E a long-day resident while any A–D pod still has none.
-      if (isLD && p === "E" && PODS.filter(q => q !== "E").some(q => !hasLD[q])) score -= 1000;
+      // -4000, not -1000: it has to outrank the weekend Saturday-pod hold (-3000) or a Sunday long
+      // day whose Saturday pod was E would stay put while A-D went without one. Still yields to balance.
+      if (isLD && p === "E" && PODS.filter(q => q !== "E").some(q => !hasLD[q])) score -= 4000;
       // Keep Pod E the smallest — never put someone there if it would make E bigger than another pod,
       // so any spare cover goes A → B → C → D before E. Decisive penalty so E is never the largest.
       // Must outrank the balance penalty below it, or evening the pods up can itself make E the
@@ -3810,12 +3830,20 @@ function autoFillDay(wk, di, wkKey, opts){
     const countedIn = p => podPeople(p).filter(a => countsInNumbers(a.id)).length;
     for (const p of PODS) {
       if (countedIn(p) < 1 || ldIn(p) > 0) continue;
-      const donor = PODS.filter(q => q !== p && ldIn(q) > 1).sort((a, b) => ldIn(b) - ldIn(a))[0];
-      if (!donor) continue;
-      // A long day in every pod outranks never-a-third-pod: try to honour both, but if the only
-      // person who can go is someone who'd be picking up a third pod this week, send them anyway.
-      const ld = day.pods[donor].assign.find(a => a.id && a.shift === "LD" && !wouldBeThird(a.id, p))
-              || day.pods[donor].assign.find(a => a.id && a.shift === "LD");
+      /* A long day in every pod outranks never-a-third-pod: try to honour both, but if the only
+         person who can go is someone who'd be picking up a third pod this week, send them anyway.
+         Try every pod that can spare a long day, the ones with most to spare first, and take the
+         first that can actually supply one. Two conditions are absolute. The phone holder never
+         goes: they belong in the busiest pod, and the pod short of a long day is usually Pod E, the
+         smallest. And no pod is stripped of its own last long day to plug another — that just moves
+         the gap — hence ldIn(q) > 1. If nothing qualifies, the pod is left short and the day check
+         flags it, rather than a chain of swaps to paper over one missing long day. */
+      let donor = null, ld = null;
+      for (const q of PODS.filter(q => q !== p && ldIn(q) > 1).sort((a, b) => ldIn(b) - ldIn(a))) {
+        const cand = day.pods[q].assign.find(a => a.id && a.shift === "LD" && a.id !== day.phone && !wouldBeThird(a.id, p))
+                  || day.pods[q].assign.find(a => a.id && a.shift === "LD" && a.id !== day.phone);
+        if (cand) { donor = q; ld = cand; break; }
+      }
       if (!ld) continue;
       // Strictly a swap. Moving somebody in without sending anybody back grows the pod, and if that
       // pod is E it immediately breaks the rule that E is never the biggest.
