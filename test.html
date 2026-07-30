@@ -126,7 +126,12 @@ td.daylabel .d{font-weight:700;font-size:1.05rem;letter-spacing:-.01em}
 .slotrow{display:flex;align-items:center;gap:.3rem;margin-bottom:.3rem}
 .slotrow select{flex:1;min-width:0}
 /* Night drop zones need to be worth aiming at — 22px of empty strip wasn't. */
-.zone/* On call sits on the POD A & B line rather than above it — that gap was pure dead space. */
+/* On call sits on the POD A & B line rather than above it — that gap was pure dead space.
+   A stray ".zone" used to hang off the front of the next rule, which silently turned it into the
+   descendant selector ".zone td.nighttd" — a thing that never matches. So the night cell was never
+   positioned, and the absolutely-positioned on-call label below escaped to the page container and
+   collapsed to nothing behind the toolbar. The overnight consultant's name was in the DOM every
+   day and had simply been drawn off the board. */
 td.nighttd{position:relative}
 td.nighttd .conswrap{position:absolute;top:.5rem;right:.55rem;left:auto;margin:0;min-height:0;max-width:62%;justify-content:flex-end;z-index:2}
 td.nighttd .conswrap .conssel,td.nighttd .conswrap .consauto{font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:right}
@@ -564,7 +569,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
   <div><h1 id="pageTitle">Pod Allocator</h1><div style="font-size:.58rem;font-weight:800;letter-spacing:.09em;color:var(--accent);margin-top:-1px">RESIDENT ROTA</div></div>
   <span class="demopill" title="Private sandbox — nothing here touches the live rota. Changes save only on this device.">Demo</span>
   <div class="spacer"></div>
-  <button class="hbtn ghost" id="btnFeedback" title="Tell us what works and what doesn't — named or anonymous">Feedback</button>
+  <button class="hbtn ghost" id="btnFeedback" title="Feedback">Feedback</button>
   <button class="hbtn ghost" id="btnResetDemo" style="font-size:.72rem;padding:.35rem .7rem" title="Clear your changes and reload the sample data">Reset demo</button>
   <button class="hbtn ghost" id="btnWho" style="font-size:.75rem;padding:.35rem .7rem;color:var(--muted)" title="Changes are logged under this name — click to change who's editing"></button>
   <span id="saveState"></span>
@@ -820,7 +825,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
 
       <details><summary>Something looks wrong — who do I tell?</summary>
         <div class="in">
-          <p>Use the <b>Feedback</b> button at the top. Put your name to it or send it anonymously, whichever you prefer — both come straight back to us during the trial.</p>
+          <p>Use the <b>Feedback</b> button at the top. The name field is optional; leave it blank and nothing identifies you.</p>
         </div>
       </details>
     </div>
@@ -1648,16 +1653,33 @@ function dropEmptyWeeks(){
   for (const k of Object.keys(data.weeks)) if (weekIsEmpty(data.weeks[k])) delete data.weeks[k];
 }
 const withTimeout = (p, ms) => Promise.race([p, new Promise(res => setTimeout(() => res(undefined), ms))]);
+/* Shown only when the rota genuinely cannot be fetched after three tries. Deliberately plain: what
+   happened, and one thing to press. */
+function showLoadFailure(){
+  const w = $("#welcome"), box = w && w.querySelector(".box");
+  if (!box) { toast("Couldn't reach the rota — reload to try again"); return; }
+  box.innerHTML = "";
+  box.append(
+    el("div", { class: "kicker" }, "Critical Care Unit"),
+    el("h1", {}, "Can't reach the rota"),
+    el("p", {}, "The shared file didn't answer."),
+    el("button", { class: "btn big", style: "text-align:center", onclick: () => location.reload() }, "Try again"));
+  w.style.display = "flex";
+}
 async function startUp(){
   if (HOSTED) {
-    // Code-only host: pull the live rota straight from SharePoint. No data is stored in this page.
-    const live = await withTimeout(readSelf(), 12000);
-    if (live) { loadData(live); }
-    else {
-      const w = $("#welcome");
-      if (w) w.style.display = "flex";
-      toast("Couldn't reach the shared rota — check your connection, then reload");
+    /* Code-only host: pull the live rota straight from SharePoint. No data is stored in this page.
+       The read goes through a Power Automate flow that occasionally cold-starts or drops a request.
+       One attempt, then the brand-new-file welcome card, meant a single blip looked like a broken
+       tool — and that card tells the reader they should never be seeing it, with nothing to press.
+       Three attempts with a short backoff, then say plainly what happened and give them a button. */
+    let live = null;
+    for (let attempt = 1; attempt <= 3 && !live; attempt++) {
+      live = await withTimeout(readSelf(), 12000);
+      if (!live && attempt < 3) await new Promise(r => setTimeout(r, attempt * 1500));
     }
+    if (live) { loadData(live); return; }
+    showLoadFailure();
     return;
   }
   // Deployed page opened without its keys (the bare web address, or a bookmark of the stripped
@@ -4276,7 +4298,7 @@ async function sendFeedback(entry){
 function feedbackDialog(){
   const m = $("#modal"); m.innerHTML = "";
   m.append(el("h3", {}, "Feedback"));
-  let kind = "Problem", anon = false;
+  let kind = "Problem";
   const seg = el("div", { class: "seg" });
   [["Problem","Something's wrong"],["Suggestion","An idea"],["Question","A question"]].forEach(([v,l]) => {
     const b = el("button", { class: "segbtn" + (v === kind ? " on" : ""), onclick: () => {
@@ -4289,13 +4311,6 @@ function feedbackDialog(){
   const nameIn = el("input", { type: "text", placeholder: "Optional", style: "width:100%" });
   const nameLbl = el("label", { class: "adlbl" }, "Your name");
   m.append(nameLbl, nameIn);
-  const anonWrap = el("label", { style: "display:flex;align-items:center;gap:.5rem;margin-top:.7rem;font-size:.85rem;cursor:pointer" });
-  const anonBox = el("input", { type: "checkbox" });
-  anonBox.onchange = () => { anon = anonBox.checked; nameIn.style.display = anon ? "none" : ""; nameLbl.style.display = anon ? "none" : ""; };
-  anonWrap.append(anonBox, el("span", {}, "Send anonymously — nothing about me is recorded"));
-  m.append(anonWrap);
-  const note = el("p", { class: "fixsub", style: "margin-top:.7rem" }, "Stays inside the Trust — saved in the same SharePoint file as the rota, and emailed straight to the rota lead.");
-  m.append(note);
   const btns = el("div", { class: "modalbtns" });
   btns.append(
     el("button", { class: "btn sec", onclick: closeModal }, "Cancel"),
@@ -4305,7 +4320,7 @@ function feedbackDialog(){
         closeModal();
         toast("Sending…");
         const ok = await sendFeedback({ t: new Date().toISOString(), kind,
-          name: anon ? "" : (nameIn.value || "").trim(), msg: text });
+          name: (nameIn.value || "").trim(), msg: text });
         toast(ok ? "Thanks — that's been sent" : "Couldn't send just now — please try again in a moment");
       } }, "Send")
   );
