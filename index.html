@@ -2618,8 +2618,11 @@ function renderDayRow(day, di, dateISO, issues){
       col.append(el("div", { class: "conswrap" }, consSel));
     }
     /* Consultant rota crosstalk: when no consultant is picked here, show the one the
-       consultant rota assigns (display-only), with a COD pill on the referral holder. */
-    {
+       consultant rota assigns (display-only), with a COD pill on the referral holder.
+       TEST SITE ONLY (Ali, 31 Jul): the computed consultant pod allocation is the consultant
+       allocator's unapproved output — it must never appear on the live board as if it were
+       real. Live shows only what the rota team picks by hand until that allocator ships. */
+    if (TESTMODE) {
       const crec = data.consRota && data.consRota.days && data.consRota.days[dateISO];
       const cini = crec && crec.cur && crec.cur[p];
       if (cini && !pod.cons) {
@@ -2674,8 +2677,9 @@ function renderDayRow(day, di, dateISO, issues){
       ncSel.disabled = !canEdit();
       night.append(el("div", { class: "conswrap" }, ncSel));
     }
-    /* Consultant rota crosstalk: overnight on-call consultant from the consultant rota. */
-    const crecN = data.consRota && data.consRota.days && data.consRota.days[dateISO];
+    /* Consultant rota crosstalk: overnight on-call consultant from the consultant rota.
+       TEST SITE ONLY — same rule as the pod corners above. */
+    const crecN = TESTMODE && data.consRota && data.consRota.days && data.consRota.days[dateISO];
     if (crecN && crecN.cur && crecN.cur.oncall && !day.nightCons) {
       night.append(el("div", { class: "conswrap" },
         el("span", { class: "consauto", title: ((data.consRota.map || {})[crecN.cur.oncall] || crecN.cur.oncall) + " — consultant on call overnight (16:00–09:00), from the consultant rota" },
