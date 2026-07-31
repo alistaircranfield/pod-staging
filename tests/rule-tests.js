@@ -23,6 +23,8 @@ function loadApp() {
     mondayOf, todayISO, addDays, poolFor, staffById, canHoldPhone, isPhoneShadow,
     isPhoneSupervisor, isActiveOn, currentAssignShift, inFairfield, addToFairfield,
     fghMembers, countsInNumbers, poolState, removeAssign,
+    aggregateOverrides: typeof aggregateOverrides !== "undefined" ? aggregateOverrides : null,
+    renderOverrides: typeof renderOverrides !== "undefined" ? renderOverrides : null,
     normalizeNight: typeof normalizeNight !== "undefined" ? normalizeNight : null,
     setWeek: k => { currentWeekKey = k; },
     getWeekKey: () => currentWeekKey,
@@ -88,7 +90,7 @@ function rnd(n) { return Math.floor(Math.random() * n); }
 
 // ============================================================================================
 async function main() {
-  const { api, errs } = await loadApp();
+  const { api, win, errs } = await loadApp();
   api.setEdit();
   const P = api.PODS;
   const ORIG_STAFF = api.data.staff.length;   // baseline before any synthetic test staff are added
@@ -335,6 +337,40 @@ async function main() {
   }
 
   // 11) TWELVE-MONTH SIMULATION over a realistic roster ------------------------------------
+
+
+  // 8c) Overrides admin page --------------------------------------------------------------
+  console.log("Overrides admin page");
+  {
+    ok("aggregateOverrides counts repeated moves, biggest first, and skips malformed rows", (() => {
+      if (typeof api.aggregateOverrides !== "function") return false;
+      const list = [];
+      for (let i = 0; i < 14; i++) list.push({ from: "E", to: "C", shift: "LD" });
+      for (let i = 0; i < 3; i++) list.push({ from: "A", to: "B", shift: "SD" });
+      list.push({ from: "B", to: "A" });          // no shift — still a real move
+      list.push({ from: null, to: "C" });          // malformed — ignored
+      const agg = api.aggregateOverrides(list);
+      return agg.length === 3 && agg[0].from === "E" && agg[0].to === "C" && agg[0].shift === "LD" && agg[0].count === 14;
+    })());
+    ok("the overrides page lists every recorded move with who and when", (() => {
+      if (typeof api.renderOverrides !== "function") return false;
+      api.data.overrides = [
+        { t: "2026-07-31T20:00:00Z", d: "2026-08-03", id: "x1", name: "Test Person", from: "E", to: "C", shift: "LD", by: "Ali" },
+        { t: "2026-07-31T20:01:00Z", d: "2026-08-03", id: "x2", name: "Other Person", from: "E", to: "C", shift: "LD", by: "Ali" },
+        { t: "2026-07-31T20:02:00Z", d: "2026-08-04", id: "x3", name: "Third Person", from: "A", to: "B", shift: "SD", by: "Nick" }
+      ];
+      api.renderOverrides();
+      const rows = win.document.querySelectorAll("#ovrList .logrow");
+      const txt = win.document.querySelector("#ovrList").textContent;
+      return rows.length === 3 && /Test Person/.test(txt) && /Ali/.test(txt);
+    })());
+    ok("a repeated move shows as one count on top", (() => {
+      if (typeof api.renderOverrides !== "function") return false;
+      const top = win.document.querySelector("#ovrTop").textContent;
+      return /2/.test(top) && /E/.test(top) && /C/.test(top);
+    })());
+    api.data.overrides = [];
+  }
 
   // 8b) Night Pod E is a real container -----------------------------------------------------
   console.log("Night Pod E");
