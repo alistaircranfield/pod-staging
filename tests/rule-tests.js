@@ -24,6 +24,7 @@ function loadApp() {
     isPhoneSupervisor, isActiveOn, currentAssignShift, inFairfield, addToFairfield,
     fghMembers, countsInNumbers, poolState, removeAssign, attentionItems, srDetectGhosts, srRemoveFromDay,
     skillHeldBack: typeof skillHeldBack !== "undefined" ? skillHeldBack : null,
+    migratePendingSkills: typeof migratePendingSkills !== "undefined" ? migratePendingSkills : null,
     aggregateOverrides: typeof aggregateOverrides !== "undefined" ? aggregateOverrides : null,
     renderOverrides: typeof renderOverrides !== "undefined" ? renderOverrides : null,
     normalizeNight: typeof normalizeNight !== "undefined" ? normalizeNight : null,
@@ -343,6 +344,34 @@ async function main() {
 
 
 
+
+
+  // 8h) Old-model queue lands on the record; duplicates collapse ----------------------------
+  console.log("Pending-skills migration");
+  {
+    ok("migratePendingSkills exists", typeof api.migratePendingSkills === "function");
+    if (typeof api.migratePendingSkills === "function") {
+      const a = mkStaff(api, { name: "Old Queued", nights: false });
+      const b = mkStaff(api, { name: "Deduped", airway: false });
+      const c = mkStaff(api, { name: "Removed Later", neuro: false });
+      const f1 = api.addDays(api.todayISO(), 3), f2 = api.addDays(api.todayISO(), 10);
+      api.data.pendingSkills = [
+        { id: a.id, name: a.name, add: { nights: true }, from: f1 },                    // old model: never applied
+        { id: b.id, name: b.name, add: { airway: true }, from: f2 },                    // duplicate pair...
+        { id: b.id, name: b.name, add: { airway: true }, from: f1 },                    // ...earliest should win
+        { id: c.id, name: c.name, add: { neuro: true }, from: f1, applied: true }       // applied, then skill removed
+      ];
+      api.migratePendingSkills();
+      ok("a queued gain from before the rule change lands on the record now", a.nights === true);
+      const bEntries = api.data.pendingSkills.filter(x => x.id === b.id);
+      ok("duplicate holds collapse to one, keeping the earliest start", bEntries.length === 1 && bEntries[0].from === f1,
+        JSON.stringify(bEntries.map(x => x.from)));
+      ok("an already-applied hold never re-adds a skill someone removed", c.neuro === false);
+      ok("running it again changes nothing", (() => { const snap = JSON.stringify([api.data.pendingSkills, a.nights, b.airway, c.neuro]);
+        api.migratePendingSkills(); return snap === JSON.stringify([api.data.pendingSkills, a.nights, b.airway, c.neuro]); })());
+      api.data.pendingSkills = [];
+    }
+  }
 
   // 8g) Skills are real immediately; the allocator waits for the start date ------------------
   console.log("Skills apply now, allocator waits");
