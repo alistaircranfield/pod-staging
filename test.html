@@ -1350,6 +1350,23 @@ async function changeEditor(){
   const n = await uiPrompt("Changes from now on are logged under this name.", { title: "Who's editing?", okLabel: "Switch", placeholder: "Start typing…", options: editorNameOptions() });
   if (n && n.trim()) { store.set("rotaEditorName", n.trim()); updateWhoBtn(); toast("Now editing as " + n.trim()); }
 }
+/* Every time a human moves somebody the allocator had placed, write it down in a form that can be
+   counted later — day, person, from, to, shift, who did it. The written log is prose and fine for
+   audit, but useless for spotting patterns. This is the evidence base: if Pod E's long day gets
+   overridden fourteen times in a month, that is the rule being wrong, not fourteen people being
+   awkward. Capped like the log so the file cannot grow without limit.
+
+   To be clear about what this is and is not: it does not change the allocator on its own. It
+   accumulates the evidence a human needs in order to decide a rule should change. */
+function recordOverride(dateISO, id, fromPod, toPod, shift){
+  if (!data || !fromPod || fromPod === toPod) return;   // only real pod-to-pod moves
+  data.overrides = data.overrides || [];
+  data.overrides.unshift({
+    t: new Date().toISOString(), d: dateISO, id: id, name: nameOf(id) || "",
+    from: fromPod, to: toPod, shift: shift || "", by: editorName()
+  });
+  if (data.overrides.length > 500) data.overrides.length = 500;
+}
 function logEntry(msg){
   data.log.unshift({ t: new Date().toISOString(), who: editorName(), msg });
   if (data.log.length > 500) data.log.length = 500;
@@ -2545,9 +2562,11 @@ function renderDayRow(day, di, dateISO, issues){
         return;
       }
       const keepShift = currentAssignShift(day, id);
+      const fromPod = PODS.find(q => day.pods[q].assign.some(a => a.id === id)) || null;
       removeAssign(day, id);
       pod.assign.push({ id, shift: keepShift != null ? keepShift : shiftFromPool(pool, id) });
       logEntry(s.name + " → Pod " + p + " (" + dayShort(di) + ")");
+      recordOverride(dateISO, id, fromPod, p, keepShift);
     }, oid => { const o = (day.obs || []).find(x => x.oid === oid); if (o) { o.pod = p; logEntry("Observer " + o.name + " → Pod " + p + " (" + dayShort(di) + ")"); } });
     const consAll = data.staff.filter(s => s.grade === "CON" && isActiveOn(s, dateISO));
     if (consAll.length || pod.cons) {
@@ -3864,6 +3883,11 @@ function autoFillDay(wk, di, wkKey, opts){
       // -4000, not -1000: it has to outrank the weekend Saturday-pod hold (-3000) or a Sunday long
       // day whose Saturday pod was E would stay put while A-D went without one. Still yields to balance.
       if (isLD && p === "E" && PODS.filter(q => q !== "E").some(q => !hasLD[q])) score -= 4000;
+      /* The phone holder stays on A–D. Pod E is deliberately the smallest, so putting the holder
+         there works against the whole point of them being where the unit's activity is — and it
+         contradicts the phone-to-busiest rule below, since E is never the busiest. Ranked just under
+         pod balance, so it can never make the pods uneven to get its way. (Nick Whitehouse, 31 Jul) */
+      if (day.phone && id === day.phone && p === "E") score -= 4500;
       // Keep Pod E the smallest — never put someone there if it would make E bigger than another pod,
       // so any spare cover goes A → B → C → D before E. Decisive penalty so E is never the largest.
       // Must outrank the balance penalty below it, or evening the pods up can itself make E the
@@ -3953,6 +3977,32 @@ function autoFillDay(wk, di, wkKey, opts){
         }
         day.pods[p].assign.push({ id: ld.id, shift: "LD" });
       });
+    }
+  }
+
+  /* When there are more long days than pods, the spare one goes to the phone holder's pod. The
+     holder is tied up on the phone, so a second long day beside them is worth more than anywhere
+     else — and doing it this way round moves a spare person rather than moving the holder, who may
+     have been settled in that pod all week. (Nick Whitehouse, 31 Jul) */
+  {
+    const ldIn2 = q => day.pods[q].assign.filter(a => a.id && a.shift === "LD" && countsInNumbers(a.id)).length;
+    const totalLD = PODS.reduce((t, q) => t + ldIn2(q), 0);
+    const hPod = day.phone ? PODS.find(q => day.pods[q].assign.some(a => a.id === day.phone)) : null;
+    if (hPod && totalLD > PODS.length && ldIn2(hPod) < 2) {
+      const donor = PODS.filter(q => q !== hPod && ldIn2(q) > 1).sort((a, b) => ldIn2(b) - ldIn2(a) || a.localeCompare(b))[0];
+      if (donor) {
+        const byName = (x, y) => (nameOf(x.id) || "").localeCompare(nameOf(y.id) || "");
+        const pool2 = day.pods[donor].assign.filter(a => a.id && a.shift === "LD" && a.id !== day.phone).sort(byName);
+        const ld = pool2.find(a => !wouldBeThird(a.id, hPod)) || pool2[0];
+        const back = day.pods[hPod].assign.filter(a => a.id && a.shift !== "LD").sort(byName)
+          .find(a => !wouldBeThird(a.id, donor)) || day.pods[hPod].assign.filter(a => a.id && a.shift !== "LD").sort(byName)[0];
+        if (ld && back) tryMove(() => {
+          day.pods[donor].assign = day.pods[donor].assign.filter(x => x !== ld);
+          day.pods[hPod].assign = day.pods[hPod].assign.filter(x => x !== back);
+          day.pods[hPod].assign.push({ id: ld.id, shift: "LD" });
+          day.pods[donor].assign.push({ id: back.id, shift: back.shift });
+        });
+      }
     }
   }
 
