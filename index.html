@@ -2829,7 +2829,14 @@ function checkDay(day, dateISO, di, wk){
   }
   for (const id of nightIds) {
     const s = staffById(id);
-    if (s && !s.nights) H(s.name + " is on the night team but not flagged for nights.");
+    if (!s || s.nights) continue;
+    /* The Optima roster is the authority on who works nights: if it rostered this person on a
+       night shift, the missing tick is a staff-page housekeeping matter, not a rota problem —
+       flagging it every day of a week of nights was pure noise (Ali, 31 Jul). The warning stays
+       for people DRAGGED onto nights with neither the tick nor a rostered night shift. */
+    const r = wk && wk.roster && wk.roster[dateISO];
+    if (r && r[id] && r[id].kind === "night") continue;
+    H(s.name + " is on the night team but not flagged for nights.");
   }
   const podOccurrences = {};
   for (const p of PODS) for (const a of day.pods[p].assign) if (a.id) (podOccurrences[a.id] = podOccurrences[a.id] || []).push(p);
