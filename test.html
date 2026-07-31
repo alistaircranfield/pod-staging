@@ -1651,6 +1651,7 @@ function loadData(d){
     if (s.verified === undefined) s.verified = true;
   }
   data.pendingSkills = data.pendingSkills || [];
+  migratePendingSkills();
   for (const wk of Object.values(data.weeks)) {
     if (!("roster" in wk)) wk.roster = null;
     if (!wk.accepted) wk.accepted = [];
@@ -1920,6 +1921,12 @@ function staffModal(s){
       const added = [], addMap = {};
       if (!isNew) for (const k of SKILL_KEYS) if (cbs[k] && cbs[k].checked && !s[k]) { added.push(SKILL_SHORT[k] || k); addMap[k] = true; }
       for (const k of Object.keys(cbs)) s[k] = cbs[k].checked;
+      // A skill that's just been unticked takes any allocator hold with it.
+      data.pendingSkills = (data.pendingSkills || []).filter(x => {
+        if (x.id !== s.id || !x.add) return true;
+        for (const k of Object.keys(x.add)) if (cbs[k] && !cbs[k].checked) delete x.add[k];
+        return Object.keys(x.add).length > 0;
+      });
       if (isNew) data.staff.push(s);
       logEntry((isNew ? "Added staff: " : "Edited staff: ") + s.name);
       // Untick someone's phone skill and they let go of every phone they were holding.
@@ -1937,7 +1944,10 @@ async function queueSkillGain(s, added, addMap){
   const from = await askWhenSkillStarts(s.name, added);
   if (!from) { toast(s.name + ": " + added.join(", ") + " in use straight away"); return; }
   data.pendingSkills = data.pendingSkills || [];
-  data.pendingSkills.push({ id: s.id, name: s.name, add: addMap, from, by: editorName(), at: new Date().toISOString() });
+  // One hold per person+skill: queueing again replaces the old date instead of stacking.
+  for (const x of data.pendingSkills) if (x.id === s.id && x.add) for (const k of Object.keys(addMap)) delete x.add[k];
+  data.pendingSkills = data.pendingSkills.filter(x => x.add && Object.keys(x.add).length);
+  data.pendingSkills.push({ id: s.id, name: s.name, add: addMap, from, by: editorName(), at: new Date().toISOString(), applied: true });
   logEntry(s.name + " gains " + added.join(", ") + " now — auto-fill starts using them " + niceDate(from));
   markDirty(); renderStaff(); updateTeamBadge();
   toast(s.name + ": " + added.join(", ") + " — auto-fill from " + niceDate(from));
@@ -3726,6 +3736,25 @@ function phoneOK(id){ const s = staffById(id); return !!s && canHoldPhone(s); }
    phones already held all honour it at once. The chosen start date does exactly ONE thing: until
    it arrives, the ALLOCATOR pretends the skill isn't there, so rotas already written aren't
    churned to exploit it (Ali, 31 Jul). */
+/* One-time landing + hygiene (31 Jul): skills became real-immediately, so queued gains from
+   before that rule are put on the record the first time they're seen ('applied' marks each entry,
+   so a skill somebody deliberately removes later stays removed). Re-ticking while the old model
+   hid the queue also left duplicate entries — collapse to one hold per person+skill, keeping the
+   earliest start date. Idempotent; runs on every load until a save persists the tidy-up. */
+function migratePendingSkills(){
+  if (!data) return;
+  const seen = {};
+  const keep = [];
+  for (const x of (data.pendingSkills || []).slice().sort((a, b) => String(a.from || "").localeCompare(String(b.from || "")))) {
+    if (!x || !x.id || !x.add) continue;
+    const s = staffById(x.id);
+    if (!x.applied) { if (s) for (const k of Object.keys(x.add)) s[k] = true; x.applied = true; }
+    const add = {};
+    for (const k of Object.keys(x.add)) { const kk = x.id + "|" + k; if (!seen[kk]) { seen[kk] = true; add[k] = x.add[k]; } }
+    if (Object.keys(add).length) { x.add = add; keep.push(x); }
+  }
+  data.pendingSkills = keep;
+}
 function skillHeldBack(id, key, dateISO){
   return ((data && data.pendingSkills) || []).some(x => x.id === id && x.add && x.add[key] && x.from > dateISO);
 }
