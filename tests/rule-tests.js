@@ -22,7 +22,7 @@ function loadApp() {
     data, PODS, blankDay, getWeek, autoFillDay, autoFillWeek, checkDay,
     mondayOf, todayISO, addDays, poolFor, staffById, canHoldPhone, isPhoneShadow,
     isPhoneSupervisor, isActiveOn, currentAssignShift, inFairfield, addToFairfield,
-    fghMembers, countsInNumbers, poolState, removeAssign,
+    fghMembers, countsInNumbers, poolState, removeAssign, attentionItems,
     aggregateOverrides: typeof aggregateOverrides !== "undefined" ? aggregateOverrides : null,
     renderOverrides: typeof renderOverrides !== "undefined" ? renderOverrides : null,
     normalizeNight: typeof normalizeNight !== "undefined" ? normalizeNight : null,
@@ -338,6 +338,34 @@ async function main() {
 
   // 11) TWELVE-MONTH SIMULATION over a realistic roster ------------------------------------
 
+
+
+  // 8d) Consultant-cover attention nudge ----------------------------------------------------
+  console.log("Consultant cover running out");
+  {
+    // Cover far ahead: no nudge. Cover ending soon: a Needs-attention item pointing at Import.
+    const consId = mkStaff(api, { grade: "CON", name: "Cover Consultant" }).id;
+    const setCoverUntil = daysAhead => {
+      for (const k of Object.keys(api.data.weeks)) delete api.data.weeks[k];
+      const mon = api.mondayOf(api.todayISO());
+      for (let w = 0; w < 5; w++) {
+        const wk = api.getWeek(api.addDays(mon, w * 7));
+        wk.days.forEach((day, di) => {
+          const dISO = api.addDays(api.addDays(mon, w * 7), di);
+          const diff = Math.round((new Date(dISO) - new Date(api.todayISO())) / 86400000);
+          if (diff >= 0 && diff <= daysAhead) day.pods.A.cons = consId;
+        });
+      }
+    };
+    setCoverUntil(20);
+    ok("plenty of consultant cover ahead: no nudge", !api.attentionItems().some(x => /consultant cover|pod allocations/i.test(x.title)),
+      api.attentionItems().map(x => x.title).join(" | "));
+    setCoverUntil(4);
+    const hit = api.attentionItems().find(x => /consultant cover|pod allocations/i.test(x.title));
+    ok("cover ends within a week: Needs-attention asks for the next sheet", !!hit,
+      api.attentionItems().map(x => x.title).join(" | "));
+    for (const k of Object.keys(api.data.weeks)) delete api.data.weeks[k];
+  }
 
   // 8c) Overrides admin page --------------------------------------------------------------
   console.log("Overrides admin page");
