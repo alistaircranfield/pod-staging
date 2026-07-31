@@ -4859,6 +4859,27 @@ function attentionItems(){
     body: pend.slice(0, 4).map(x => x.name + " from " + niceDate(x.from)).join(" · ") + (pend.length > 4 ? " and " + (pend.length - 4) + " more" : ""),
     go: () => switchTab("staff") });
 
+    /* The consultant pod allocations arrive as a 4-week sheet dropped on the Import page. When the
+     imported cover is about to run out, say so HERE — before the board quietly starts showing
+     pods with no consultant line. Cover = any day ahead with a consultant picked on any pod. */
+  {
+    const today = todayISO();
+    let lastCover = null;
+    for (const [k, wk] of Object.entries(data.weeks || {})) {
+      wk.days.forEach((day, di) => {
+        const dISO = addDays(k, di);
+        if (dISO >= today && PODS.some(p => day.pods[p] && day.pods[p].cons)) {
+          if (!lastCover || dISO > lastCover) lastCover = dISO;
+        }
+      });
+    }
+    const daysLeft = lastCover ? Math.round((new Date(lastCover) - new Date(today)) / 86400000) : -1;
+    if (daysLeft < 7) out.push({ n: 1, title: "Consultant cover needs the next Pod Allocations sheet",
+      body: lastCover ? "The imported consultant cover ends " + niceDate(lastCover) + ". Drop the new 4-week sheet on the Import page."
+                      : "No consultant cover imported for the days ahead. Drop the current 4-week Pod Allocations sheet on the Import page.",
+      go: () => switchTab("import") });
+  }
+
   return out;
 }
 // Feedback has its own page so it doesn't clog this list, but it still counts on the badge.
