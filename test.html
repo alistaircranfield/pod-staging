@@ -1855,7 +1855,7 @@ function renderStaff(){
         s.verified = true; logEntry("Checked new starter: " + s.name); markDirty(); renderStaff(); updateTeamBadge();
       }}, "Check"));
     } else vcell.append(el("span", { class: "muted-sm" }, "✓"));
-    for (const x of pend) vcell.append(el("span", { class: "pendpill", title: "Waiting to start" }, "from " + niceDate(x.from)));
+    for (const x of pend) vcell.append(el("span", { class: "pendpill", title: Object.keys(x.add || {}).map(k => SKILL_SHORT[k] || k).join(", ") + " — ticked and live now; auto-fill starts using it " + niceDate(x.from) }, "auto-fill " + niceDate(x.from)));
     tr.append(vcell);
     tr.append(el("td", { class: "rowacts" },
       el("button", { class: "rowbtn edit", title: "Edit this person's details", onclick: () => staffModal(s) }, "Edit"),
@@ -1914,12 +1914,13 @@ function staffModal(s){
     el("button", { class: "btn", onclick: () => {
       if (!name.value.trim()) { name.style.borderColor = "var(--red)"; nameMsg.textContent = "A name is required."; name.focus(); return; }
       s.name = name.value.trim(); s.grade = grade.value;
-      // Skills gained by an existing person don't take effect here and now — they're queued to start
-      // on a Monday. Skills taken away bite immediately. Everything else saves as normal.
+      /* Every tick lands NOW — the pills, the checker and anything granted by hand all see it
+         immediately (Ali, 31 Jul). For skills GAINED by an existing person we then ask when the
+         allocator should start USING them, so boards already written aren't churned. */
       const added = [], addMap = {};
       if (!isNew) for (const k of SKILL_KEYS) if (cbs[k] && cbs[k].checked && !s[k]) { added.push(SKILL_SHORT[k] || k); addMap[k] = true; }
-      for (const k of Object.keys(cbs)) { if (addMap[k]) continue; s[k] = cbs[k].checked; }
-      if (isNew) { for (const k of Object.keys(cbs)) s[k] = cbs[k].checked; data.staff.push(s); }
+      for (const k of Object.keys(cbs)) s[k] = cbs[k].checked;
+      if (isNew) data.staff.push(s);
       logEntry((isNew ? "Added staff: " : "Edited staff: ") + s.name);
       // Untick someone's phone skill and they let go of every phone they were holding.
       const freed = sweepInvalidPhones();
@@ -1934,12 +1935,12 @@ function closeModal(){ $("#modalBg").style.display = "none"; }
 // Ask when the new skill starts, show exactly what it would move, then queue or land it.
 async function queueSkillGain(s, added, addMap){
   const from = await askWhenSkillStarts(s.name, added);
-  if (!from) { toast("Skills saved — the new ones weren't started"); return; }
+  if (!from) { toast(s.name + ": " + added.join(", ") + " in use straight away"); return; }
   data.pendingSkills = data.pendingSkills || [];
   data.pendingSkills.push({ id: s.id, name: s.name, add: addMap, from, by: editorName(), at: new Date().toISOString() });
-  logEntry(s.name + " gains " + added.join(", ") + " from " + niceDate(from));
+  logEntry(s.name + " gains " + added.join(", ") + " now — auto-fill starts using them " + niceDate(from));
   markDirty(); renderStaff(); updateTeamBadge();
-  toast(s.name + ": " + added.join(", ") + " starts " + niceDate(from));
+  toast(s.name + ": " + added.join(", ") + " — auto-fill from " + niceDate(from));
 }
 
 /* ================= WEEK EDITOR ================= */
@@ -3721,6 +3722,13 @@ function nightAvailWindow(){
    If no trained holder is on, the phone stays unallocated and the day is flagged. An empty slot
    the coordinators can see beats a name that looks settled and isn't safe. */
 function phoneOK(id){ const s = staffById(id); return !!s && canHoldPhone(s); }
+/* A skill ticked on the staff page is real IMMEDIATELY — the board, the checker, manual drops and
+   phones already held all honour it at once. The chosen start date does exactly ONE thing: until
+   it arrives, the ALLOCATOR pretends the skill isn't there, so rotas already written aren't
+   churned to exploit it (Ali, 31 Jul). */
+function skillHeldBack(id, key, dateISO){
+  return ((data && data.pendingSkills) || []).some(x => x.id === id && x.add && x.add[key] && x.from > dateISO);
+}
 // Clears any phone sitting with someone who can't hold it. Runs on load and whenever skills change,
 // so removing a phone tick from the staff list releases every phone that person was holding.
 /* An allocation can outlive the thing it depended on: someone loses the phone skill, stops
@@ -3779,6 +3787,12 @@ function autoFillDay(wk, di, wkKey, opts){
   const dateISO = addDays(key, di);
   const pool = poolFor(day, dateISO);
   const assigned = assignedIds(day);
+  // The allocator's view of skills: anything queued to start later doesn't exist yet for IT —
+  // though it is already real for the checker, the display and anything placed by hand.
+  const airwayOn = s => !!s && s.airway && !skillHeldBack(s.id, "airway", dateISO);
+  const neuroOn = s => !!s && s.neuro && !skillHeldBack(s.id, "neuro", dateISO);
+  const phoneOn = s => !!s && ((s.phoneHolder && !skillHeldBack(s.id, "phoneHolder", dateISO)) ||
+                               (s.phoneSupervisor && !skillHeldBack(s.id, "phoneSupervisor", dateISO)));
   // Fairfield people never get auto-allocated to a pod — they only come from the Allocate roster + manual moves.
   const dayIds = Object.keys(pool).filter(id => pool[id].kind === "day" && !inFairfield(day, dateISO, id));
   // --- day phone: only a long-day holder, spread across the week so it's not the same person daily ---
@@ -3801,7 +3815,7 @@ function autoFillDay(wk, di, wkKey, opts){
     const phoneRate = id => (phoneHist[id] || 0) / ((ldAvail[id] || 0) + 1);
     const weekPhone = {};                  // holds already this week, to rotate within the week first
     for (let k = 0; k < di; k++){ const pid = wk.days[k].phone; if (pid) weekPhone[pid] = (weekPhone[pid] || 0) + 1; }
-    const cands = settledFirst(dayIds.map(staffById).filter(s => s && canHoldPhone(s) && poolState(pool[s.id]) === "LD" && s.id !== day.phone), dateISO)
+    const cands = settledFirst(dayIds.map(staffById).filter(s => phoneOn(s) && poolState(pool[s.id]) === "LD" && s.id !== day.phone), dateISO)
       .sort((a,b) => ((weekPhone[a.id] || 0) - (weekPhone[b.id] || 0)) || (phoneRate(a.id) - phoneRate(b.id)) || a.name.localeCompare(b.name));
     // No trained long-day holder on? Leave it unallocated and flagged. Never fudge it.
     if (cands.length) { day.phone = cands[0].id; day.phoneSup = null; }
@@ -3818,7 +3832,7 @@ function autoFillDay(wk, di, wkKey, opts){
     const nAvail = nightAvailWindow();
     const nRate = id => (nHist[id] || 0) / ((nAvail[id] || 0) + 1);
     const prevNight = di > 0 ? wk.days[di-1].night.phone : null;
-    const nCands = settledFirst(nightIds.map(staffById).filter(s => s && canHoldPhone(s)), dateISO)
+    const nCands = settledFirst(nightIds.map(staffById).filter(s => phoneOn(s)), dateISO)
       .sort((a,b) => ((a.id === prevNight ? 1 : 0) - (b.id === prevNight ? 1 : 0))
                   || (nRate(a.id) - nRate(b.id)) || a.name.localeCompare(b.name));
     day.night.phone = nCands.length ? nCands[0].id : null;
@@ -3913,14 +3927,14 @@ function autoFillDay(wk, di, wkKey, opts){
       if (isLD && p === "E") continue;
       day.pods[p].assign.push({ id, shift: isLD ? "LD" : "SD" });
       held.add(id);
-      if (counted) { counts[p]++; if (isLD) hasLD[p] = true; if (s.airway) airwayIn[p]++; }
+      if (counted) { counts[p]++; if (isLD) hasLD[p] = true; if (airwayOn(s)) airwayIn[p]++; }
     }
   }
   const order = [...unplaced].filter(id => !held.has(id)).sort((a,b) => {
     const ha = priorMap[a] ? 0 : 1, hb = priorMap[b] ? 0 : 1;
     const A = pool[a], B = pool[b];
     const la = poolState(A) === "LD" ? 0 : 1, lb = poolState(B) === "LD" ? 0 : 1;
-    const aa = staffById(a).airway ? 0 : 1, ab = staffById(b).airway ? 0 : 1;
+    const aa = airwayOn(staffById(a)) ? 0 : 1, ab = airwayOn(staffById(b)) ? 0 : 1;
     return ha - hb || la - lb || aa - ab || staffById(a).name.localeCompare(staffById(b).name);
   });
   for (const id of order) {
@@ -3961,13 +3975,13 @@ function autoFillDay(wk, di, wkKey, opts){
         score -= (counts[p] < target[p] && emptiest ? 2000 : 100000);
       // Senior airway residents (ST/CT/Anaes/ICM) stay off Pod E unless there's truly nowhere else.
       if (p === "E" && ["ST", "CT", "Anaes", "ICM"].includes(s.grade)) score -= 40;
-      if (s.airway) {
+      if (airwayOn(s)) {
         if (p === "E") score -= 8; // unit keeps airway-trained off Pod E unless there's no other option
         else score += airwayIn[p] === 0 ? 5 : -4 * airwayIn[p];
       }
       // Neuro-trained lean towards Pods C & D (the neuro pods) — a nudge, not a rule, so it still
       // yields to keeping the pods evenly sized. Aims for roughly two-thirds of their shifts on C/D.
-      if (s.neuro && (p === "C" || p === "D")) score += 5;
+      if (neuroOn(s) && (p === "C" || p === "D")) score += 5;
       // Long days fill A–D before E: E is always the pod that misses out on a long day when they're
       // short, so never give E a long-day resident while any A–D pod still has none.
       // -4000, not -1000: it has to outrank the weekend Saturday-pod hold (-3000) or a Sunday long
@@ -3990,7 +4004,7 @@ function autoFillDay(wk, di, wkKey, opts){
     if (countsInNumbers(id)) {
       counts[bestP]++;
       if (isLD) hasLD[bestP] = true;
-      if (s.airway) airwayIn[bestP]++;
+      if (airwayOn(s)) airwayIn[bestP]++;
     }
   }
   // Post-placement steps move people between pods, so each has to re-check the never-a-third-pod
@@ -4130,7 +4144,7 @@ function autoFillDay(wk, di, wkKey, opts){
      none. Alongside the long day, this is the floor the unit actually runs on. */
   {
     const podPeople = p => day.pods[p].assign.filter(a => a.id);
-    const airIn = p => podPeople(p).filter(a => staffById(a.id) && staffById(a.id).airway).length;
+    const airIn = p => podPeople(p).filter(a => airwayOn(staffById(a.id))).length;
     const countedIn = p => podPeople(p).filter(a => countsInNumbers(a.id)).length;
     for (const p of PODS) {
       if (countedIn(p) < 1 || airIn(p) > 0) continue;
@@ -4145,9 +4159,9 @@ function autoFillDay(wk, di, wkKey, opts){
       // long day out of the donor either — only take an LD away if one is coming back.
       const ldDonor = day.pods[donor].assign.filter(a => a.id && a.shift === "LD" && countsInNumbers(a.id)).length;
       const airCands = day.pods[donor].assign
-        .filter(a => a.id && staffById(a.id) && staffById(a.id).airway && !wouldBeThird(a.id, p))
+        .filter(a => a.id && airwayOn(staffById(a.id)) && !wouldBeThird(a.id, p))
         .filter(a => !(a.shift === "LD" && ldDonor <= 1
-                       && !day.pods[p].assign.some(x => x.id && x.shift === "LD" && !(staffById(x.id) || {}).airway)))
+                       && !day.pods[p].assign.some(x => x.id && x.shift === "LD" && !airwayOn(staffById(x.id)))))
         .sort((x, y) => (rank(x, donor, p) - rank(y, donor, p)) || (nameOf(x.id) || "").localeCompare(nameOf(y.id) || ""));
       const air = airCands[0];
       if (!air) continue;
@@ -4156,7 +4170,7 @@ function autoFillDay(wk, di, wkKey, opts){
       // one red for another. If the incoming person isn't an LD, whoever leaves mustn't be either.
       const ldHere = day.pods[p].assign.filter(a => a.id && a.shift === "LD" && countsInNumbers(a.id)).length;
       const backCands = day.pods[p].assign
-        .filter(a => a.id && !(staffById(a.id) || {}).airway && !wouldBeThird(a.id, donor))
+        .filter(a => a.id && !airwayOn(staffById(a.id)) && !wouldBeThird(a.id, donor))
         .filter(a => air.shift === "LD" || !(a.shift === "LD" && ldHere <= 1))
         .sort((x, y) => (rank(x, p, donor) - rank(y, p, donor)) || ((y.shift === air.shift) - (x.shift === air.shift))
                      || (nameOf(x.id) || "").localeCompare(nameOf(y.id) || ""));
@@ -4205,16 +4219,16 @@ function autoFillDay(wk, di, wkKey, opts){
     // It's decided from the night team alone, so it lands the same way every night of a run.
     // E stands on the C,D&E side of the split, but people are only ever swapped between the
     // AB and CDE lists — whoever is in E (usually the phone holder) stays put.
-    const air = h => (day.night[h] || []).filter(id => (staffById(id) || {}).airway).length;
+    const air = h => (day.night[h] || []).filter(id => airwayOn(staffById(id))).length;
     const sideAir = h => h === "CDE" ? air("CDE") + air("E") : air(h);
     if (air("AB") + air("CDE") + air("E") < 2) return;
     const full = sideAir("AB") === 0 ? "CDE" : sideAir("CDE") === 0 ? "AB" : null;
     if (!full) return;
     const empty = full === "AB" ? "CDE" : "AB";
     // Never move the phone holder out of C/D/E — they cover Pod E on their own when five are on.
-    const out = (day.night[full] || []).find(id => (staffById(id) || {}).airway
+    const out = (day.night[full] || []).find(id => airwayOn(staffById(id))
       && !(full === "CDE" && id === day.night.phone));
-    const back = (day.night[empty] || []).find(id => !(staffById(id) || {}).airway
+    const back = (day.night[empty] || []).find(id => !airwayOn(staffById(id))
       && !(empty === "CDE" && id === day.night.phone));
     if (!out || !back) return;
     day.night[full] = day.night[full].filter(id => id !== out).concat(back);
@@ -4295,7 +4309,7 @@ function planDayFix(di){
     const phoneHist = phoneHistWindow(), ldAvail = ldAvailWindow();
     const rate = id => (phoneHist[id] || 0) / ((ldAvail[id] || 0) + 1);
     const weekPhone = {}; for (let k = 0; k < di; k++){ const pid = wk.days[k].phone; if (pid) weekPhone[pid] = (weekPhone[pid] || 0) + 1; }
-    const cands = settledFirst(dayIds.map(staffById).filter(s => s && canHoldPhone(s) && isLDpool(s.id)), dateISO)
+    const cands = settledFirst(dayIds.map(staffById).filter(s => s && canHoldPhone(s) && !skillHeldBack(s.id, "phoneHolder", dateISO) && isLDpool(s.id)), dateISO)
       .sort((a,b) => ((weekPhone[a.id]||0)-(weekPhone[b.id]||0)) || (rate(a.id)-rate(b.id)) || a.name.localeCompare(b.name));
     if (cands.length) { day.phone = cands[0].id; day.phoneSup = null; }
     else { day.phone = null; day.phoneSup = null; unresolved.push("No trained long-day phone holder is rostered — the phone is left unallocated."); }
@@ -4369,7 +4383,7 @@ function planDayFix(di){
   if (!nOK && nightIds.length) {
     const nHist = historicCount(dd => dd.night.phone);
     const prevN = di > 0 ? wk.days[di-1].night.phone : null;
-    const cands = nightIds.map(staffById).filter(s => s && canHoldPhone(s)).sort((a,b) => ((a.id===prevN)-(b.id===prevN)) || ((nHist[a.id]||0)-(nHist[b.id]||0)) || a.name.localeCompare(b.name));
+    const cands = nightIds.map(staffById).filter(s => s && canHoldPhone(s) && !skillHeldBack(s.id, "phoneHolder", dateISO)).sort((a,b) => ((a.id===prevN)-(b.id===prevN)) || ((nHist[a.id]||0)-(nHist[b.id]||0)) || a.name.localeCompare(b.name));
     if (cands.length) { day.night.phone = cands[0].id; if (!day.night.AB.includes(cands[0].id) && !day.night.CDE.includes(cands[0].id) && !(day.night.E || []).includes(cands[0].id)) day.night.CDE.push(cands[0].id); }
   }
 
@@ -4803,7 +4817,7 @@ async function askWhenSkillStarts(name, added){
   const m = $("#modal"); m.innerHTML = "";
   m.append(el("h3", {}, "When should this start?"));
   m.append(el("p", { style: "font-size:.85rem;color:#4a4f58;line-height:1.6;margin:0 0 .9rem" },
-    name + " is gaining " + added.join(", ") + ". The rota is already written weeks ahead, so this starts on a Monday and everything from that Monday is worked out again."));
+    name + " has " + added.join(", ") + " from now — the board and checks already honour it. The rota is written weeks ahead, so pick the Monday the ALLOCATOR starts using it; everything from that Monday is worked out again."));
   let pick = "1";
   const seg = el("div", { class: "seg" });
   opts.forEach(([v, l]) => {
@@ -4819,8 +4833,8 @@ async function askWhenSkillStarts(name, added){
   m.append(wkLbl);
   return new Promise(res => {
     m.append(el("div", { class: "modalbtns" },
-      el("button", { class: "btn sec", onclick: () => { closeModal(); res(null); } }, "Cancel"),
-      el("button", { class: "btn", onclick: () => { closeModal(); res(dateFor(pick)); } }, "Queue it")));
+      el("button", { class: "btn sec", onclick: () => { closeModal(); res(null); } }, "Use it straight away"),
+      el("button", { class: "btn", onclick: () => { closeModal(); res(dateFor(pick)); } }, "Set the date")));
     $("#modalBg").style.display = "flex";
   });
 }
@@ -4863,7 +4877,7 @@ function attentionItems(){
     go: () => switchTab("staff") });
 
   const pend = (data.pendingSkills || []);
-  if (pend.length) out.push({ n: pend.length, title: "Skills changes waiting to start",
+  if (pend.length) out.push({ n: pend.length, title: "New skills auto-fill isn't using yet",
     body: pend.slice(0, 4).map(x => x.name + " from " + niceDate(x.from)).join(" · ") + (pend.length > 4 ? " and " + (pend.length - 4) + " more" : ""),
     go: () => switchTab("staff") });
 
