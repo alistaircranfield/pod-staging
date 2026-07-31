@@ -4988,7 +4988,7 @@ function srRemoveFromDay(day, sid){
   if ((day.extras || []).some(x => x && x.id === sid)){ day.extras = day.extras.filter(x => !x || x.id !== sid); hits.push("extras"); }
   if (day.night){
     if (day.night.phone === sid){ day.night.phone = null; hits.push("night phone"); }
-    for (const k of ["AB", "CDE", "super"]){
+    for (const k of ["AB", "CDE", "E", "super"]){
       if ((day.night[k] || []).includes(sid)){ day.night[k] = day.night[k].filter(x => x !== sid); hits.push("night " + k); }
     }
   }
@@ -5013,15 +5013,18 @@ function srDetectGhosts(){
         (p.super || []).forEach(x => sids.add(x));
         if (p.student) sids.add(p.student);
       }
-      ["phone", "phoneSup", "nightCons"].forEach(k => { if (day[k]) sids.add(day[k]); });
+      // nightCons deliberately absent: consultants come from the consultant sheet, not
+      // Optima, so an on-call consultant is never a "ghost" (Ali, 31 Jul).
+      ["phone", "phoneSup"].forEach(k => { if (day[k]) sids.add(day[k]); });
       (day.shadow || []).forEach(x => sids.add(x));
       (day.extras || []).forEach(x => { if (x && x.id) sids.add(x.id); });
       if (day.night){
         if (day.night.phone) sids.add(day.night.phone);
-        ["AB", "CDE", "super"].forEach(k => (day.night[k] || []).forEach(x => sids.add(x)));
+        ["AB", "CDE", "E", "super"].forEach(k => (day.night[k] || []).forEach(x => sids.add(x)));
       }
       for (const sid of sids){
         const s = staffById(sid);
+        if (s && s.grade === "CON") continue;   // consultants are never on Optima
         if (s && !(sid in roster)) out.push({ di, date, sid, name: s.name });
       }
     }
