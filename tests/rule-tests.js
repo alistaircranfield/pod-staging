@@ -22,7 +22,8 @@ function loadApp() {
     data, PODS, blankDay, getWeek, autoFillDay, autoFillWeek, checkDay,
     mondayOf, todayISO, addDays, poolFor, staffById, canHoldPhone, isPhoneShadow,
     isPhoneSupervisor, isActiveOn, currentAssignShift, inFairfield, addToFairfield,
-    fghMembers, countsInNumbers, poolState,
+    fghMembers, countsInNumbers, poolState, removeAssign,
+    normalizeNight: typeof normalizeNight !== "undefined" ? normalizeNight : null,
     setWeek: k => { currentWeekKey = k; },
     getWeekKey: () => currentWeekKey,
     setEdit: () => { EDIT_MODE = true; }
@@ -334,6 +335,85 @@ async function main() {
   }
 
   // 11) TWELVE-MONTH SIMULATION over a realistic roster ------------------------------------
+
+  // 8b) Night Pod E is a real container -----------------------------------------------------
+  console.log("Night Pod E");
+  {
+    // A blank day carries the container at all, so nothing downstream has to invent it.
+    ok("a blank day has night.E as a real (empty) list", Array.isArray(api.blankDay().night.E));
+
+    // Pod E holds MORE THAN ONE person — the whole point of the change (Nick Whitehouse, 31 Jul).
+    const a = mkStaff(api, { nights: true }), b = mkStaff(api, { nights: true });
+    const { day } = seedDay(api, 1, []);
+    day.night.E = day.night.E || [];
+    day.night.E.push(a.id, b.id);
+    ok("night Pod E holds two people at once", (day.night.E || []).length === 2);
+    api.removeAssign(day, a.id);
+    ok("removeAssign clears somebody out of night Pod E", !(day.night.E || []).includes(a.id) && (day.night.E || []).includes(b.id));
+
+    // Migration is absent = empty: a saved day from before the change has no E key and must not break.
+    const legacy = seedDay(api, 2, []).day;
+    delete legacy.night.E;
+    let threw = null;
+    try { api.checkDay(legacy, api.addDays(api.getWeekKey(), 2), 2, api.getWeek(api.getWeekKey())); } catch (e) { threw = e; }
+    ok("a legacy day without night.E runs through the checker untouched", threw === null, String(threw));
+  }
+  {
+    // The night phone holder standing in Pod E is covering a pod — the checker must accept it.
+    const ph = mkStaff(api, { phoneHolder: true, nights: true });
+    const o1 = mkStaff(api, { nights: true }), o2 = mkStaff(api, { nights: true });
+    const { day } = seedDay(api, 3, []);
+    day.night.phone = ph.id; day.night.AB = [o1.id, o2.id]; day.night.CDE = []; day.night.E = [ph.id];
+    const flags = api.checkDay(day, api.addDays(api.getWeekKey(), 3), 3, api.getWeek(api.getWeekKey())).map(i => i.msg).join(" | ");
+    ok("phone holder standing in Pod E counts as covering a pod", !/covers a pod/.test(flags), flags);
+  }
+  {
+    // Airway split is AB against the C/D/E side — an airway person in Pod E covers that side.
+    const ph = mkStaff(api, { phoneHolder: true, nights: true, airway: true });
+    const o1 = mkStaff(api, { nights: true, airway: true }), o2 = mkStaff(api, { nights: true });
+    const { day } = seedDay(api, 4, []);
+    day.night.phone = ph.id; day.night.AB = [o1.id, o2.id]; day.night.CDE = []; day.night.E = [ph.id];
+    const flags = api.checkDay(day, api.addDays(api.getWeekKey(), 4), 4, api.getWeek(api.getWeekKey())).map(i => i.msg).join(" | ");
+    ok("an airway person in Pod E satisfies the C,D&E side of the split", !/Two airway-trained/.test(flags), flags);
+  }
+  {
+    // Legacy five-on data stored the holder inside C,D&E and only DREW a Pod E row.
+    // The new model migrates that person into the real container.
+    ok("normalizeNight exists for legacy five-on data", typeof api.normalizeNight === "function");
+    if (typeof api.normalizeNight === "function") {
+      const ids = Array.from({ length: 5 }, () => mkStaff(api, { nights: true, phoneHolder: true }).id);
+      const { day } = seedDay(api, 5, []);
+      day.night.phone = ids[4]; day.night.AB = [ids[0], ids[1]]; day.night.CDE = [ids[2], ids[3], ids[4]];
+      delete day.night.E;
+      api.normalizeNight(day);
+      ok("legacy five-on day: holder migrates from C,D&E into Pod E",
+        (day.night.E || []).includes(ids[4]) && !(day.night.CDE || []).includes(ids[4]),
+        JSON.stringify(day.night));
+      // ...and running it again changes nothing (it will be called from render paths).
+      const snap = JSON.stringify(day.night);
+      api.normalizeNight(day);
+      ok("normalizeNight is idempotent", JSON.stringify(day.night) === snap);
+    }
+  }
+  {
+    // Auto-fill: five on nights -> the holder covers Pod E as a real placement, not a drawing.
+    const five = Array.from({ length: 5 }, () => ({ shift: "N", nights: true, phoneHolder: true }));
+    const { wk, day } = seedDay(api, 6, five);
+    api.autoFillDay(wk, 6);
+    const n = day.night;
+    ok("five on nights: auto-fill places the phone holder in the real Pod E",
+      !!n.phone && (n.E || []).includes(n.phone), JSON.stringify({ phone: n.phone, AB: n.AB, CDE: n.CDE, E: n.E }));
+    ok("five on nights: the other four still cover A&B and C&D two apiece",
+      (n.AB || []).length === 2 && (n.CDE || []).length === 2, JSON.stringify({ AB: n.AB, CDE: n.CDE }));
+  }
+  {
+    // Auto-fill: four on nights -> nobody splits off, Pod E stays empty, pods hold still.
+    const four = Array.from({ length: 4 }, () => ({ shift: "N", nights: true, phoneHolder: true }));
+    const { wk, day } = seedDay(api, 0, four);
+    api.autoFillDay(wk, 0);
+    ok("four on nights: Pod E stays empty", (day.night.E || []).length === 0, JSON.stringify(day.night.E));
+  }
+
   console.log("12-month simulation (52 weeks, ~30 staff)");
   {
     // Reset state so the year runs on a clean, small unit (the crafted tests above pile up staff,
