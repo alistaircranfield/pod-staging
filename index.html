@@ -400,6 +400,8 @@ button.btn.danger{background:var(--red);color:#fff}
 .modalbtns{display:flex;gap:.6rem;justify-content:flex-end;margin-top:.8rem}
 #toast{position:fixed;bottom:1.4rem;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:999px;padding:.6rem 1.3rem;font-size:.85rem;display:none;z-index:200;box-shadow:0 8px 24px rgba(20,21,29,.25)}
 .empty{color:var(--muted);font-size:.86rem;padding:1.6rem;text-align:center}
+.ovrchip{display:inline-flex;align-items:center;gap:.35rem;border:1px solid var(--line);border-radius:999px;padding:.22rem .65rem;font-size:.75rem;background:var(--card)}
+.ovrchip b{font-size:.8rem}
 /* welcome */
 #welcome{position:fixed;inset:0;background:var(--bg);z-index:90;display:flex;align-items:center;justify-content:center}
 #welcome .box{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:2.6rem 2.8rem;max-width:440px;width:92%;box-shadow:0 20px 50px rgba(20,21,29,.07)}
@@ -560,6 +562,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
   <button data-tab="feedback" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg>Feedback<span class="tpc" id="tabFbCount"></span></button>
   <button data-tab="fair" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l3-8 4 14 3-8h4"/></svg>Fairness</button>
   <button data-tab="log" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Change log</button>
+  <button data-tab="overrides" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13M17 8l-3-3M17 8l-3 3M20 16H7M7 16l3-3M7 16l3 3"/></svg>Overrides</button>
   <button data-tab="import" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M4 20h16"/></svg>Import</button>
 </nav>
 <div id="navbackdrop"></div>
@@ -743,6 +746,23 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
     </div>
     <div class="card" id="logCard">
       <div id="logList"></div>
+    </div>
+  </section>
+
+  <section id="tab-overrides" style="display:none">
+    <div id="ovrGate" class="gatebox" style="display:none">
+      <div class="card">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+        <b id="gateTitleO">Locked — staff password</b>
+        <input type="password" id="gatePwO" placeholder="Password">
+        <button class="btn" id="gateBtnO" style="width:100%">Unlock</button>
+        <div id="gateMsgO" style="font-size:.78rem;color:var(--red);min-height:1em;margin-top:.3rem"></div>
+        <a href="#" id="gateResetO" style="font-size:.72rem;color:var(--muted)">Forgotten? Reset it</a>
+      </div>
+    </div>
+    <div class="card" id="ovrCard">
+      <div id="ovrTop"></div>
+      <div id="ovrList"></div>
     </div>
   </section>
 
@@ -3467,6 +3487,43 @@ function renderLog(){
   }
 }
 
+/* Aggregate the recorded manual moves by what changed — from-pod, to-pod, shift — so a rule
+   being overridden again and again shows up as one number instead of a hundred scattered rows.
+   Pure: list in, counted list out, biggest first, so the tests can hold it still. */
+function aggregateOverrides(list){
+  const m = new Map();
+  for (const o of (list || [])) {
+    if (!o || !o.from || !o.to) continue;
+    const k = o.from + ">" + o.to + "." + (o.shift || "");
+    const e = m.get(k) || { from: o.from, to: o.to, shift: o.shift || "", count: 0 };
+    e.count++; m.set(k, e);
+  }
+  return [...m.values()].sort((a, b) => b.count - a.count || (a.from + a.to).localeCompare(b.from + b.to));
+}
+function renderOverrides(){
+  const top = $("#ovrTop"), box = $("#ovrList");
+  if (!top || !box) return;
+  top.innerHTML = ""; box.innerHTML = "";
+  const list = (data && data.overrides) || [];
+  if (!list.length) { box.append(el("div", { class: "empty" }, "No manual moves recorded yet.")); return; }
+  const hd = "font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:.2rem 0 .5rem";
+  const rep_ = aggregateOverrides(list).filter(a => a.count > 1).slice(0, 12);
+  if (rep_.length) {
+    top.append(el("div", { style: hd }, "Most repeated"));
+    const wrap = el("div", { style: "display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1.1rem" });
+    for (const a of rep_) wrap.append(el("span", { class: "ovrchip" },
+      el("b", {}, "\u00d7" + a.count), "Pod " + a.from + " \u2192 Pod " + a.to + (a.shift ? " \u00b7 " + a.shift : "")));
+    top.append(wrap);
+  }
+  top.append(el("div", { style: hd }, "All moves (" + list.length + ")"));
+  for (const o of list.slice(0, 200)) {
+    box.append(el("div", { class: "logrow" },
+      el("div", { class: "t" }, new Date(o.t).toLocaleString("en-GB") + " \u2014 " + (o.by || "unknown")),
+      (o.name || o.id || "?") + ": Pod " + o.from + " \u2192 Pod " + o.to + (o.shift ? " (" + o.shift + ")" : "") + (o.d ? " \u00b7 " + fmtDate(o.d) : "")));
+  }
+}
+function renderOverridesGate(){ renderGate("O", "#ovrCard", renderOverrides); }
+
 /* ================= PUBLISH ================= */
 async function publishWeek(){
   if (!data || !currentWeekKey || !data.weeks[currentWeekKey]) { uiAlert("Nothing on this week yet.", { title: "Empty week" }); return; }
@@ -4496,7 +4553,7 @@ async function sha256(s){
 }
 function staffUnlocked(){ return store.sget("staffUnlocked") === "1" || (data && !data.staffPw); }
 function gateRefs(sfx){
-  const gates = { S: "#staffGate", F: "#fairGate", I: "#importGate", L: "#logGate", T: "#teamGate" };
+  const gates = { S: "#staffGate", F: "#fairGate", I: "#importGate", L: "#logGate", T: "#teamGate", O: "#ovrGate" };
   return { gate: $(gates[sfx]), title: $("#gateTitle"+sfx), pw: $("#gatePw"+sfx), btn: $("#gateBtn"+sfx), msg: $("#gateMsg"+sfx), reset: $("#gateReset"+sfx) };
 }
 function renderGate(sfx, cardSel, onShow){
@@ -4551,7 +4608,7 @@ function showLockScreen(then){
   document.body.classList.add("teamlocked");
   document.body.classList.remove("teamopen");
   document.body.classList.remove("navopen");   // on a phone the drawer would sit on top of the box
-  for (const t of ["rota","import","staff","fair","log","help","team","feedback","lock"])
+  for (const t of ["rota","import","staff","fair","log","overrides","help","team","feedback","lock"])
     $("#tab-" + t).style.display = (t === "lock") ? "" : "none";
   $("#pageTitle").textContent = "Rota team";
   document.querySelectorAll("aside button[data-tab]").forEach(x => x.classList.remove("active"));
@@ -5097,15 +5154,15 @@ function resolveSyncClash(i, how){
   markDirty(); renderAll();
   toast(how === "take" ? "Changed to Optima's version: " + c.allocate : "Kept " + (c.app || "blank") + " — Optima won't override it");
 }
-function renderAll(){ renderWeek(); renderStaffGate(); renderFairGate(); renderImportGate(); renderLogGate(); renderTeamGate(); renderSyncReview(); updateTeamBadge(); }
-const PAGE_TITLES = { rota: "Pod Allocator", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", help: "How it works", team: "Needs attention", feedback: "Trial feedback" };
-const TEAM_TABS = ["team", "import", "staff", "fair", "log", "feedback"];
+function renderAll(){ renderWeek(); renderStaffGate(); renderFairGate(); renderImportGate(); renderLogGate(); renderOverridesGate(); renderTeamGate(); renderSyncReview(); updateTeamBadge(); }
+const PAGE_TITLES = { rota: "Pod Allocator", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", overrides: "Overrides", help: "How it works", team: "Needs attention", feedback: "Trial feedback" };
+const TEAM_TABS = ["team", "import", "staff", "fair", "log", "overrides", "feedback"];
 function switchTab(tab){
   // Locked out? Ask once, here, then carry on to where they were going.
   if (TEAM_TABS.includes(tab) && data && !staffUnlocked()) { showLockScreen(() => switchTab(tab)); return; }
   document.body.classList.remove("teamlocked");
   document.querySelectorAll("aside button[data-tab]").forEach(x => x.classList.toggle("active", x.dataset.tab === tab));
-  for (const t of ["rota","import","staff","fair","log","help","team","feedback","lock"]) $("#tab-" + t).style.display = (tab === t) ? "" : "none";
+  for (const t of ["rota","import","staff","fair","log","overrides","help","team","feedback","lock"]) $("#tab-" + t).style.display = (tab === t) ? "" : "none";
   $("#pageTitle").textContent = PAGE_TITLES[tab];
   // The rota-team pages stay folded away until you go in, so residents only ever see two items.
   document.body.classList.toggle("teamopen", TEAM_TABS.includes(tab));
@@ -5116,6 +5173,7 @@ function switchTab(tab){
   if (tab === "fair") renderFairGate();
   if (tab === "import") renderImportGate();
   if (tab === "log") renderLogGate();
+  if (tab === "overrides") renderOverridesGate();
   if (tab === "feedback") { renderFeedback(); markFeedbackRead(); }
 }
 document.querySelectorAll("aside button[data-tab], #teamPanel .tpi").forEach(b => b.onclick = () => switchTab(b.dataset.tab));
