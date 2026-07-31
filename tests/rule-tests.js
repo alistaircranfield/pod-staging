@@ -22,7 +22,7 @@ function loadApp() {
     data, PODS, blankDay, getWeek, autoFillDay, autoFillWeek, checkDay,
     mondayOf, todayISO, addDays, poolFor, staffById, canHoldPhone, isPhoneShadow,
     isPhoneSupervisor, isActiveOn, currentAssignShift, inFairfield, addToFairfield,
-    fghMembers, countsInNumbers, poolState, removeAssign, attentionItems,
+    fghMembers, countsInNumbers, poolState, removeAssign, attentionItems, srDetectGhosts, srRemoveFromDay,
     aggregateOverrides: typeof aggregateOverrides !== "undefined" ? aggregateOverrides : null,
     renderOverrides: typeof renderOverrides !== "undefined" ? renderOverrides : null,
     normalizeNight: typeof normalizeNight !== "undefined" ? normalizeNight : null,
@@ -339,6 +339,33 @@ async function main() {
   // 11) TWELVE-MONTH SIMULATION over a realistic roster ------------------------------------
 
 
+
+
+  // 8e) Ghost detection: consultants are not Optima people ----------------------------------
+  console.log("Optima ghost check");
+  {
+    const cons = mkStaff(api, { grade: "CON", name: "Ghost Consultant" });
+    const res = mkStaff(api, { grade: "ST", name: "Ghost Resident", nights: true });
+    const wkKey = api.mondayOf(api.todayISO());
+    api.setWeek(wkKey);
+    const wk = api.getWeek(wkKey);
+    const di = wk.days.length - 1;                          // Sunday: always today or later this week
+    wk.days[di] = api.blankDay();
+    const day = wk.days[di];
+    const dISO = api.addDays(wkKey, di);
+    wk.roster = { [dISO]: {} };                             // an Optima roster exists, with NOBODY on it
+    day.nightCons = cons.id;                                // consultant on call — from the consultant sheet
+    day.night.E = [res.id];                                 // resident in night Pod E — a REAL ghost
+    const ghosts = api.srDetectGhosts();
+    ok("a consultant on call is never flagged as off the Optima rota", !ghosts.some(g => g.sid === cons.id),
+      JSON.stringify(ghosts.map(g => g.name)));
+    ok("a resident in night Pod E off the roster IS flagged", ghosts.some(g => g.sid === res.id),
+      JSON.stringify(ghosts.map(g => g.name)));
+    const hits = api.srRemoveFromDay(day, res.id);
+    ok("remove-from-day clears night Pod E too", !(day.night.E || []).includes(res.id) && hits.some(h => /night/i.test(h)),
+      JSON.stringify({ E: day.night.E, hits }));
+    wk.roster = null; wk.days[di] = api.blankDay();
+  }
 
   // 8d) Consultant-cover attention nudge ----------------------------------------------------
   console.log("Consultant cover running out");
