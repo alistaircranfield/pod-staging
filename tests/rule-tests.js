@@ -23,6 +23,7 @@ function loadApp() {
     mondayOf, todayISO, addDays, poolFor, staffById, canHoldPhone, isPhoneShadow,
     isPhoneSupervisor, isActiveOn, currentAssignShift, inFairfield, addToFairfield,
     fghMembers, countsInNumbers, poolState, removeAssign, attentionItems, srDetectGhosts, srRemoveFromDay,
+    skillHeldBack: typeof skillHeldBack !== "undefined" ? skillHeldBack : null,
     aggregateOverrides: typeof aggregateOverrides !== "undefined" ? aggregateOverrides : null,
     renderOverrides: typeof renderOverrides !== "undefined" ? renderOverrides : null,
     normalizeNight: typeof normalizeNight !== "undefined" ? normalizeNight : null,
@@ -340,6 +341,59 @@ async function main() {
 
 
 
+
+
+
+  // 8g) Skills are real immediately; the allocator waits for the start date ------------------
+  console.log("Skills apply now, allocator waits");
+  {
+    ok("skillHeldBack exists", typeof api.skillHeldBack === "function");
+    if (typeof api.skillHeldBack === "function") {
+      const hold = mkStaff(api, { name: "Held Holder", phoneHolder: true, grade: "ST" });
+      const other = mkStaff(api, { name: "Plain Worker", grade: "ST" });
+      const future = api.addDays(api.todayISO(), 7);
+      api.data.pendingSkills = [{ id: hold.id, name: hold.name, add: { phoneHolder: true }, from: future }];
+      ok("a queued future start holds the skill back for that date",
+        api.skillHeldBack(hold.id, "phoneHolder", api.todayISO()) === true &&
+        api.skillHeldBack(hold.id, "phoneHolder", future) === false);
+      // auto-fill refuses to hand them the phone before the date...
+      const { wk, day, dateISO } = seedDay(api, 2, [{ shift: "LD" }, { shift: "LD" }, { shift: "SD" }]);
+      day.extras = [];
+      [hold, other].forEach(s => day.extras.push({ id: s.id, kind: "day", code: s === hold ? "LD" : "LD" }));
+      api.autoFillDay(wk, 2);
+      ok("auto-fill does not give the phone to a held-back holder", day.phone !== hold.id, "phone=" + day.phone);
+      // ...but a manual grant is valid at once: the skill is real today
+      day.phone = hold.id;
+      const msgs = api.checkDay(day, dateISO, 2, wk).map(i => i.msg).join(" | ");
+      ok("the checker accepts them holding the phone right now", !/isn't phone-trained/.test(msgs), msgs);
+      // once the date passes (queue emptied), auto-fill uses them freely
+      api.data.pendingSkills = [];
+      day.phone = null; ["A","B","C","D","E"].forEach(p => day.pods[p].assign = []);
+      api.autoFillDay(wk, 2);
+      ok("with the hold lifted, auto-fill hands them the phone", day.phone === hold.id, "phone=" + day.phone);
+    }
+  }
+
+  // 8f) Rostered nights beat the nights flag ------------------------------------------------
+  console.log("Night flag vs the Optima roster");
+  {
+    const p1 = mkStaff(api, { name: "Rostered Nightworker" });     // nights flag NOT set
+    const p2 = mkStaff(api, { name: "Dragged On Nights" });        // nights flag NOT set
+    const wkKey = api.mondayOf(api.todayISO());
+    api.setWeek(wkKey);
+    const wk = api.getWeek(wkKey);
+    wk.days[1] = api.blankDay();
+    const day = wk.days[1];
+    const dISO = api.addDays(wkKey, 1);
+    wk.roster = { [dISO]: { [p1.id]: { kind: "night", code: "N" } } };   // Optima says p1 works nights
+    day.night.AB = [p1.id, p2.id];
+    const msgs = api.checkDay(day, dISO, 1, wk).map(i => i.msg).join(" | ");
+    ok("someone Optima rostered on nights is never flagged for the missing nights tick",
+      !new RegExp(p1.name + " is on the night team").test(msgs), msgs);
+    ok("someone manually dropped on nights without the tick or a roster entry still is",
+      new RegExp(p2.name + " is on the night team").test(msgs), msgs);
+    wk.roster = null; wk.days[1] = api.blankDay();
+  }
 
   // 8e) Ghost detection: consultants are not Optima people ----------------------------------
   console.log("Optima ghost check");
