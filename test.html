@@ -1034,9 +1034,20 @@ function updateWhoBtn(){
   const b = $("#btnWho");
   if (b) b.textContent = "Editing as " + editorName();
 }
+/* Who can put their name to an edit: consultants, and the residents senior enough to carry the
+   referral phone on their own. Everybody on the unit used to be listed, which made the picker long
+   enough to be awkward and implied anyone could sign for a change. A phone shadow is still learning
+   and does not count. This governs the NAME on a change, not access — the password is the gate. */
+function canEditRota(s){
+  return !!s && s.active !== false && (s.grade === "CON" || canHoldPhone(s));
+}
 function editorNameOptions(){
   if (!data) return [];
-  return [...data.staff].filter(s => s.active !== false).sort((a,b) => a.name.localeCompare(b.name)).map(s => s.name);
+  const eligible = [...data.staff].filter(canEditRota);
+  // Never hand back an empty picker: if the skills are not filled in yet, fall back to everybody
+  // rather than leaving somebody unable to name themselves.
+  const list = eligible.length ? eligible : [...data.staff].filter(s => s.active !== false);
+  return list.sort((a,b) => a.name.localeCompare(b.name)).map(s => s.name);
 }
 const LOCK_MS = 6 * 60 * 1000;
 let lockBeat = null;
