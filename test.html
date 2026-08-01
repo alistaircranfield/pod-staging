@@ -4907,7 +4907,8 @@ function attentionItems(){
 
   const pend = (data.pendingSkills || []);
   if (pend.length) out.push({ n: pend.length, title: "New skills auto-fill isn't using yet",
-    body: pend.slice(0, 4).map(x => x.name + " from " + niceDate(x.from)).join(" · ") + (pend.length > 4 ? " and " + (pend.length - 4) + " more" : ""),
+    body: "These skills are already ticked and showing on the staff page — auto-fill just waits to use them: "
+      + pend.slice(0, 4).map(x => x.name + " (" + niceDate(x.from) + ")").join(" · ") + (pend.length > 4 ? " and " + (pend.length - 4) + " more" : ""),
     go: () => switchTab("staff") });
 
     /* The consultant pod allocations arrive as a 4-week sheet dropped on the Import page. When the
