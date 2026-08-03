@@ -3212,7 +3212,8 @@ function showConsImportPreview(weeks, box){
   if (unmatched.length) sum.append(el("div", { style: "margin-top:.3rem;color:var(--muted);font-size:.78rem" }, "Tip: add consultants on the Staff page (grade CON) — initials are matched from their names, so “Anas Baiou” catches AB."));
   box.append(sum);
   const applyBtn = el("button", { class: "btn", style: "margin-top:.6rem" }, "Import consultant allocations");
-  applyBtn.onclick = () => {
+  applyBtn.onclick = async () => {
+    if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
     for (const w of weeks) {
       const weekKey = mondayOf(w.start);
       const wk = getWeek(weekKey);
@@ -3309,7 +3310,8 @@ function showImportPreview(parsed, box){
     }
   }
   const applyBtn = el("button", { class: "btn", style: "margin-top:.6rem" }, "Import this week's availability");
-  applyBtn.onclick = () => {
+  applyBtn.onclick = async () => {
+    if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
     const weekKey = mondayOf(weekInput.value);
     const wk = getWeek(weekKey);
     const roster = {};
@@ -4879,7 +4881,7 @@ async function applyDuePendingSkills(silent){
   const from = due.map(x => x.from).sort()[0];
   const touchesPods = due.some(x => Object.keys(x.add).some(k => POD_SKILLS.includes(k)));
   const before = JSON.parse(JSON.stringify(data.weeks));
-  reallocateSettled(from, touchesPods);
+  /* A skill starting never rewrites a board that is already written (Ali, 2 Aug 2026). */
   const moves = diffWeeks(before, from);
   logEntry("Skills change started for " + due.map(x => x.name).join(", ") + " — weeks from " + niceDate(from)
     + " worked out again (" + moves.length + " change" + (moves.length === 1 ? "" : "s") + ")");
