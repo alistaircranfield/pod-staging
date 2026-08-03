@@ -1,0 +1,68 @@
+# What is on staging that is not yet live.
+#
+# Until now this was a hand-typed pending.json, and it was demonstrably wrong — it had to be
+# remembered, so it drifted. This computes it instead: staging is a FORK of the live repo, so
+# `git log live/main..HEAD` is the literal, unarguable answer, and nobody can edit it by hand.
+#
+# It also stamps the build. There was previously no way to tell which build a tab was running,
+# which is how the same import got done twice on 3 Aug — a stale tab looks exactly like a fresh
+# one. The sha goes in pending.json rather than being rewritten into index.html, because
+# rewriting the page on every push means a commit that triggers the workflow that makes the
+# commit. The page reads it at runtime and shows it in the Key panel.
+name: What is pending
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - pending.json          # or this job would retrigger itself, forever
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  pending:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0      # the whole history, or there is nothing to compare against
+
+      - name: Work out what live does not have yet
+        run: |
+          git remote add live https://github.com/pod-allocations/pod-allocations.github.io 2>/dev/null || true
+          git fetch --no-tags --quiet live main
+          python3 - <<'PY'
+          import subprocess, json, datetime
+
+          def sh(*a):
+              return subprocess.run(a, capture_output=True, text=True).stdout.strip()
+
+          rows = []
+          log = sh("git", "log", "live/main..HEAD", "--pretty=%h\t%an\t%aI\t%s")
+          for line in log.split("\n"):
+              if not line:
+                  continue
+              sha, who, when, msg = line.split("\t", 3)
+              rows.append({"sha": sha, "who": who, "when": when, "msg": msg})
+
+          out = {
+              "generated": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "build": sh("git", "rev-parse", "--short", "HEAD"),
+              "liveBuild": sh("git", "rev-parse", "--short", "live/main"),
+              "count": len(rows),
+              "changes": rows,
+          }
+          open("pending.json", "w").write(json.dumps(out, indent=1) + "\n")
+          print("pending: %d change(s) against live %s" % (out["count"], out["liveBuild"]))
+          PY
+
+      - name: Commit it, but only if it actually changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pending.json
+          git diff --cached --quiet && echo "unchanged — nothing to commit" && exit 0
+          git commit -m "What is pending: regenerated from git, not typed"
+          git push
