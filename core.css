@@ -1,0 +1,71 @@
+/* ============================================================================
+   core.css — the things every page in this project must agree on.
+
+   Loaded by index.html (residents), consultants.html, and whatever comes next,
+   the same way k.js already is. Before this file existed the ten pod colours
+   were typed into both pages by hand: byte-identical, so it *looked* shared,
+   which is the worst kind of duplication — nobody notices when one copy moves.
+
+   What belongs here: colour tokens, and any chrome that appears on more than
+   one page. What does NOT: anything a single page owns. --accent is per role
+   (blue for residents, bronze for consultants) and stays in the page.
+   ============================================================================ */
+
+:root{
+  /* surfaces and text */
+  --bg:#f6f6f4; --card:#ffffff; --ink:#17181c; --muted:#8a8f98;
+  --line:#ececea; --hair:#f2f2ef; --night-bg:#f7f7f5;
+
+  /* status */
+  --green:#2e7d4f; --green-bg:#e7f5ec;
+  --amber:#b07d1e; --amber-bg:#fdf3df;
+  --red:#cf3d3d;   --red-bg:#fdeaea;
+
+  /* the pods — pale for fills, bold for text, dots and rules */
+  --podA:#f5f8ff; --podB:#f3faf5; --podC:#fdf8ef; --podD:#f8f5fd; --podE:#fdf4f6;
+  --podAb:#5b76d8; --podBb:#3d9964; --podCb:#c98a2b; --podDb:#8b66c9; --podEb:#d4577a;
+}
+
+/* The role switch. Hidden on the live site — core.js unhides it only on a test
+   host, so the same file can be promoted to live without showing anything. */
+/* "what's waiting to go live" — only ever rendered on a test host */
+#pendingChip{
+  position:fixed; right:12px; bottom:12px; z-index:120;
+  font:inherit; font-size:.72rem; font-weight:600;
+  background:#16181c; color:#fff; border:0; border-radius:999px;
+  padding:.4rem .8rem; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.22);
+}
+/* inside the resident page's bottom band */
+#pendingChip.inbar{
+  position:static; background:rgba(255,255,255,.16); color:#fff;
+  box-shadow:none; flex-shrink:0; padding:.28rem .7rem;
+}
+#pendingList{
+  position:fixed; right:12px; bottom:64px; z-index:210; display:none;
+  max-width:min(420px,92vw); max-height:60vh; overflow:auto;
+  background:#fff; color:var(--ink); border:1px solid var(--line);
+  border-radius:12px; padding:.7rem .85rem; box-shadow:0 8px 28px rgba(0,0,0,.16);
+  font-size:.78rem; line-height:1.5;
+}
+#pendingList h4{ margin:.1rem 0 .45rem; font-size:.72rem; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--muted); font-weight:800; }
+#pendingList ul{ margin:0; padding-left:1.05rem; }
+#pendingList li{ margin-bottom:.3rem; }
+#pendingList .bld{ margin-top:.5rem; color:var(--muted); font-size:.7rem; }
+
+/* A person, drawn the same way on every page: shift badge, phone/shadow icons, surname, airway tag.
+   The consultant page used to print bare comma-separated surnames, which told a consultant nothing
+   about who they were working with. */
+.rpills{display:flex;flex-direction:column;gap:.18rem;align-items:flex-start}
+.rpill{display:inline-flex;align-items:center;gap:.25rem;max-width:100%;
+  background:#fff;border:0.5px solid rgba(29,31,36,.10);border-radius:999px;
+  padding:.11rem .45rem .11rem .18rem;font-size:.68rem;line-height:1.5;
+  box-shadow:0 1px 2px rgba(29,31,36,.05)}
+.rpill .sh{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:14px;
+  border-radius:999px;background:var(--ink);color:#fff;font-size:.54rem;font-weight:800;letter-spacing:.02em}
+.rpill .ic{display:inline-flex;align-items:center;color:var(--accent)}
+.rpill .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rpill .aw{display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;
+  border-radius:999px;background:var(--accent-bg);color:var(--accent);
+  font-size:.52rem;font-weight:800;font-style:normal}
+.none{color:var(--muted);font-size:.7rem}

@@ -3,15 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CCU Pod Allocator</title>
+<title>CCU Pod Allocator — TEST</title>
+<link rel="stylesheet" href="core.css?v=20260731-02">
 <style>
 :root{
-  --bg:#f6f6f4; --card:#ffffff; --ink:#17181c; --muted:#8a8f98; --line:#ececea; --hair:#f2f2ef;
+  /* Everything shared lives in core.css. Only the role accent is this page's. */
   --accent:#4c5dd6; --accent-bg:#eef0fb;
-  --green:#2e7d4f; --green-bg:#e7f5ec; --amber:#b07d1e; --amber-bg:#fdf3df; --red:#cf3d3d; --red-bg:#fdeaea;
-  --podA:#f5f8ff; --podB:#f3faf5; --podC:#fdf8ef; --podD:#f8f5fd; --podE:#fdf4f6;
-  --podAb:#5b76d8; --podBb:#3d9964; --podCb:#c98a2b; --podDb:#8b66c9; --podEb:#d4577a;
-  --night-bg:#f7f7f5;
 }
 *{box-sizing:border-box}
 body{margin:0;font-family:Inter,-apple-system,"Segoe UI",system-ui,Arial,sans-serif;color:var(--ink);background:var(--bg);font-size:14px;-webkit-font-smoothing:antialiased}
@@ -376,6 +373,13 @@ body.testmode main{padding-bottom:4rem}
 /* log */
 .logrow{font-size:.8rem;padding:.4rem 0;border-bottom:1px solid var(--hair)}
 .logrow .t{color:var(--muted);font-size:.7rem}
+.loghead{display:flex;align-items:baseline;justify-content:space-between;gap:.6rem;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:1.1rem 0 .4rem;padding-bottom:.25rem;border-bottom:1px solid var(--line)}
+.loghead:first-child{margin-top:.2rem}
+.loghead span{font-size:.7rem;letter-spacing:0;font-weight:700;color:var(--muted)}
+/* The software's own changes sit behind a rule so a person's decisions read as the foreground. */
+.logrow.auto{border-left:2px solid var(--hair);padding-left:.55rem}
+.logrow.auto .t{font-style:italic}
+.logon{display:inline-block;margin-left:.45rem;font-size:.66rem;font-weight:600;color:var(--muted);background:var(--hair);border-radius:999px;padding:.05rem .42rem;white-space:nowrap}
 /* modal */
 #modalBg{position:fixed;inset:0;background:rgba(20,21,29,.38);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:100}
 #modal{background:var(--card);border-radius:20px;padding:1.5rem 1.7rem;max-width:640px;width:94%;max-height:88vh;overflow:auto;box-shadow:0 24px 60px rgba(20,21,29,.22);animation:dlgin .15s ease}
@@ -542,6 +546,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
 }
 @media print{ aside,#topbar,.weekbar,button,#toast{display:none!important} body{background:#fff} }
 </style>
+
 </head>
 <body>
 <div id="staticFallback"><!--STATIC_START--><div style="font-family:Inter,Segoe UI,system-ui,sans-serif;max-width:1150px;margin:0 auto;padding:18px;color:#17181c"><div style="font-size:11px;letter-spacing:.1em;color:#8a8f98">CRITICAL CARE UNIT</div><div style="font-size:24px;font-weight:700;margin:2px 0">Pod Allocator</div><div style="font-size:12px;color:#8a8f98;margin-bottom:10px">Read-only view · bold = long day · ☎ = phone · to edit, open this file from the synced folder</div><div style="font-size:16px;font-weight:700;margin:16px 0 6px">6 Jul – 12 Jul 2026</div><table style="border-collapse:collapse;width:100%;font-size:12px"><tr><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98"></th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">PHONE</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD A</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD B</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD C</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD D</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD E</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">NIGHT</th></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Mon</b> 6 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Jack Roddy<div style="font-size:10px;color:#8a8f98">sup: Joel Ukpor</div></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Choudhry</div><b>Mohamed Elnagar</b><br>Cathryn Latham<br>Daniela Santos</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ford</div><b>Obinna Stanley Oduna</b><br>Ben Wilkinson<br><b>Hasnat Sulehri</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Dias</div><b>Alice Ring</b><br>Jack Roddy ☎<br><b>Sarah Hill</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Habeichi</div><b>Joel Ukpor</b><br>Asim Khan</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Horner</div><b>Nellie Johnson</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">David Garwood ☎<br>Abduljelili Balogun<br>Kieran Cave<br>Tom Curtis<br>Beth Howard</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Tue</b> 7 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Joel Ukpor</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Choudhry</div><b>Mohamed Elnagar</b><br>Obinna Stanley Oduna<br>Daniela Santos</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ford</div>Sarah Hill<br>Hasnat Sulehri<br>Ben Wilkinson</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Dias</div><b>Nellie Johnson</b><br>Alice Ring</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Horner</div><b>Cathryn Latham</b><br>Asim Khan</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">KB</div><b>Jack Roddy</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">David Garwood ☎<br>Abduljelili Balogun<br>Kieran Cave<br>Tom Curtis<br>Beth Howard</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Wed</b> 8 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Joel Ukpor</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Choudhry</div>Asim Khan<br>Mohamed Elnagar<br>Obinna Stanley Oduna<br>Daniela Santos</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Hodd</div><b>Cathryn Latham</b><br>Hasnat Sulehri<br>Ben Wilkinson<br>Sarah Hill</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">CMAB</div><b>Nellie Johnson</b><br>Alice Ring</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Horner</div><b>Joel Ukpor</b> ☎</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Mahmood</div><b>Jack Roddy</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">David Garwood ☎<br>Abduljelili Balogun<br>Kieran Cave<br>Tom Curtis<br>Beth Howard</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Thu</b> 9 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Joel Ukpor</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Wallace</div>Asim Khan<br>Mohamed Elnagar<br>Obinna Stanley Oduna<br>Daniela Santos</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Fudge</div><b>Cathryn Latham</b><br>Hasnat Sulehri<br>Ben Wilkinson<br>Sarah Hill</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">CMAB</div><b>Nellie Johnson</b><br>Alice Ring</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Baiou</div><b>Joel Ukpor</b> ☎</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Thomas</div><b>Jack Roddy</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">David Garwood ☎<br>Abduljelili Balogun<br>Kieran Cave<br>Tom Curtis<br>Beth Howard</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Fri</b> 10 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Joel Ukpor</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Wallace</div>Asim Khan<br>Mohamed Elnagar<br>Obinna Stanley Oduna<br>Daniela Santos</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Fudge</div><b>Cathryn Latham</b><br>Hasnat Sulehri<br>Ben Wilkinson<br>Sarah Hill</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Thomas</div><b>Nellie Johnson</b><br>Alice Ring</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Baiou</div><b>Joel Ukpor</b> ☎</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Wright</div><b>Jack Roddy</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">David Garwood ☎<br>Abduljelili Balogun<br>Kieran Cave<br>Tom Curtis<br>Beth Howard</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Sat</b> 11 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Joel Ukpor</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Wallace</div>Asim Khan<br>Mohamed Elnagar<br>Obinna Stanley Oduna<br>Daniela Santos</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Fudge</div><b>Cathryn Latham</b><br>Hasnat Sulehri<br>Ben Wilkinson<br>Sarah Hill</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">CMAB</div><b>Nellie Johnson</b><br>Alice Ring</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">CMAB</div><b>Joel Ukpor</b> ☎</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Wallace</div><b>Jack Roddy</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">David Garwood ☎<br>Abduljelili Balogun<br>Kieran Cave<br>Tom Curtis<br>Beth Howard</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Sun</b> 12 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Joel Ukpor</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Wallace</div>Asim Khan<br>Mohamed Elnagar<br>Obinna Stanley Oduna<br>Daniela Santos</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Fudge</div><b>Cathryn Latham</b><br>Hasnat Sulehri<br>Ben Wilkinson<br>Sarah Hill</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Baiou</div><b>Nellie Johnson</b><br>Alice Ring</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Baiou</div><b>Joel Ukpor</b> ☎</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Fudge</div><b>Jack Roddy</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">David Garwood ☎<br>Abduljelili Balogun<br>Kieran Cave<br>Tom Curtis<br>Beth Howard</td></tr></table><div style="font-size:16px;font-weight:700;margin:16px 0 6px">13 Jul – 19 Jul 2026</div><table style="border-collapse:collapse;width:100%;font-size:12px"><tr><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98"></th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">PHONE</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD A</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD B</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD C</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD D</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD E</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">NIGHT</th></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Mon</b> 13 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">KB</div><b>Abduljelili Balogun</b><br>Alice Ring<br>Alistair Leggett</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Wright</div><b>Alaaeldin Abdelrahman</b><br>Bassam Ali</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ghrew</div><b>Ben Wilkinson</b><br>Abdallah Khalil</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">McNiven</div><b>Asim Khan</b><br>Abdousalam Alhiyali</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Choudhry</div><b>Beth Howard</b><br>Arif Suleiman</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">—</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Tue</b> 14 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Choudhry</div><b>Abduljelili Balogun</b><br>Ahmed Mahawish<br>Alice Ring</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">BW</div><b>Alaaeldin Abdelrahman</b><br>Bassam Ali</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Mahmood</div><b>Abdallah Khalil</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Godbole</div><b>Asim Khan</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Habeichi</div><b>Arif Suleiman</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">—</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Wed</b> 15 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Dias</div><b>Abduljelili Balogun</b><br>Ahmed Mahawish<br>Alistair Leggett</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Coffin</div><b>Alaaeldin Abdelrahman</b><br>Bassam Ali</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Habeichi</div><b>Ben Wilkinson</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Godbole</div><b>Abdousalam Alhiyali</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Harris</div><b>Arif Suleiman</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">—</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Thu</b> 16 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Dias</div><b>Georgina Sutcliffe</b><br>Abduljelili Balogun<br>Ahmed Mahawish</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Coffin</div><b>Alaaeldin Abdelrahman</b><br>Furkan Zurel</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Habeichi</div><b>Hasnat Sulehri</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Thomas</div><b>Abdousalam Alhiyali</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">KB</div><b>Daniela Santos</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">—</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Fri</b> 17 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">KB</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Coffin</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ghrew</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Thomas</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Dias</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">—</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Sat</b> 18 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Dias</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Dias</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ghrew</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Thomas</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ghrew</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">—</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Sun</b> 19 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Coffin</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Coffin</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ghrew</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Thomas</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Thomas</div>—</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">—</td></tr></table><div style="font-size:16px;font-weight:700;margin:16px 0 6px">20 Jul – 26 Jul 2026</div><table style="border-collapse:collapse;width:100%;font-size:12px"><tr><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98"></th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">PHONE</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD A</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD B</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD C</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD D</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">POD E</th><th style="text-align:left;padding:6px;border-bottom:2px solid #ececea;font-size:10px;letter-spacing:.06em;color:#8a8f98">NIGHT</th></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Mon</b> 20 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">David Garwood</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Horner</div><b>David Garwood</b> ☎<br><b>Sarah Rahim</b><br>Abduljelili Balogun</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Hodd</div><b>Ella Snowden</b><br>Lin Dong<br>Jack Roddy</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Baiou</div><b>Abdallah Khalil</b><br>Nellie Johnson<br>Mohamed Elnagar</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Khokhar</div><b>Reham Almahli</b><br>Asim Khan<br>Punithan Annamalai</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">McNiven</div><b>Daniela Santos</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">Georgina Sutcliffe<br>Marwa Gdido<br>Ahmed Mahawish<br>Niall Edwards<br>Bassam Ali</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Tue</b> 21 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">David Garwood</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Roberts</div><b>Arif Suleiman</b><br><b>Dan Gill</b><br>David Garwood ☎<br>Sarah Rahim</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">McNiven</div><b>John Finnerty</b><br><b>Jack Roddy</b><br>Louise Hall</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Baiou</div><b>Mohamed Elnagar</b><br><b>Ben Wilkinson</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Khokhar</div><b>Asim Khan</b><br>Reham Almahli</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Wallace</div><b>Punithan Annamalai</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">Georgina Sutcliffe<br>Marwa Gdido<br>Ahmed Mahawish<br>Niall Edwards<br>Bassam Ali</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Wed</b> 22 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Lin Dong</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">PF</div><b>Arif Suleiman</b><br><b>Tom Curtis</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">McNiven</div><b>Lin Dong</b> ☎<br>John Finnerty<br>Jack Roddy</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Choudhry</div><b>Abdallah Khalil</b><br>Kieran Cave</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Wallace</div><b>Dan Gill</b><br>Alaaeldin Abdelrahman</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ford</div><b>Louise Hall</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">Whaj Lee ☎<br>Obinna Stanley Oduna<br>Abduljelili Balogun<br>Reham Almahli<br>Sarah Hill</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Thu</b> 23 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Jamiu Aliu</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Naisbitt</div><b>David Garwood</b><br>Hashir Abdullah</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ford</div><b>Lin Dong</b><br>Furkan Zurel</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Choudhry</div><b>Ben Wilkinson</b><br>Jamiu Aliu ☎</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Mahmood</div><b>Jack Roddy</b><br>Ryan McKeown</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">ANC</div><b>Louise Hall</b><br>Daniela Santos</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">Whaj Lee ☎<br>Obinna Stanley Oduna<br>Abduljelili Balogun<br>Reham Almahli<br>Sarah Hill</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Fri</b> 24 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Jamiu Aliu</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Naisbitt</div><b>Mohamed Elnagar</b><br>Mahmoud Gaballah</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ford</div><b>Ella Snowden</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">ANC</div><b>Kieran Cave</b><br>Jamiu Aliu ☎</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Coffin</div><b>Punithan Annamalai</b><br><b>Ryan McKeown</b><br>Alaaeldin Abdelrahman</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Mahmood</div><b>Furkan Zurel</b><br>Daniela Santos</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">Abdallah Khalil ☎<br>Kevin Gregson<br>Nellie Johnson</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Sat</b> 25 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">David Garwood</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Naisbitt</div><b>Lin Dong</b><br>David Garwood ☎</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Naisbitt</div><b>John Finnerty</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">ANC</div><b>Mohamed Elnagar</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Mahmood</div><b>Jack Roddy</b><br>Asim Khan</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">ANC</div><b>Niall Edwards</b><br>Furkan Zurel</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">Abdallah Khalil ☎<br>Emma Parkin<br>Kevin Gregson<br>Nellie Johnson</td></tr><tr><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;white-space:nowrap"><b>Sun</b> 26 Jul</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee">Whaj Lee</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ford</div><b>David Garwood</b><br>Whaj Lee ☎</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Ford</div><b>John Finnerty</b></td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">ANC</div>Lin Dong<br>Mohamed Elnagar</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Mahmood</div><b>Asim Khan</b><br>Jack Roddy</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee"><div style="color:#8a8f98;font-size:10px">Mahmood</div><b>Furkan Zurel</b><br>Niall Edwards</td><td style="vertical-align:top;padding:6px;border-bottom:1px solid #f0f0ee;background:#f7f7f5">Abdallah Khalil ☎<br>Kevin Gregson<br>Nellie Johnson</td></tr></table></div><!--STATIC_END--></div>
@@ -869,10 +874,11 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
 <div id="modalBg"><div id="modal"></div></div>
 <div id="toast"></div>
 <div id="testbar" style="display:none">
-  <b>TEST COPY</b><span>Real code, a copy of today's live rota. Nothing you do here reaches the real one.</span>
+  <b>TEST SITE</b><span>Nothing here changes the real rota.</span>
   <button class="hbtn ghost" id="btnTestReset">Start again from live</button>
 </div>
 
+<script src="core.js?v=20260731-02"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -1056,16 +1062,17 @@ function updateWhoBtn(){
 }
 /* Who can put their name to an edit: consultants, and the residents senior enough to carry the
    referral phone on their own. Everybody on the unit used to be listed, which made the picker long
-   enough to be awkward and implied anyone could sign for a change. A phone shadow is still learning
-   and does not count. This governs the NAME on a change, not access — the password is the gate. */
+   enough to be awkward and implied that anyone could sign for a change. A phone shadow is still
+   learning and doesn't count. Note this governs the NAME on the change, not access — the password
+   is what actually gates editing. */
 function canEditRota(s){
   return !!s && s.active !== false && (s.grade === "CON" || canHoldPhone(s));
 }
 function editorNameOptions(){
   if (!data) return [];
   const eligible = [...data.staff].filter(canEditRota);
-  // Never hand back an empty picker: if the skills are not filled in yet, fall back to everybody
-  // rather than leaving somebody unable to name themselves.
+  // Never hand back an empty picker: if the skills haven't been filled in yet, fall back to
+  // everybody rather than leaving somebody unable to name themselves.
   const list = eligible.length ? eligible : [...data.staff].filter(s => s.active !== false);
   return list.sort((a,b) => a.name.localeCompare(b.name)).map(s => s.name);
 }
@@ -1133,7 +1140,7 @@ async function enterEditInner(){
     data.gradeDefaultsV1 = true;
     let n2 = 0;
     for (const p of data.staff || []) if (!p.adhoc && p.grade && applyGradeDefaults(p)) n2++;
-    if (n2) logEntry("Reset skills to grade defaults for " + n2 + " staff (one-off)");
+    if (n2) logEntry("Reset skills to grade defaults for " + n2 + " staff (one-off)", "auto");
   }
   try { srTriageNewPeople(); } catch(e){}
   markDirty();
@@ -1249,6 +1256,13 @@ async function staleBlocked(cur, silent){
 // Save by POSTing the whole file as JSON {html:...} to the Power Automate flow, which
 // writes it back to the shared SharePoint copy. no-cors because we don't need the response.
 function relayFetch(payload){
+  /* THE gate. Everything that can write to the live SharePoint copy goes through here, so the test
+     build is stopped at the one door rather than at each caller — relaySave was gated, sendFeedback
+     was not, and it writes the whole file back. Note the test build usually DOES hold live keys:
+     github.io shares localStorage across every repo published under the same user, so podR/podS
+     survive from any other build ever opened on that host. "No keys file" is not a guarantee;
+     this is. Reading live stays allowed — that is the point of the sandbox. */
+  if (TESTMODE) { try { localStorage.setItem(TEST_KEY, JSON.stringify(data)); } catch(e){} return Promise.resolve(true); }
   return new Promise(resolve => {
     let done = false;
     const finish = ok => { if (!done) { done = true; resolve(ok); } };
@@ -1387,9 +1401,30 @@ function recordOverride(dateISO, id, fromPod, toPod, shift){
   });
   if (data.overrides.length > 500) data.overrides.length = 500;
 }
-function logEntry(msg){
-  data.log.unshift({ t: new Date().toISOString(), who: editorName(), msg });
+/* A log entry answers three questions, not one: what changed, WHEN it was changed (t), and which
+   rota day it changed (on). t and on are different things — fixing next Tuesday on a Monday
+   afternoon is one entry with two dates, and the log can be read either way round.
+   kind separates a person's decision ("manual") from the software's ("auto"): auto-fill, the
+   retention sweep, the imports, and everything the 2-hourly sync does server-side. Stamping those
+   with whoever happened to be in edit mode was misleading — nobody chose them.
+   on is an ISO date or null. Null means the change isn't about a particular rota day (a password,
+   a new starter), and the reader falls back to t.
+   who is normally whoever is in edit mode. allocate_auto.py drives this page in a headless
+   browser to allocate untouched days, and there is no person there — it passes "sync" so the
+   log doesn't credit its work to whoever happened to be editing last. */
+function logEntry(msg, kind, on, who){
+  data.log.unshift({ t: new Date().toISOString(), who: who || editorName(), msg,
+                     kind: kind === "auto" ? "auto" : "manual", on: on || null });
   if (data.log.length > 500) data.log.length = 500;
+}
+/* logKind, logOn, groupLog and logDayLabel live in core.js — both boards read the log the
+   same way, so the reading lives in one place. */
+/* The rota date a day index on the week currently open refers to. */
+function dateOfDi(di){ try { return addDays(currentWeekKey, di); } catch(e){ return null; } }
+/* Same, for the handful of callers that hold the day object but not its index. */
+function dateOfDay(day){
+  try { const di = getWeek(currentWeekKey).days.indexOf(day); return di >= 0 ? addDays(currentWeekKey, di) : null; }
+  catch(e){ return null; }
 }
 
 /* ================= DIRTY / UNDO / AUTOSAVE ================= */
@@ -1671,7 +1706,7 @@ function loadData(d){
   // Release any phone left with somebody who can't carry it. Skills get edited after the fact, and
   // without this a name that was valid when it was set quietly stays put and looks fine.
   const released = sweepInvalidPhones();
-  if (released) logEntry("Released " + released + " phone allocation" + (released === 1 ? "" : "s") + " held by someone not phone-trained");
+  if (released) logEntry("Released " + released + " phone allocation" + (released === 1 ? "" : "s") + " held by someone not phone-trained", "auto");
   try { applyDuePendingSkills(true); } catch(e){}
   dirty = false;
   loadedSavedAt = d.savedAt || null;
@@ -1688,7 +1723,7 @@ function pruneOldWeeks(){
   const cutoff = addDays(todayISO(), -RETENTION_DAYS);
   let n = 0;
   for (const k of Object.keys(data.weeks)) if (k < cutoff) { delete data.weeks[k]; n++; }
-  if (n) logEntry("Auto-deleted " + n + " week(s) older than 6 months (retention policy)");
+  if (n) logEntry("Auto-deleted " + n + " week(s) older than 6 months (retention policy)", "auto");
 }
 function weekIsEmpty(wk){
   if (wk.roster && Object.keys(wk.roster).length) return false;
@@ -1931,7 +1966,7 @@ function staffModal(s){
       logEntry((isNew ? "Added staff: " : "Edited staff: ") + s.name);
       // Untick someone's phone skill and they let go of every phone they were holding.
       const freed = sweepInvalidPhones();
-      if (freed) logEntry("Released " + freed + " phone allocation" + (freed === 1 ? "" : "s") + " after the skills change");
+      if (freed) logEntry("Released " + freed + " phone allocation" + (freed === 1 ? "" : "s") + " after the skills change", "auto");
       markDirty(); closeModal(); renderStaff(); renderWeek(); updateTeamBadge();
       if (added.length) queueSkillGain(s, added, addMap);
     }}, isNew ? "Add" : "Save")
@@ -1948,7 +1983,7 @@ async function queueSkillGain(s, added, addMap){
   for (const x of data.pendingSkills) if (x.id === s.id && x.add) for (const k of Object.keys(addMap)) delete x.add[k];
   data.pendingSkills = data.pendingSkills.filter(x => x.add && Object.keys(x.add).length);
   data.pendingSkills.push({ id: s.id, name: s.name, add: addMap, from, by: editorName(), at: new Date().toISOString(), applied: true });
-  logEntry(s.name + " gains " + added.join(", ") + " now — auto-fill starts using them " + niceDate(from));
+  logEntry(s.name + " gains " + added.join(", ") + " now — auto-fill starts using them " + niceDate(from), "manual", from);
   markDirty(); renderStaff(); updateTeamBadge();
   toast(s.name + ": " + added.join(", ") + " — auto-fill from " + niceDate(from));
 }
@@ -2131,8 +2166,8 @@ function toggleAccepted(wk, di, msg, dayName){
   const k = issueKey(di, msg);
   wk.accepted = wk.accepted || [];
   const i = wk.accepted.indexOf(k);
-  if (i >= 0) { wk.accepted.splice(i, 1); logEntry("Re-opened check (" + dayName + "): " + msg); }
-  else { wk.accepted.push(k); logEntry("Accepted check (" + dayName + "): " + msg); }
+  if (i >= 0) { wk.accepted.splice(i, 1); logEntry("Re-opened check (" + dayName + "): " + msg, "manual", dateOfDi(di)); }
+  else { wk.accepted.push(k); logEntry("Accepted check (" + dayName + "): " + msg, "manual", dateOfDi(di)); }
   markDirty();
 }
 function checksDialog(focusDi){
@@ -2205,7 +2240,7 @@ function takeOffDay(day, di, id){
   if (day.phone === id) day.phone = null;
   if (day.night.phone === id) day.night.phone = null;
   day.shadow = (day.shadow || []).filter(x => x !== id);
-  logEntry((staffById(id) ? staffById(id).name : id) + " taken off " + dayShort(di));
+  logEntry((staffById(id) ? staffById(id).name : id) + " taken off " + dayShort(di), "manual", dateOfDi(di));
 }
 function putBackOnDay(day, id){ day.removed = (day.removed || []).filter(x => x !== id); }
 /* Night Pod E used to be a drawing, not a place: with five on, the phone holder was stored in
@@ -2308,7 +2343,7 @@ function chip(s, opts){
 function phoneIconEl(type, di, day){
   const pi = el("span", { class: "phoneicon" + (type === "night" ? " night" : ""), html: PHONE_SVG, draggable: "true", title: (type === "night" ? "Night phone" : "Referral phone") + " — click to take it back, or drag it onto someone else" });
   if (type === "night") pi.append(el("span", { style: "font-size:.5rem;font-weight:800;margin-left:1px" }, "N"));
-  pi.onclick = e => { e.stopPropagation(); if (!canEdit()) return; if (type === "day") { day.phone = null; logEntry("Phone cleared"); } else { day.night.phone = null; logEntry("Night phone cleared"); } markDirty(); renderWeek(); };
+  pi.onclick = e => { e.stopPropagation(); if (!canEdit()) return; if (type === "day") { day.phone = null; logEntry("Phone cleared", "manual", dateOfDi(di)); } else { day.night.phone = null; logEntry("Night phone cleared", "manual", dateOfDi(di)); } markDirty(); renderWeek(); };
   pi.addEventListener("dragstart", e => {
     e.stopPropagation();
     tapPick = null; tapPhone = null;
@@ -2321,14 +2356,14 @@ function phoneIconEl(type, di, day){
 }
 function shadowIconEl(di, day, sid){
   const pi = el("span", { class: "shadowicon", html: SHADOW_SVG, title: "Shadowing the phone (learning) — click to remove" });
-  pi.onclick = e => { e.stopPropagation(); if (!canEdit()) return; day.shadow = (day.shadow || []).filter(x => x !== sid); logEntry("Stopped shadowing phone: " + (staffById(sid) ? staffById(sid).name : "") + dayOfWeekName(day)); markDirty(); renderWeek(); };
+  pi.onclick = e => { e.stopPropagation(); if (!canEdit()) return; day.shadow = (day.shadow || []).filter(x => x !== sid); logEntry("Stopped shadowing phone: " + (staffById(sid) ? staffById(sid).name : "") + dayOfWeekName(day), "manual", dateOfDay(day)); markDirty(); renderWeek(); };
   return pi;
 }
 function obsChip(day, o, di){
   const c = el("span", { class: "chip obs" + (o.role ? " tall" : ""), draggable: "true", title: (o.role ? o.role + " — " : "") + "observer, not counted in any numbers" });
   const row = el("span", { style: "display:inline-flex;align-items:center;gap:.32rem" });
   row.append(el("span", { class: "tagx" }, "OBS"), o.name);
-  row.append(el("button", { class: "x", title: "Remove", onclick: e => { e.stopPropagation(); day.obs = day.obs.filter(x => x !== o); logEntry("Observer removed: " + o.name + " (" + dayShort(di) + ")"); markDirty(); renderWeek(); } }, "✕"));
+  row.append(el("button", { class: "x", title: "Remove", onclick: e => { e.stopPropagation(); day.obs = day.obs.filter(x => x !== o); logEntry("Observer removed: " + o.name + " (" + dayShort(di) + ")", "manual", dateOfDi(di)); markDirty(); renderWeek(); } }, "✕"));
   c.append(row);
   if (o.role) c.append(el("span", { class: "obsrole" }, o.role));
   if (tapPick && tapPick.obs === o.oid && tapPick.di === di) c.classList.add("selected");
@@ -2379,7 +2414,7 @@ async function assignPhoneTo(day, type, s){
     day.night.phone = s.id;
   }
   tapPhone = null;
-  logEntry((type === "shadow" ? "Shadowing phone → " : type === "night" ? "Night phone → " : "Phone → ") + s.name + dayOfWeekName(day));
+  logEntry((type === "shadow" ? "Shadowing phone → " : type === "night" ? "Night phone → " : "Phone → ") + s.name + dayOfWeekName(day), "manual", dateOfDay(day));
   markDirty(); renderWeek();
 }
 function phoneToken(di, type){
@@ -2521,9 +2556,9 @@ function renderDayRow(day, di, dateISO, issues){
   tr.append(dl);
   /* ---- tray: on duty, unassigned ---- */
   const tray = el("td", { class: "tray" });
-  makeZone(tray, di, id => { removeAssign(day, id); logEntry(staffById(id).name + " → bench (" + dayShort(di) + ")"); }, oid => { const o = (day.obs || []).find(x => x.oid === oid); if (o) { o.pod = null; logEntry("Observer " + o.name + " → bench (" + dayShort(di) + ")"); } }, type => {
-    if (type === "day") { day.phone = null; logEntry("Phone cleared (" + dayShort(di) + ")"); }
-    else if (type === "night") { day.night.phone = null; logEntry("Night phone cleared (" + dayShort(di) + ")"); }
+  makeZone(tray, di, id => { removeAssign(day, id); logEntry(staffById(id).name + " → bench (" + dayShort(di) + ")", "manual", dateOfDi(di)); }, oid => { const o = (day.obs || []).find(x => x.oid === oid); if (o) { o.pod = null; logEntry("Observer " + o.name + " → bench (" + dayShort(di) + ")", "manual", dateOfDi(di)); } }, type => {
+    if (type === "day") { day.phone = null; logEntry("Phone cleared (" + dayShort(di) + ")", "manual", dateOfDi(di)); }
+    else if (type === "night") { day.night.phone = null; logEntry("Night phone cleared (" + dayShort(di) + ")", "manual", dateOfDi(di)); }
   });
   const dayIds = Object.keys(pool).filter(id => pool[id].kind === "day" && !assigned.has(id) && !inFairfield(day, dateISO, id));
   const nightIds = Object.keys(pool).filter(id => pool[id].kind === "night" && !assigned.has(id) && !inFairfield(day, dateISO, id));
@@ -2568,8 +2603,8 @@ function renderDayRow(day, di, dateISO, issues){
       const s = activeStaff(dateISO).find(x => x.name === v && !pool[x.id]);
       if (s) {
         day.extras = day.extras || [];
-        if ((day.removed || []).includes(s.id)) { putBackOnDay(day, s.id); logEntry(s.name + " put back on " + dayShort(di)); }
-        else { day.extras.push({ id: s.id, kind: "day" }); logEntry(s.name + " added to bench (" + dayShort(di) + ")"); }
+        if ((day.removed || []).includes(s.id)) { putBackOnDay(day, s.id); logEntry(s.name + " put back on " + dayShort(di), "manual", dateOfDi(di)); }
+        else { day.extras.push({ id: s.id, kind: "day" }); logEntry(s.name + " added to bench (" + dayShort(di) + ")", "manual", dateOfDi(di)); }
         addIn.value = ""; markDirty(); renderWeek();
       } else { const nm = v; addIn.value = ""; adhocDialog(di, nm); }
     };
@@ -2579,7 +2614,7 @@ function renderDayRow(day, di, dateISO, issues){
     const locBtn = el("button", { class: "addpop-item", title: "A locum, bank or NHSp name that isn't on the staff list", onclick: () => { close(); adhocDialog(di); } }, icon(I_LOCUM), "Locum / bank");
     const obsBtn = el("button", { class: "addpop-item", title: "An observer / student — shown but never counted", onclick: async () => { close();
       const r = await uiPrompt("Observers appear on the rota but are never counted in any numbers.", { title: "Add an observer / student", okLabel: "Add", placeholder: "Name", placeholder2: "Role — e.g. medical student, work experience" });
-      if (r && r[0] && r[0].trim()) { day.obs = day.obs || []; day.obs.push({ oid: uid(), name: r[0].trim(), role: (r[1] || "").trim(), pod: null }); logEntry("Observer added: " + r[0].trim() + " (" + dayShort(di) + ")"); markDirty(); renderWeek(); }
+      if (r && r[0] && r[0].trim()) { day.obs = day.obs || []; day.obs.push({ oid: uid(), name: r[0].trim(), role: (r[1] || "").trim(), pod: null }); logEntry("Observer added: " + r[0].trim() + " (" + dayShort(di) + ")", "manual", dateOfDi(di)); markDirty(); renderWeek(); }
     } }, icon(I_OBS), "Observer / student");
     const pop = el("div", { class: "addpop" }, field, el("div", { class: "addpop-sep" }), locBtn, obsBtn);
     const plus = el("button", { class: "addplus", title: "Add someone to this day", "aria-label": "Add someone", onclick: e => {
@@ -2608,16 +2643,16 @@ function renderDayRow(day, di, dateISO, issues){
         removeAssign(day, id);
         pod.super = pod.super || [];
         if (!pod.super.includes(id)) pod.super.push(id);
-        logEntry(s.name + " → Pod " + p + " (supernumerary) (" + dayShort(di) + ")");
+        logEntry(s.name + " → Pod " + p + " (supernumerary) (" + dayShort(di) + ")", "manual", dateOfDi(di));
         return;
       }
       const keepShift = currentAssignShift(day, id);
       const fromPod = PODS.find(q => day.pods[q].assign.some(a => a.id === id)) || null;
       removeAssign(day, id);
       pod.assign.push({ id, shift: keepShift != null ? keepShift : shiftFromPool(pool, id) });
-      logEntry(s.name + " → Pod " + p + " (" + dayShort(di) + ")");
+      logEntry(s.name + " → Pod " + p + " (" + dayShort(di) + ")", "manual", dateOfDi(di));
       recordOverride(dateISO, id, fromPod, p, keepShift);
-    }, oid => { const o = (day.obs || []).find(x => x.oid === oid); if (o) { o.pod = p; logEntry("Observer " + o.name + " → Pod " + p + " (" + dayShort(di) + ")"); } });
+    }, oid => { const o = (day.obs || []).find(x => x.oid === oid); if (o) { o.pod = p; logEntry("Observer " + o.name + " → Pod " + p + " (" + dayShort(di) + ")", "manual", dateOfDi(di)); } });
     const consAll = data.staff.filter(s => s.grade === "CON" && isActiveOn(s, dateISO));
     if (consAll.length || pod.cons) {
       if (pod.cons && !staffById(pod.cons)) { const rid = matchConsInitials(pod.cons); if (rid) pod.cons = rid; }
@@ -2625,7 +2660,7 @@ function renderDayRow(day, di, dateISO, issues){
       consSel.append(el("option", { value: "" }, "cons…"));
       if (pod.cons && !staffById(pod.cons)) consSel.append(el("option", { value: pod.cons, selected: "1" }, pod.cons));
       for (const s of consAll.sort((a,b) => consLabel(a).localeCompare(consLabel(b)))) consSel.append(el("option", { value: s.id, title: s.name, ...(pod.cons === s.id ? { selected: 1 } : {}) }, consLabel(s)));
-      consSel.onchange = () => { pod.cons = consSel.value || null; logEntry("Pod " + p + " consultant: " + (consSel.value ? (staffById(consSel.value) ? consLabel(staffById(consSel.value)) : consSel.value) : "cleared") + " (" + dayShort(di) + ")"); markDirty(); renderWeek(); };
+      consSel.onchange = () => { pod.cons = consSel.value || null; logEntry("Pod " + p + " consultant: " + (consSel.value ? (staffById(consSel.value) ? consLabel(staffById(consSel.value)) : consSel.value) : "cleared") + " (" + dayShort(di) + ")", "manual", dateOfDi(di)); markDirty(); renderWeek(); };
       consSel.disabled = !canEdit();
       col.append(el("div", { class: "conswrap" }, consSel));
     }
@@ -2648,11 +2683,11 @@ function renderDayRow(day, di, dateISO, issues){
         tagClick: async () => {
           const next = a.shift === "LD" ? "SD" : "LD";
           if (!(await uiConfirm(staffById(a.id).name + ": " + (next === "LD" ? "standard day → long day (8–8)?" : "long day → standard day (8–4)?"), { title: "Change shift?", okLabel: "Change to " + next }))) return;
-          a.shift = next; logEntry(staffById(a.id).name + ": " + (next === "LD" ? "SD → LD" : "LD → SD") + " (" + dayShort(di) + ")");
+          a.shift = next; logEntry(staffById(a.id).name + ": " + (next === "LD" ? "SD → LD" : "LD → SD") + " (" + dayShort(di) + ")", "manual", dateOfDi(di));
           if (day.phone === a.id && next !== "LD") { day.phone = null; toast("Phone taken off " + staffById(a.id).name + " — a long day is needed to hold it"); }
           markDirty(); renderWeek();
         },
-        onRemove: () => { pod.assign = pod.assign.filter(x => x !== a); logEntry("Removed " + staffById(a.id).name + " from Pod " + p + " (" + dayShort(di) + ")"); markDirty(); renderWeek(); } }));
+        onRemove: () => { pod.assign = pod.assign.filter(x => x !== a); logEntry("Removed " + staffById(a.id).name + " from Pod " + p + " (" + dayShort(di) + ")", "manual", dateOfDi(di)); markDirty(); renderWeek(); } }));
     }
     if (!pod.assign.length) col.append(el("div", { class: "hint" }, "drop staff here"));
     // Only say "Super" when someone actually is one here. In edit mode the empty box still
@@ -2675,7 +2710,7 @@ function renderDayRow(day, di, dateISO, issues){
     const k = (day.night.CDE || []).length < (day.night.AB || []).length ? "CDE" : "AB";
     day.night[k] = day.night[k] || [];
     day.night[k].push(id);
-    logEntry(staffById(id).name + " → nights (" + dayShort(di) + ")");
+    logEntry(staffById(id).name + " → nights (" + dayShort(di) + ")", "manual", dateOfDi(di));
   });
   {
     const consAllN = data.staff.filter(s => s.grade === "CON" && isActiveOn(s, dateISO));
@@ -2685,7 +2720,7 @@ function renderDayRow(day, di, dateISO, issues){
       ncSel.append(el("option", { value: "" }, "on call…"));
       if (day.nightCons && !staffById(day.nightCons)) ncSel.append(el("option", { value: day.nightCons, selected: "1" }, day.nightCons));
       for (const s of consAllN.sort((a,b) => consLabel(a).localeCompare(consLabel(b)))) ncSel.append(el("option", { value: s.id, title: s.name, ...(day.nightCons === s.id ? { selected: 1 } : {}) }, consLabel(s)));
-      ncSel.onchange = () => { day.nightCons = ncSel.value || null; logEntry("On call: " + (ncSel.value ? (staffById(ncSel.value) ? consLabel(staffById(ncSel.value)) : ncSel.value) : "cleared") + " (" + dayShort(di) + ")"); markDirty(); renderWeek(); };
+      ncSel.onchange = () => { day.nightCons = ncSel.value || null; logEntry("On call: " + (ncSel.value ? (staffById(ncSel.value) ? consLabel(staffById(ncSel.value)) : ncSel.value) : "cleared") + " (" + dayShort(di) + ")", "manual", dateOfDi(di)); markDirty(); renderWeek(); };
       ncSel.disabled = !canEdit();
       night.append(el("div", { class: "conswrap" }, ncSel));
     }
@@ -2713,11 +2748,11 @@ function renderDayRow(day, di, dateISO, issues){
       removeAssign(day, id);                       // may replace day.night[key]
       day.night[key] = day.night[key] || [];
       day.night[key].push(id);                     // ...so look it up again, here
-      logEntry(staffById(id).name + " → night " + label + " (" + dayShort(di) + ")");
+      logEntry(staffById(id).name + " → night " + label + " (" + dayShort(di) + ")", "manual", dateOfDi(di));
     });
     const arr = day.night[key] || [];
     const shown = arr.filter(id => staffById(id) && (!filt || filt(id)));
-    for (const id of shown) z.append(chip(staffById(id), { di, day, tag: "N", onRemove: () => { day.night[key] = (day.night[key] || []).filter(x => x !== id); logEntry("Removed " + staffById(id).name + " from night " + label + " (" + dayShort(di) + ")"); markDirty(); renderWeek(); } }));
+    for (const id of shown) z.append(chip(staffById(id), { di, day, tag: "N", onRemove: () => { day.night[key] = (day.night[key] || []).filter(x => x !== id); logEntry("Removed " + staffById(id).name + " from night " + label + " (" + dayShort(di) + ")", "manual", dateOfDi(di)); markDirty(); renderWeek(); } }));
     if (!shown.length) z.append(el("div", { class: "hint" }, "drop staff"));
     night.append(z);
   };
@@ -2739,16 +2774,16 @@ function renderDayRow(day, di, dateISO, issues){
   const fghList = fghMembers(day, dateISO);
   // In edit mode the column always shows (even when empty) so it can be dragged into / added to.
   const fghCell = el("td", { class: "fghtd" + (fghList.length || canEdit() ? "" : " empty") });
-  makeZone(fghCell, di, id => { addToFairfield(day, dateISO, id); logEntry(staffById(id).name + " → Fairfield (" + dayShort(di) + ")"); markDirty(); renderWeek(); });
+  makeZone(fghCell, di, id => { addToFairfield(day, dateISO, id); logEntry(staffById(id).name + " → Fairfield (" + dayShort(di) + ")", "manual", dateOfDi(di)); markDirty(); renderWeek(); });
   if (fghList.length || canEdit()) {
     const wrap = el("div", { class: "fghwrap open" });   // its own column, so show the names by default
     const list = el("div", { class: "fghlist" });
     for (const x of fghList) {
       const s = staffById(x.id); if (!s) continue;
       list.append(chip(s, { di, day, tag: x.tag,
-        tagClick: () => { toggleFghShift(day, x.id, x.tag); logEntry(s.name + " (Fairfield) shift → " + fghShiftFor(day, x.id, x.tag) + " (" + dayShort(di) + ")"); markDirty(); renderWeek(); },
+        tagClick: () => { toggleFghShift(day, x.id, x.tag); logEntry(s.name + " (Fairfield) shift → " + fghShiftFor(day, x.id, x.tag) + " (" + dayShort(di) + ")", "manual", dateOfDi(di)); markDirty(); renderWeek(); },
         removeTitle: "Remove from Fairfield",
-        onRemove: () => { removeFromFairfield(day, dateISO, x.id); logEntry("Removed " + s.name + " from Fairfield (" + dayShort(di) + ")"); markDirty(); renderWeek(); } }));
+        onRemove: () => { removeFromFairfield(day, dateISO, x.id); logEntry("Removed " + s.name + " from Fairfield (" + dayShort(di) + ")", "manual", dateOfDi(di)); markDirty(); renderWeek(); } }));
     }
     wrap.append(list);
     if (canEdit()) {
@@ -3229,7 +3264,7 @@ function showConsImportPreview(weeks, box){
       for (const [di, code] of Object.entries(w.night || {}))
         wk.days[+di].nightCons = matchConsInitials(code) || code;
     }
-    logEntry("Imported consultant allocations (" + weeks.length + " week(s))");
+    logEntry("Imported consultant allocations (" + weeks.length + " week(s))", "auto", mondayOf(weeks[0].start));
     markDirty();
     box.innerHTML = "";
     currentWeekKey = mondayOf(weeks[0].start);
@@ -3353,7 +3388,7 @@ function showImportPreview(parsed, box){
       if (worksAirway && !staff.airway) hints.push(staff.name);
     }
     currentWeekKey = weekKey;
-    logEntry("Imported Optima roster for week " + weekKey + " (" + usable.length + " matched" + (added ? ", " + added + " added" : "") + ")");
+    logEntry("Imported Optima roster for week " + weekKey + " (" + usable.length + " matched" + (added ? ", " + added + " added" : "") + ")", "auto", weekKey);
     markDirty(); closeModal(); renderAll();
     $("#importResultRota").innerHTML = "";
     $("#importResultCons").innerHTML = "";
@@ -3512,9 +3547,53 @@ function renderLog(){
     box.append(el("div", { style: "font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:1.1rem 0 .5rem" }, "Changes"));
   }
   if (!data || !data.log.length) { box.append(el("div", { class: "empty" }, "No changes logged yet.")); return; }
-  for (const e of data.log.slice(0, 200)) {
-    box.append(el("div", { class: "logrow" }, el("div", { class: "t" }, new Date(e.t).toLocaleString("en-GB") + " — " + e.who), e.msg));
+
+  box.append(logControls(renderLog), logGroups(data.log, 400));
+}
+
+/* How the log is being read. Kept outside renderLog so the choice survives a redraw. */
+let logBy = "made", logFilter = "all";
+
+/* Two segmented controls, no sentence explaining them (hard rule 2). The left one names the
+   thing the groups below are keyed on, so the headings are the explanation. */
+function logControls(redraw){
+  const wrap = el("div", { style: "display:flex;gap:.5rem;flex-wrap:wrap;margin:0 0 .9rem" });
+  const build = (opts, get, set) => {
+    const seg = el("div", { class: "seg", style: "flex:1;min-width:200px" });
+    opts.forEach(([v, l]) => {
+      const b = el("button", { class: "segbtn" + (v === get() ? " on" : ""), onclick: () => { set(v); redraw(); } }, l);
+      b.dataset.v = v; seg.append(b);
+    });
+    return seg;
+  };
+  wrap.append(
+    build([["made", "When changed"], ["affects", "Rota day"]], () => logBy, v => logBy = v),
+    build([["all", "All"], ["manual", "Manual"], ["auto", "Automatic"]], () => logFilter, v => logFilter = v)
+  );
+  return wrap;
+}
+
+/* One <div> holding date headings and their rows. Whichever date the grouping is NOT keyed on
+   is shown on the row itself, so both dates are always visible without a legend. */
+function logGroups(list, cap){
+  const out = el("div");
+  const groups = groupLog((list || []).slice(0, cap || 400), logBy, logFilter);
+  if (!groups.length) { out.append(el("div", { class: "empty" }, "Nothing to show.")); return out; }
+  const today = todayISO ? todayISO() : new Date().toISOString().slice(0, 10);
+  for (const g of groups) {
+    out.append(el("div", { class: "loghead" }, logDayLabel(g.date, today), el("span", {}, String(g.entries.length))));
+    for (const e of g.entries) {
+      const other = (logBy === "made") ? logOn(e) : logMade(e);
+      const stamp = new Date(e.t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+      out.append(el("div", { class: "logrow" + (logKind(e) === "auto" ? " auto" : "") },
+        el("div", { class: "t" }, stamp + " — " + (e.who || "?")),
+        e.msg,
+        (other && other !== g.date)
+          ? el("span", { class: "logon" }, (logBy === "made" ? "rota " : "changed ") + fmtDate(other))
+          : null));
+    }
   }
+  return out;
 }
 
 /* Aggregate the recorded manual moves by what changed — from-pod, to-pod, shift — so a rule
@@ -3614,7 +3693,7 @@ table{width:100%;border-collapse:collapse}td{vertical-align:top;padding:8px;bord
 <div class="note">Generated by the CCU allocation tool. Supernumerary staff may be reallocated to work with their supervisor.</div>
 </body></html>`;
   savePublished(published, "Pod Allocations Week " + currentWeekKey + ".html");
-  logEntry("Saved print copy — week " + weekLabel(currentWeekKey));
+  logEntry("Saved print copy — week " + weekLabel(currentWeekKey), "manual", currentWeekKey);
   markDirty();
 }
 async function savePublished(html, fname){
@@ -4328,7 +4407,7 @@ async function autoFillWeek(){
     { title: small ? "Place the remaining " + total + (total === 1 ? " person?" : " people?") : "Auto-fill the week?", okLabel: small ? "Place " + (total === 1 ? "them" : "them all") : "Auto-fill" }
   ))) return;
   wk.days.forEach((day, di) => autoFillDay(wk, di));
-  logEntry("Auto-filled week " + weekLabel(currentWeekKey));
+  logEntry("Auto-filled week " + weekLabel(currentWeekKey), "auto", currentWeekKey);
   markDirty();
   renderWeek();
   const noPhone = wk.days.map((day, di) => (!day.phone && Object.keys(poolFor(day, addDays(currentWeekKey, di))).length) ? DAYNAMES[di] : null).filter(Boolean);
@@ -4464,7 +4543,7 @@ function planDayFix(di){
 }
 function applyFixedDay(di, fixed){
   getWeek(currentWeekKey).days[di] = fixed;
-  logEntry("Fixed " + DAYNAMES[di] + " " + fmtDate(addDays(currentWeekKey, di)) + " (minimal changes)");
+  logEntry("Fixed " + DAYNAMES[di] + " " + fmtDate(addDays(currentWeekKey, di)) + " (minimal changes)", "auto", dateOfDi(di));
   markDirty(); renderWeek();
 }
 /* ---- Add a one-off (locum / bank / NHSp) person, just for a single day ---- */
@@ -4480,7 +4559,7 @@ function addAdhocPerson(di, name, shift, dest){
   if (dest === "fairfield") { day.fghExtras = day.fghExtras || []; day.fghExtras.push({ id: s.id, tag: shift }); }
   else if (dest === "night") { day.extras = day.extras || []; day.extras.push({ id: s.id, kind: "night", code: "N" }); day.night.CDE.push(s.id); }
   else { day.extras = day.extras || []; day.extras.push({ id: s.id, kind: "day", code: shift === "LD" ? "LD" : "SD" }); }
-  logEntry("Added " + name + " (locum/bank) — " + (dest === "fairfield" ? "Fairfield" : dest === "night" ? "night team" : "to allocate") + " (" + dayShort(di) + ")");
+  logEntry("Added " + name + " (locum/bank) — " + (dest === "fairfield" ? "Fairfield" : dest === "night" ? "night team" : "to allocate") + " (" + dayShort(di) + ")", "manual", dateOfDi(di));
   markDirty(); renderWeek();
 }
 /* ================= TRIAL FEEDBACK =================
@@ -4517,6 +4596,16 @@ async function emailFeedback(entry){
 }
 
 async function sendFeedback(entry){
+  // In the test copy, keep the feedback with the test copy — never write it into the live file.
+  // The email still goes, because feedback from someone trialling it is worth having either way.
+  if (TESTMODE) {
+    data.feedback = data.feedback || [];
+    data.feedback.unshift(entry);
+    if (data.feedback.length > 300) data.feedback.length = 300;
+    try { localStorage.setItem(TEST_KEY, JSON.stringify(data)); } catch(e){}
+    emailFeedback(entry);
+    return true;
+  }
   const cur = await readSelf();
   const base = (cur && Array.isArray(cur.staff)) ? cur : data;
   base.feedback = base.feedback || [];
@@ -4628,7 +4717,7 @@ async function fixWeekDialog(){
   m.append(wrap);
   m.append(el("div", { class: "dlg-btns" },
     el("button", { class: "btn ghost", onclick: closeModal }, "Cancel"),
-    el("button", { class: "btn", onclick: () => { for (const { di, plan } of plans) getWeek(currentWeekKey).days[di] = plan.fixed; logEntry("Fixed " + plans.length + " day(s) this week (minimal changes)"); markDirty(); renderWeek(); closeModal(); toast("Week tidied — Undo reverses it"); } }, "Apply " + total + " change" + (total>1?"s":""))));
+    el("button", { class: "btn", onclick: () => { for (const { di, plan } of plans) getWeek(currentWeekKey).days[di] = plan.fixed; logEntry("Fixed " + plans.length + " day(s) this week (minimal changes)", "auto", currentWeekKey); markDirty(); renderWeek(); closeModal(); toast("Week tidied — Undo reverses it"); } }, "Apply " + total + " change" + (total>1?"s":""))));
   $("#modalBg").style.display = "flex";
 }
 
@@ -4916,7 +5005,7 @@ async function applyDuePendingSkills(silent){
   /* A skill starting never rewrites a board that is already written (Ali, 2 Aug 2026). */
   const moves = diffWeeks(before, from);
   logEntry("Skills change started for " + due.map(x => x.name).join(", ") + " — weeks from " + niceDate(from)
-    + " worked out again (" + moves.length + " change" + (moves.length === 1 ? "" : "s") + ")");
+    + " worked out again (" + moves.length + " change" + (moves.length === 1 ? "" : "s") + ")", "auto", from);
   if (!silent) toast("Skills change applied from " + niceDate(from) + " — " + moves.length + " changes");
   return due.length;
 }
@@ -5153,7 +5242,7 @@ async function nameLocum(s, di){
     wk.roster[date][named.id] = wk.roster[date][s.id];
     delete wk.roster[date][s.id];
   }
-  logEntry("Locum named: " + s.name + " on " + date + " is " + nm);
+  logEntry("Locum named: " + s.name + " on " + date + " is " + nm, "manual", date);
   markDirty(); renderAll();
   toast(nm + " replaces " + s.name + " for " + srDateLabel(date));
 }
@@ -5176,7 +5265,7 @@ function srTriageNewPeople(){
     el("button", { class: "btn", onclick: () => {
       let added = 0;
       for (const [s, cb] of boxes){ s.triaged = true; if (cb.checked){ s.adhoc = false; added++; } }
-      logEntry("Optima newcomers reviewed: " + added + " added to the staff list, " + (boxes.length - added) + " kept as one-off cover");
+      logEntry("Optima newcomers reviewed: " + added + " added to the staff list, " + (boxes.length - added) + " kept as one-off cover", "auto");
       markDirty(); closeModal(); renderAll();
       if (added) toast(added + " added — set their grade on the Staff page");
     } }, "Done")));
@@ -5186,7 +5275,7 @@ function srApplySickFix(g, reallocate){
   if (!EDIT_MODE){ toast("Press Edit first, then apply the fix."); return; }
   const day = getWeek(currentWeekKey).days[g.di];
   const hits = srRemoveFromDay(day, g.sid);
-  logEntry("Sickness fix " + g.date + ": removed " + g.name + (hits.length ? " from " + hits.join(", ") : ""));
+  logEntry("Sickness fix " + g.date + ": removed " + g.name + (hits.length ? " from " + hits.join(", ") : ""), "auto", g.date);
   let moved = 0;
   if (reallocate){
     const plan = planDayFix(g.di);
@@ -5270,7 +5359,7 @@ function resolveSyncClash(i, how){
     else if (day[c.id]){ day[c.id].src = "m"; }
   }
   data.syncReview.splice(i, 1);
-  logEntry("Optima check " + c.date + " " + c.name + ": " + (how === "take" ? "changed to Optima's version (" + c.allocate + ")" : "kept " + (c.app || "blank") + " — Optima won't override it"));
+  logEntry("Optima check " + c.date + " " + c.name + ": " + (how === "take" ? "changed to Optima's version (" + c.allocate + ")" : "kept " + (c.app || "blank") + " — Optima won't override it"), "auto", c.date);
   markDirty(); renderAll();
   toast(how === "take" ? "Changed to Optima's version: " + c.allocate : "Kept " + (c.app || "blank") + " — Optima won't override it");
 }
