@@ -20,6 +20,7 @@ function loadApp() {
   let html = fs.readFileSync(APP, "utf8");
   const hook = `window.__api = function(){ return {
     data, PODS, blankDay, getWeek, autoFillDay, autoFillWeek, checkDay,
+    checkWeek: typeof checkWeek !== "undefined" ? checkWeek : null,
     mondayOf, todayISO, addDays, poolFor, staffById, canHoldPhone, isPhoneShadow,
     isPhoneSupervisor, isActiveOn, currentAssignShift, inFairfield, addToFairfield,
     fghMembers, countsInNumbers, poolState, removeAssign, attentionItems, srDetectGhosts, srRemoveFromDay,
@@ -80,6 +81,24 @@ function seedDay(api, di, people) {
     return s;
   });
   return { wk, day, made, dateISO: api.addDays(wkKey, di) };
+}
+// Same night team across consecutive nights — a run, which is how nights are actually rostered.
+function seedNightRun(api, dis, people) {
+  const wkKey = api.mondayOf(api.todayISO());
+  api.setWeek(wkKey);
+  const wk = api.getWeek(wkKey);
+  wk.roster = null;
+  const made = people.map(p => mkStaff(api, p));
+  for (const di of dis) {
+    wk.days[di] = api.blankDay();
+    for (const s of made) wk.days[di].extras.push({ id: s.id, kind: "night", code: "N" });
+  }
+  return { wk, made };
+}
+function nightSide(day, id) {
+  return (day.night.AB || []).includes(id) ? "AB"
+       : (day.night.CDE || []).includes(id) ? "CDE"
+       : (day.night.E || []).includes(id) ? "E" : null;
 }
 function podCounts(api, day) {
   const c = {};
@@ -586,6 +605,56 @@ async function main() {
     const { wk, day } = seedDay(api, 0, four);
     api.autoFillDay(wk, 0);
     ok("four on nights: Pod E stays empty", (day.night.E || []).length === 0, JSON.stringify(day.night.E));
+  }
+  {
+    /* A RUN OF NIGHTS. The phone rotates each night onto someone who was in A & B, and they step
+       into Pod E. Before the trade rule, nobody took their place: the second night of every run
+       read 1 on A&B against 4 on the C/D side. Six on, two phone-trained, nobody airway-trained
+       so the airway fix can't muddy which moves came from where. */
+    const six = Array.from({ length: 6 }, (_, i) => ({ shift: "N", nights: true, airway: false, phoneHolder: i < 2 }));
+    const { wk, made } = seedNightRun(api, [0, 1], six);
+    api.autoFillDay(wk, 0);
+    api.autoFillDay(wk, 1);
+    const d0 = wk.days[0], d1 = wk.days[1];
+    const cnt = d => ({ AB: (d.night.AB || []).length, CDE: (d.night.CDE || []).length, E: (d.night.E || []).length });
+    ok("run of nights: first night splits 2 / 3 / 1",
+      JSON.stringify(cnt(d0)) === JSON.stringify({ AB: 2, CDE: 3, E: 1 }), JSON.stringify(cnt(d0)));
+    ok("run of nights: A & B still holds two on the second night",
+      (d1.night.AB || []).length === 2, JSON.stringify(cnt(d1)));
+    ok("run of nights: the C/D side is never left carrying four",
+      (d1.night.CDE || []).length + (d1.night.E || []).length === 4
+      && (d1.night.CDE || []).length === 3, JSON.stringify(cnt(d1)));
+    ok("run of nights: the phone changed hands", d0.night.phone !== d1.night.phone,
+      JSON.stringify({ n1: d0.night.phone, n2: d1.night.phone }));
+    const movers = made.map(s => s.id).filter(id => nightSide(d0, id) !== nightSide(d1, id));
+    ok("run of nights: ONLY the two phone holders change side — nobody else moves",
+      movers.length === 2 && movers.every(id => id === d0.night.phone || id === d1.night.phone),
+      JSON.stringify({ movers, n1: d0.night.phone, n2: d1.night.phone }));
+    ok("run of nights: last night's holder takes the slot the new holder vacated",
+      nightSide(d1, d0.night.phone) === nightSide(d0, d1.night.phone),
+      JSON.stringify({ prevHolderNowIn: nightSide(d1, d0.night.phone), newHolderWasIn: nightSide(d0, d1.night.phone) }));
+  }
+  {
+    // Five on, one phone-trained: the holder can't hand it over, so nothing moves at all.
+    const five = Array.from({ length: 5 }, (_, i) => ({ shift: "N", nights: true, airway: false, phoneHolder: i === 0 }));
+    const { wk, made } = seedNightRun(api, [4, 5, 6], five);
+    [4, 5, 6].forEach(di => api.autoFillDay(wk, di));
+    const sides = di => made.map(s => nightSide(wk.days[di], s.id)).join(",");
+    ok("only one phone holder on: the same person holds all three nights",
+      wk.days[4].night.phone === wk.days[5].night.phone && wk.days[5].night.phone === wk.days[6].night.phone,
+      JSON.stringify([4, 5, 6].map(di => wk.days[di].night.phone)));
+    ok("only one phone holder on: nobody moves across the whole weekend",
+      sides(4) === sides(5) && sides(5) === sides(6), JSON.stringify([sides(4), sides(5), sides(6)]));
+    const msgs = (api.checkWeek ? api.checkWeek(wk) : []).map(x => x.msg || x).join(" | ");
+    ok("only one phone holder on: no advisory nobody can act on",
+      !/night phone on consecutive nights/.test(msgs), msgs.slice(0, 200));
+    // ...but with somebody else on who could take it, the advisory still earns its place.
+    made[1].phoneHolder = true;
+    wk.days[5].night.phone = wk.days[4].night.phone;
+    wk.days[6].night.phone = wk.days[4].night.phone;
+    const msgs2 = (api.checkWeek ? api.checkWeek(wk) : []).map(x => x.msg || x).join(" | ");
+    ok("another holder on: the consecutive-nights advisory still fires",
+      /night phone on consecutive nights/.test(msgs2), msgs2.slice(0, 200));
   }
 
   console.log("12-month simulation (52 weeks, ~30 staff)");
