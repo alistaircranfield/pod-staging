@@ -5030,7 +5030,7 @@ function srDateLabel(iso){
 function srRemoveFromDay(day, sid){
   const hits = [];
   for (const [pname, p] of Object.entries(day.pods || {})){
-    if ((p.assign || []).includes(sid)){ p.assign = p.assign.filter(x => x !== sid); hits.push("Pod " + pname); }
+    if ((p.assign || []).some(a => a && a.id === sid)){ p.assign = p.assign.filter(a => !a || a.id !== sid); hits.push("Pod " + pname); }
     if ((p.super || []).includes(sid)){ p.super = p.super.filter(x => x !== sid); hits.push("Pod " + pname + " supervision"); }
     if (p.student === sid){ p.student = ""; hits.push("Pod " + pname + " student"); }
   }
@@ -5062,7 +5062,7 @@ function srDetectGhosts(){
       const day = wk.days[di]; if (!day) continue;
       const sids = new Set();
       for (const p of Object.values(day.pods || {})){
-        (p.assign || []).forEach(x => sids.add(x));
+        (p.assign || []).forEach(a => { if (a && a.id) sids.add(a.id); });
         (p.super || []).forEach(x => sids.add(x));
         if (p.student) sids.add(p.student);
       }
@@ -5104,7 +5104,7 @@ async function nameLocum(s, di){
     }
   }
   const wk = getWeek(currentWeekKey), day = wk.days[di];
-  const swap = a => { if (a) for (let i = 0; i < a.length; i++) if (a[i] === s.id) a[i] = named.id; };
+  const swap = a => { if (a) for (let i = 0; i < a.length; i++) { if (a[i] === s.id) a[i] = named.id; else if (a[i] && a[i].id === s.id) a[i].id = named.id; } };
   for (const p of Object.values(day.pods || {})){ swap(p.assign); swap(p.super); if (p.student === s.id) p.student = named.id; }
   ["phone", "phoneSup", "nightCons"].forEach(k => { if (day[k] === s.id) day[k] = named.id; });
   swap(day.shadow);
