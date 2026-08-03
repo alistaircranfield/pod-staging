@@ -586,7 +586,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
 </div>
 <main>
   <section id="tab-rota">
-    <div id="syncReview" style="display:none"></div>
+    <div id="autoNotice" style="display:none"></div>
     <div class="weekbar">
       <button class="navarrow" id="btnPrevWeek" title="Previous week"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
       <b id="weekTitle"></b>
@@ -705,6 +705,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
       </div>
     </div>
     <div class="card" id="teamCard">
+      <div id="syncReview" style="display:none"></div>
       <div id="attnList" class="attn"></div>
     </div>
   </section>
@@ -3218,7 +3219,8 @@ function showConsImportPreview(weeks, box){
   if (unmatched.length) sum.append(el("div", { style: "margin-top:.3rem;color:var(--muted);font-size:.78rem" }, "Tip: add consultants on the Staff page (grade CON) — initials are matched from their names, so “Anas Baiou” catches AB."));
   box.append(sum);
   const applyBtn = el("button", { class: "btn", style: "margin-top:.6rem" }, "Import consultant allocations");
-  applyBtn.onclick = () => {
+  applyBtn.onclick = async () => {
+    if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
     for (const w of weeks) {
       const weekKey = mondayOf(w.start);
       const wk = getWeek(weekKey);
@@ -3315,7 +3317,8 @@ function showImportPreview(parsed, box){
     }
   }
   const applyBtn = el("button", { class: "btn", style: "margin-top:.6rem" }, "Import this week's availability");
-  applyBtn.onclick = () => {
+  applyBtn.onclick = async () => {
+    if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
     const weekKey = mondayOf(weekInput.value);
     const wk = getWeek(weekKey);
     const roster = {};
@@ -4911,7 +4914,7 @@ async function applyDuePendingSkills(silent){
   const from = due.map(x => x.from).sort()[0];
   const touchesPods = due.some(x => Object.keys(x.add).some(k => POD_SKILLS.includes(k)));
   const before = JSON.parse(JSON.stringify(data.weeks));
-  reallocateSettled(from, touchesPods);
+  /* A skill starting never rewrites a board that is already written (Ali, 2 Aug 2026). */
   const moves = diffWeeks(before, from);
   logEntry("Skills change started for " + due.map(x => x.name).join(", ") + " — weeks from " + niceDate(from)
     + " worked out again (" + moves.length + " change" + (moves.length === 1 ? "" : "s") + ")");
@@ -4929,7 +4932,13 @@ function attentionItems(){
   const clashes = (data.syncReview || []).length;
   if (clashes) out.push({ n: clashes, title: "Allocate disagrees with the board",
     body: clashes === 1 ? "One day where somebody's shift here doesn't match Optima. Pick which is right." : clashes + " days where somebody's shift here doesn't match Optima. Pick which is right.",
-    go: () => { switchTab("rota"); setTimeout(() => { const e = $("#syncReview"); if (e) e.scrollIntoView({ behavior: "smooth", block: "center" }); }, 60); } });
+    go: () => { const e = $("#syncReview"); if (e) e.scrollIntoView({ behavior: "smooth", block: "center" }); } });
+
+  const ghosts = (typeof srDetectGhosts === "function") ? srDetectGhosts() : [];
+  if (ghosts.length) out.push({ n: ghosts.length, title: "Off the Optima rota but still allocated",
+    body: ghosts.slice(0, 6).map(g => g.name).join(", ") + (ghosts.length > 6 ? " and " + (ghosts.length - 6) + " more" : "")
+      + " — the sync clears these on its next run; these are the ones it could not.",
+    go: () => { const e = $("#syncReview"); if (e) e.scrollIntoView({ behavior: "smooth", block: "center" }); } });
 
   const unver = data.staff.filter(s => s.verified === false && s.active !== false);
   if (unver.length) out.push({ n: unver.length, title: "New people to check",
@@ -5060,7 +5069,7 @@ function srDateLabel(iso){
 function srRemoveFromDay(day, sid){
   const hits = [];
   for (const [pname, p] of Object.entries(day.pods || {})){
-    if ((p.assign || []).includes(sid)){ p.assign = p.assign.filter(x => x !== sid); hits.push("Pod " + pname); }
+    if ((p.assign || []).some(a => a && a.id === sid)){ p.assign = p.assign.filter(a => !a || a.id !== sid); hits.push("Pod " + pname); }
     if ((p.super || []).includes(sid)){ p.super = p.super.filter(x => x !== sid); hits.push("Pod " + pname + " supervision"); }
     if (p.student === sid){ p.student = ""; hits.push("Pod " + pname + " student"); }
   }
@@ -5092,7 +5101,7 @@ function srDetectGhosts(){
       const day = wk.days[di]; if (!day) continue;
       const sids = new Set();
       for (const p of Object.values(day.pods || {})){
-        (p.assign || []).forEach(x => sids.add(x));
+        (p.assign || []).forEach(a => { if (a && a.id) sids.add(a.id); });
         (p.super || []).forEach(x => sids.add(x));
         if (p.student) sids.add(p.student);
       }
@@ -5134,7 +5143,7 @@ async function nameLocum(s, di){
     }
   }
   const wk = getWeek(currentWeekKey), day = wk.days[di];
-  const swap = a => { if (a) for (let i = 0; i < a.length; i++) if (a[i] === s.id) a[i] = named.id; };
+  const swap = a => { if (a) for (let i = 0; i < a.length; i++) { if (a[i] === s.id) a[i] = named.id; else if (a[i] && a[i].id === s.id) a[i].id = named.id; } };
   for (const p of Object.values(day.pods || {})){ swap(p.assign); swap(p.super); if (p.student === s.id) p.student = named.id; }
   ["phone", "phoneSup", "nightCons"].forEach(k => { if (day[k] === s.id) day[k] = named.id; });
   swap(day.shadow);
@@ -5187,6 +5196,28 @@ function srApplySickFix(g, reallocate){
   markDirty(); renderAll();
   toast(g.name + " removed" + (reallocate ? (moved ? " — covered with " + moved + " move" + (moved > 1 ? "s" : "") : " — no moves needed to cover") : "") + ". Undo reverses it.");
 }
+function renderAutoNotice(){
+  const el = document.getElementById("autoNotice"); if (!el) return;
+  const n = data && data.autoNotice;
+  const days = (n && n.days) || [];
+  if (!n || !n.t || !days.length || store.get("autoNoticeSeen") === n.t){
+    el.style.display = "none"; el.innerHTML = ""; return;
+  }
+  el.style.cssText = "display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff6e8;" +
+    "border:1px solid #f0c992;border-left:3px solid #ef9f27;border-radius:10px;padding:9px 14px;margin:0 0 12px;font-size:13px";
+  el.innerHTML = "<span style='width:8px;height:8px;border-radius:50%;background:#ef9f27;flex:none'></span>" +
+    "<b style='font-size:14px'>Allocations changed — please recheck</b>" +
+    "<span style='color:#5f5e5a'>" + days.map(d => srDateLabel(d)).join(" · ") + "</span>" +
+    "<span style='margin-left:auto;display:flex;gap:6px'>" +
+    "<button id='anGo'>Show me</button><button id='anOk'>Dismiss</button></span>";
+  el.querySelector("#anOk").onclick = () => { store.set("autoNoticeSeen", n.t); renderAutoNotice(); };
+  el.querySelector("#anGo").onclick = () => {
+    const wk = mondayOf(days[0]);
+    if (data.weeks && data.weeks[wk]){ currentWeekKey = wk; renderWeek(); }
+    const c = document.getElementById("weekGrid") || el;
+    c.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+}
 function renderSyncReview(){
   const el = document.getElementById("syncReview"); if (!el) return;
   const items = (data && data.syncReview) || [];
@@ -5196,30 +5227,9 @@ function renderSyncReview(){
   el.style.display = "";
   const n = items.length + ghosts.length;
   const chip = c => "<span style='background:#2c2c2a;color:#f1efe8;font-size:12px;padding:2px 9px;border-radius:6px'>" + esc(c || "blank") + "</span>";
-  if (!staffUnlocked()){
-    // Everyone else sees a quiet strip — details and decisions are rota-team only,
-    // behind the same staff password as the Staff/Import/Fairness/Log pages.
-    el.style.cssText = "background:#fff;border:1px solid #d5d5d0;border-radius:10px;padding:8px 14px;margin:0 0 12px;font-size:13px;display:flex;align-items:center;gap:10px;flex-wrap:wrap";
-    el.innerHTML = "<span style='width:8px;height:8px;border-radius:50%;background:#ef9f27;flex:none'></span>" +
-      "<span style='color:#5f5e5a'>Optima check: <b style='color:#2c2c2a'>" + n + " item" + (n > 1 ? "s" : "") +
-      "</b> need" + (n > 1 ? "" : "s") + " a rota-team decision</span>" +
-      "<button id='srReveal' style='margin-left:auto'>Rota team sign in</button>" +
-      "<span id='srPwWrap' style='display:none;margin-left:auto'><input type='password' id='srPw' placeholder='Staff password' style='width:130px'> " +
-      "<button id='srUnlock'>Unlock</button> <span id='srMsg' style='color:#b00'></span></span>";
-    el.querySelector("#srReveal").onclick = () => {
-      el.querySelector("#srReveal").style.display = "none";
-      el.querySelector("#srPwWrap").style.display = "";
-      el.querySelector("#srPw").focus();
-    };
-    const tryUnlock = async () => {
-      if (await sha256(el.querySelector("#srPw").value) === data.staffPw){
-        store.sset("staffUnlocked", "1"); renderAll();
-      } else el.querySelector("#srMsg").textContent = "Wrong password.";
-    };
-    el.querySelector("#srUnlock").onclick = tryUnlock;
-    el.querySelector("#srPw").onkeydown = e => { if (e.key === "Enter") tryUnlock(); };
-    return;
-  }
+  // This panel lives on the rota-team Attention page, which is already behind the staff
+  // password — so there is nothing to reveal here and no strip to show anyone else.
+  if (!staffUnlocked()){ el.style.display = "none"; el.innerHTML = ""; return; }
   el.style.cssText = "margin:0 0 12px;display:grid;gap:8px";
   let html = "";
   if (ghosts.length){
@@ -5265,7 +5275,7 @@ function resolveSyncClash(i, how){
   markDirty(); renderAll();
   toast(how === "take" ? "Changed to Optima's version: " + c.allocate : "Kept " + (c.app || "blank") + " — Optima won't override it");
 }
-function renderAll(){ renderWeek(); renderStaffGate(); renderFairGate(); renderImportGate(); renderLogGate(); renderOverridesGate(); renderTeamGate(); renderSyncReview(); updateTeamBadge(); }
+function renderAll(){ renderWeek(); renderAutoNotice(); renderStaffGate(); renderFairGate(); renderImportGate(); renderLogGate(); renderOverridesGate(); renderTeamGate(); renderSyncReview(); updateTeamBadge(); }
 const PAGE_TITLES = { rota: "Pod Allocator", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", overrides: "Overrides", help: "How it works", team: "Needs attention", feedback: "Trial feedback" };
 const TEAM_TABS = ["team", "import", "staff", "fair", "log", "overrides", "feedback"];
 function switchTab(tab){
