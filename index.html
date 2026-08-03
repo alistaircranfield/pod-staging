@@ -2896,7 +2896,12 @@ function checkWeek(wk){
   let nrun = 1;
   for (let i = 1; i < 7; i++) {
     const prev = wk.days[i-1].night.phone, cur = wk.days[i].night.phone;
-    if (cur && cur === prev) { nrun++; if (nrun === 2) S(name(cur) + " holds the night phone on consecutive nights — aim for one night at a time where able."); }
+    /* Only worth saying if somebody else could actually take it. On 39 of the weekend nights in
+       this rota the holder is the ONLY phone-trained person on — the warning named a problem with
+       no possible action, every weekend. Say nothing unless there is an alternative. */
+    const altHolder = () => [...new Set([...(wk.days[i].night.AB || []), ...(wk.days[i].night.CDE || []),
+      ...(wk.days[i].night.E || [])])].some(id => id !== cur && phoneOK(id));
+    if (cur && cur === prev) { nrun++; if (nrun === 2 && altHolder()) S(name(cur) + " holds the night phone on consecutive nights — aim for one night at a time where able."); }
     else nrun = 1;
   }
   // Neuro-trained staff: aim ~70% of their pod shifts on C or D.
@@ -4243,6 +4248,17 @@ function autoFillDay(wk, di, wkKey, opts){
   }
   // Keep people in the SAME night pods across a run of nights — only the phone rotates.
   const prevNight = di > 0 ? wk.days[di - 1].night : null;
+  /* ...and when it rotates, the two holders TRADE PLACES. The new holder has just stepped into
+     Pod E; last night's holder steps into the slot they vacated. Without this, last night's holder
+     fell through to the rules below, which sent them back to C,D&E — A & B was left one short with
+     nothing to backfill it, so the second night of every run read 1 on A&B against 4 on C&D.
+     Exactly two people move, and they are the two whose job actually changed. */
+  const tradeInto = (prevNight && prevNight.phone && prevNight.phone !== day.night.phone
+                     && (prevNight.E || []).includes(prevNight.phone)
+                     && (day.night.E || []).includes(day.night.phone))
+    ? ((prevNight.AB || []).includes(day.night.phone) ? "AB"
+       : (prevNight.CDE || []).includes(day.night.phone) ? "CDE" : null)
+    : null;
   const nightAirwayFix = () => {
     // One airway-trained each side. The phone holder used to be dragged into C/D/E every night and
     // sometimes fixed this by accident; now the pods hold still, it has to be done deliberately.
@@ -4269,12 +4285,27 @@ function autoFillDay(wk, di, wkKey, opts){
     const wasAB = prevNight && (prevNight.AB || []).includes(id);
     const wasCDE = prevNight && (prevNight.CDE || []).includes(id);
     const wasE = prevNight && (prevNight.E || []).includes(id);
-    if (wasE) day.night.E.push(id);
+    if (wasE && tradeInto && id === prevNight.phone) day.night[tradeInto].push(id);
+    else if (wasE) day.night.E.push(id);
     else if (wasAB && day.night.AB.length < 2) day.night.AB.push(id);
     else if (wasCDE) day.night.CDE.push(id);
     else if (day.night.AB.length < 2) day.night.AB.push(id);
     else day.night.CDE.push(id);
     nightAssigned.add(id);
+  }
+  /* Last resort, and it should almost never fire: the trade above keeps A & B whole through a run,
+     and a fresh face fills A & B before it overflows. But no path may leave A & B a person down
+     while the C/D side carries three or more — so if one does, bring somebody back. Whoever came
+     to C,D&E most recently moves, since that breaks the fewest runs; never the phone holder. */
+  {
+    const counted = list => (list || []).filter(id => countsInNumbers(id)).length;
+    while (counted(day.night.AB) < 2 && counted(day.night.CDE) + counted(day.night.E) >= 3) {
+      const movable = (day.night.CDE || []).filter(id => id !== day.night.phone && countsInNumbers(id));
+      const back = movable.filter(id => !prevNight || !(prevNight.CDE || []).includes(id)).pop() || movable.pop();
+      if (!back) break;
+      day.night.CDE = day.night.CDE.filter(id => id !== back);
+      day.night.AB.push(back);
+    }
   }
   nightAirwayFix();
 }
