@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-04T16:22:01.226432+00:00",
- "build": "d53626d",
+ "generated": "2026-08-04T18:18:57.652501+00:00",
+ "build": "3d82b59",
  "liveBuild": "22ab1f6",
- "count": 40,
+ "count": 42,
  "changes": [
+  {
+   "sha": "3d82b59",
+   "who": "alistaircranfield",
+   "when": "2026-08-04T19:18:39+01:00",
+   "msg": "Change log: draw who joined the rota and what shift, not a count"
+  },
+  {
+   "sha": "9ee779e",
+   "who": "github-actions[bot]",
+   "when": "2026-08-04T16:22:01Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "d53626d",
    "who": "alistaircranfield",
