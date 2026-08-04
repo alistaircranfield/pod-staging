@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-04T20:02:20.899707+00:00",
- "build": "21924cd",
+ "generated": "2026-08-04T20:08:52.881532+00:00",
+ "build": "17dc8a4",
  "liveBuild": "1fb5f61",
- "count": 48,
+ "count": 50,
  "changes": [
+  {
+   "sha": "17dc8a4",
+   "who": "alistaircranfield",
+   "when": "2026-08-04T21:08:44+01:00",
+   "msg": "Draw the funnel, give PICC a tick box at last, and use the full width"
+  },
+  {
+   "sha": "ae948ee",
+   "who": "github-actions[bot]",
+   "when": "2026-08-04T20:02:20Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "21924cd",
    "who": "alistaircranfield",
