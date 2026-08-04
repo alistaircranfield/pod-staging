@@ -227,6 +227,28 @@ const SEED = `(function(){
             "return s ? [...s.options].map(function(o){return o.textContent;}).join('|') : ''; })()")
        .indexOf("A Consultant") >= 0);
 
+  /* ---- the person form ------------------------------------------------------------------
+     PICC had no tick box until 6 Aug: the form rendered flags of kind "rule" and "info" and a
+     third kind fell through in silence. Assert EVERY skill can be set, not just the two kinds
+     that happened to be handled. */
+  console.log("\n-- every skill can actually be ticked --");
+  w.eval("staffModal(data.staff.find(function(s){ return s.id === 'r1'; }))");
+  const formTxt = w.eval("document.getElementById('modal').textContent");
+  ok("the form offers PICC", /PICC/i.test(formTxt), formTxt.slice(0, 80));
+  const missing = w.eval("(function(){ const t = document.getElementById('modal').textContent;" +
+    "return FLAGS.filter(function(f){ return f[2] && f[2] !== 'staff' && t.indexOf(f[1]) < 0; })" +
+    ".map(function(f){ return f[0]; }).join(','); })()");
+  ok("and every other skill too — no kind falls through", missing === "", "missing: " + missing);
+  ok("the columns and the form agree on which skills exist",
+     w.eval("SK_COLS.filter(function(c){ return !FLAGS.some(function(f){ return f[0] === c[0]; }); }).length") === 0);
+  w.eval("try{ closeModal(); }catch(e){}");
+
+  /* Anything the page depends on being SEEN has to be a shape we ship. The funnel was the
+     character ⌷ and rendered as an empty box on every column. */
+  ok("no missing-glyph characters in the page source",
+     !/[\u2300-\u23FF\u2B00-\u2BFF]/.test(
+       fs.readFileSync(PAGE, "utf8").replace(/\/\*[\s\S]*?\*\//g, "")));
+
   ok("no errors across the whole run", errors.length === 0, errors.slice(0, 3).join(" | "));
 
   console.log("\n=== " + pass + " passed, " + fail + " failed ===");
