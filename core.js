@@ -348,17 +348,35 @@ function logGroups(list, cap){
       } else if (d && (d.act === "on" || d.act === "shift")) {
         /* The sync putting somebody on the rota, or changing what they are down for. Added
            6 Aug: the sync used to write "Optima sync: 1 added" and nothing else, which told
-           you a number and not a person (Ali). The duty code goes in the To column, in the
-           board's own shift colours, so these rows line up with the pod moves above and below
-           them rather than being a sentence in a wide cell. */
+           you a number and not a person (Ali). Two facts have to fit in one row — what shift
+           they are on, and which pod they landed in — so the SHIFT rides on the name as the
+           same pill the board draws in every pod cell, and the To column stays what it is
+           everywhere else in this table: where they ended up. Ali chose this over a second
+           chip in To, and it is the better call: the row needs no column it doesn't already
+           have, and the pill is already the thing people read on the board itself. */
         const code = c2 => __el("span", { class: "tagx " + String(c2 || "").replace(/[^A-Za-z]/g, ""),
           style: "font-size:.66rem;font-weight:600;border-radius:999px;padding:.1rem .45rem;" +
                  "border:1px solid var(--hair);white-space:nowrap" }, c2);
-        row.append(lead, cell([d.subj], "width:30%"),
-                   cell([d.from ? code(d.from) : __el("span", { style: "color:var(--muted)",
-                          title: d.act === "on" ? "Was not on the rota for this day" : "" }, "\u2014")],
-                        "width:12%;text-align:center"),
-                   cell([d.to ? code(d.to) : "\u2014"], "width:12%;text-align:center"), when, by);
+        const named = d.shift
+          ? __el("span", { class: "rpill" },
+              __el("span", { class: "sh" }, d.shift), __el("span", { class: "nm" }, d.subj))
+          : d.subj;
+        if (d.act === "on") {
+          /* There is no maximum on a pod, so somebody added always lands in one — the dash is
+             only for entries written before the sync placed people at all. */
+          const dest = d.to ? pod(d.to)
+            : __el("span", { style: "color:var(--muted)", title: "On the rota, not yet in a pod" }, "\u2014");
+          row.append(lead, cell([named], "width:30%"),
+                     cell([__el("span", { style: "color:var(--muted)",
+                            title: "Was not on the rota for this day" }, "\u2014")],
+                          "width:12%;text-align:center"),
+                     cell([dest, d.night ? __el("span", { style: "font-size:.6rem;color:var(--muted);margin-left:.2rem" }, "night") : null],
+                          "width:12%;text-align:center"), when, by);
+        } else {
+          row.append(lead, cell([d.subj], "width:30%"),
+                     cell([d.from ? code(d.from) : "\u2014"], "width:12%;text-align:center"),
+                     cell([d.to ? code(d.to) : "\u2014"], "width:12%;text-align:center"), when, by);
+        }
       } else if (d && d.act === "off") {
         row.append(lead, cell([d.subj], "width:30%"), fromCell(),
                    cell([reason(d.why)], "width:12%;text-align:center"), when, by);
