@@ -5423,15 +5423,30 @@ function renderSettings(){
   box.append(el("div", { style: "font-size:.76rem;color:var(--muted);margin-top:.5rem" },
     "A default can give someone a skill. It never takes one away — remove a skill on the Staff page."));
 
-  box.append(h("People the import ignores"));
-  const ign = (data.ignoredNames || []).slice();
-  if (!ign.length) box.append(el("div", { class: "empty" }, "Nobody is being ignored."));
-  else for (const n of ign) box.append(el("div", { style: "display:flex;align-items:center;gap:.6rem;padding:.35rem 0;border-top:1px solid var(--hair)" },
-    el("span", { style: "flex:1;font-size:.9rem" }, n),
-    el("button", { class: "btn sec", style: "font-size:.76rem;padding:.2rem .6rem", onclick: () => {
-      data.ignoredNames = (data.ignoredNames || []).filter(x => x !== n);
-      save("Stopped ignoring " + n + " on import"); renderSettings();
-    } }, "Stop ignoring")));
+  /* There were TWO separate "never ask me about this person again" stores and neither had a
+     screen: `ignoredNames`, set by the manual importer, and `triaged` on the people the 2-hourly
+     sync creates. Same decision, two places, both permanent, both invisible — which is how three
+     real people ended up ignored with no way to find out. One list, both sources, each undoable. */
+  box.append(h("People the board is ignoring"));
+  const ignored = (data.ignoredNames || []).slice().map(n => ({
+    label: n, why: "Ignored on import",
+    undo: () => { data.ignoredNames = (data.ignoredNames || []).filter(x => x !== n);
+                  save("Stopped ignoring " + n + " on import"); }
+  }));
+  const parked = (data.staff || []).filter(x => x.adhoc && x.triaged && !/zlocum/i.test(x.name || "")).map(x => ({
+    label: x.name, why: "Kept as one-off cover",
+    undo: () => { x.triaged = false;
+                  save("Will ask about " + x.name + " again on the next sync"); }
+  }));
+  const all = ignored.concat(parked);
+  if (!all.length) box.append(el("div", { class: "empty" }, "Nobody is being ignored."));
+  else for (const it of all) box.append(el("div", { style: "display:flex;align-items:center;gap:.6rem;padding:.4rem 0;border-top:1px solid var(--hair)" },
+    el("span", { style: "flex:1;font-size:.9rem" }, it.label),
+    el("span", { style: "font-size:.72rem;color:var(--muted)" }, it.why),
+    el("button", { class: "btn sec", style: "font-size:.76rem;padding:.2rem .6rem",
+      onclick: () => { it.undo(); renderSettings(); } }, "Stop ignoring")));
+  if (all.length) box.append(el("div", { style: "font-size:.76rem;color:var(--muted);margin-top:.4rem" },
+    "Ignored on import — the file skips them. Kept as one-off cover — they still appear on the board, but the sync stops offering to add them to the staff list."));
 }
 
 /* "Who is on today who can do a PICC line?" is asked several times a week and the board cannot
