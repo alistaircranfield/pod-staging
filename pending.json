@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-04T18:32:03.345571+00:00",
- "build": "883939c",
- "liveBuild": "22ab1f6",
- "count": 44,
+ "generated": "2026-08-04T20:01:05.858888+00:00",
+ "build": "82cbb89",
+ "liveBuild": "1fb5f61",
+ "count": 46,
  "changes": [
+  {
+   "sha": "82cbb89",
+   "who": "alistaircranfield",
+   "when": "2026-08-04T21:00:51+01:00",
+   "msg": "Staff: a column per skill, sortable and filterable; PICC gets one at last"
+  },
+  {
+   "sha": "14e9fa7",
+   "who": "github-actions[bot]",
+   "when": "2026-08-04T18:32:03Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "883939c",
    "who": "alistaircranfield",
