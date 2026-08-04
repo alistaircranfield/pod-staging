@@ -717,7 +717,6 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
 
   <section id="tab-feedback" style="display:none">
     <div class="card" id="feedbackCard">
-      <p style="font-size:.8rem;color:var(--muted);line-height:1.6">Everything sent through the Feedback button during the trial, newest first. Each one is emailed out as it arrives, so this is the record rather than the alert.</p>
       <div id="fbList"></div>
     </div>
   </section>
@@ -3538,11 +3537,7 @@ function renderLog(){
   if (fb.length) {
     box.append(el("div", { style: "font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:.2rem 0 .5rem" },
       "Trial feedback (" + fb.length + ")"));
-    for (const f of fb.slice(0, 100)) {
-      box.append(el("div", { class: "logrow" + (f.read ? "" : " unread") },
-        el("div", { class: "t" }, new Date(f.t).toLocaleString("en-GB") + " — " + (f.name || "anonymous")),
-        (f.kind ? f.kind + ": " : "") + f.msg));
-    }
+    box.append(feedbackCards(fb, 100));
 
     box.append(el("div", { style: "font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:1.1rem 0 .5rem" }, "Changes"));
   }
@@ -3551,24 +3546,70 @@ function renderLog(){
   box.append(logControls(renderLog), logGroups(data.log, 400));
 }
 
+/* A pod named in a log line is drawn in the same colour it has on the grid, so "Pod C → Pod D"
+   reads as movement rather than as words. The message text is not parsed or restructured —
+   every "Pod X" token is simply swapped for a chip, which keeps this robust against whatever
+   wording a future log entry uses. */
+const POD_TINT = { A: "var(--podA)", B: "var(--podB)", C: "var(--podC)", D: "var(--podD)", E: "var(--podE)" };
+const POD_INK  = { A: "var(--podAb)", B: "var(--podBb)", C: "var(--podCb)", D: "var(--podDb)", E: "var(--podEb)" };
+function podChip(letter){
+  return el("span", { style: "background:" + POD_TINT[letter] + ";color:" + POD_INK[letter] +
+    ";font-size:.72rem;font-weight:600;padding:.1rem .45rem;border-radius:999px;white-space:nowrap" }, "Pod " + letter);
+}
+function podChipify(msg){
+  const frag = document.createDocumentFragment();
+  const re = /\bPod ([A-E])\b/g;
+  let last = 0, m;
+  while ((m = re.exec(msg)) !== null){
+    if (m.index > last) frag.append(document.createTextNode(msg.slice(last, m.index)));
+    frag.append(podChip(m[1]));
+    last = m.index + m[0].length;
+  }
+  frag.append(document.createTextNode(msg.slice(last)));
+  return frag;
+}
+
+/* One card per message, used by both the Trial feedback page and the log's feedback section, so
+   they cannot drift apart. The old opening sentence explaining what the page was is gone —
+   hard rule 2: if a screen needs a sentence to explain it, redesign the screen. */
+function feedbackCards(list, cap){
+  const wrap = el("div", { style: "display:grid;gap:.5rem" });
+  for (const f of (list || []).slice(0, cap || 300)){
+    const kind = (f.kind || "").toLowerCase();
+    const tint = kind === "problem" ? "#fdf4f6" : kind === "idea" ? "#f5f8ff" : "var(--hair)";
+    const ink  = kind === "problem" ? "var(--podEb)" : kind === "idea" ? "var(--podAb)" : "var(--muted)";
+    wrap.append(el("div", { style: "background:#fff;border:1px solid " + (f.read ? "#e3e3de" : "#d5d5d0") +
+        ";border-radius:10px;padding:.6rem .8rem" + (f.read ? ";opacity:.62" : "") },
+      el("div", { style: "display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem" },
+        f.kind ? el("span", { style: "background:" + tint + ";color:" + ink +
+          ";font-size:.68rem;font-weight:700;padding:.1rem .5rem;border-radius:999px" }, f.kind) : null,
+        el("span", { style: "font-size:.72rem;color:var(--muted)" },
+          new Date(f.t).toLocaleString("en-GB") + " · " + (f.name || "anonymous"))),
+      el("div", { style: "font-size:.92rem" }, f.msg)));
+  }
+  return wrap;
+}
+
 /* How the log is being read. Kept outside renderLog so the choice survives a redraw. */
 let logBy = "made", logFilter = "all";
 
 /* Two segmented controls, no sentence explaining them (hard rule 2). The left one names the
    thing the groups below are keyed on, so the headings are the explanation. */
 function logControls(redraw){
-  const wrap = el("div", { style: "display:flex;gap:.5rem;flex-wrap:wrap;margin:0 0 .9rem" });
-  const build = (opts, get, set) => {
-    const seg = el("div", { class: "seg", style: "flex:1;min-width:200px" });
+  const wrap = el("div", { style: "display:flex;gap:.9rem;flex-wrap:wrap;align-items:center;margin:0 0 .9rem" });
+  const pick = (label, opts, get, set) => {
+    const sel = el("select", { style: "font-size:.82rem",
+      onchange: e => { set(e.target.value); redraw(); } });
     opts.forEach(([v, l]) => {
-      const b = el("button", { class: "segbtn" + (v === get() ? " on" : ""), onclick: () => { set(v); redraw(); } }, l);
-      b.dataset.v = v; seg.append(b);
+      const o = el("option", { value: v }, l);
+      if (v === get()) o.selected = true;
+      sel.append(o);
     });
-    return seg;
+    return el("label", { style: "display:inline-flex;align-items:center;gap:.4rem;font-size:.78rem;color:var(--muted)" }, label, sel);
   };
   wrap.append(
-    build([["made", "When changed"], ["affects", "Rota day"]], () => logBy, v => logBy = v),
-    build([["all", "All"], ["manual", "Manual"], ["auto", "Automatic"]], () => logFilter, v => logFilter = v)
+    pick("Group by", [["made", "When changed"], ["affects", "Rota day"]], () => logBy, v => logBy = v),
+    pick("Show", [["all", "All changes"], ["manual", "Manual only"], ["auto", "Automatic only"]], () => logFilter, v => logFilter = v)
   );
   return wrap;
 }
@@ -3585,12 +3626,14 @@ function logGroups(list, cap){
     for (const e of g.entries) {
       const other = (logBy === "made") ? logOn(e) : logMade(e);
       const stamp = new Date(e.t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-      out.append(el("div", { class: "logrow" + (logKind(e) === "auto" ? " auto" : "") },
-        el("div", { class: "t" }, stamp + " — " + (e.who || "?")),
-        e.msg,
-        (other && other !== g.date)
-          ? el("span", { class: "logon" }, (logBy === "made" ? "rota " : "changed ") + fmtDate(other))
-          : null));
+      out.append(el("div", { class: "logrow" + (logKind(e) === "auto" ? " auto" : ""),
+          style: "display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap" },
+        el("span", { style: "flex:1;min-width:12rem" }, podChipify(String(e.msg || "")),
+          (other && other !== g.date)
+            ? el("span", { class: "logon" }, (logBy === "made" ? "rota " : "changed ") + fmtDate(other))
+            : null),
+        el("span", { class: "t", style: "flex:none;white-space:nowrap;margin:0" },
+          stamp + " · " + (e.who || "?"))));
     }
   }
   return out;
@@ -5084,16 +5127,44 @@ function renderFeedback(){
   const box = $("#fbList"); if (!box) return;
   box.innerHTML = "";
   const fb = (data && data.feedback) || [];
-  if (!fb.length) { box.append(el("div", { class: "attnclear" }, el("b", {}, "Nothing yet"), "Messages sent with the Feedback button appear here.")); return; }
-  for (const f of fb.slice(0, 300)) {
-    box.append(el("div", { class: "logrow" + (f.read ? "" : " unread") },
-      el("div", { class: "t" }, new Date(f.t).toLocaleString("en-GB") + " — " + (f.name || "anonymous")),
-      (f.kind ? f.kind + ": " : "") + f.msg));
-  }
+  if (!fb.length) { box.append(el("div", { class: "attnclear" }, el("b", {}, "Nothing yet"),
+    "Messages sent with the Feedback button appear here.")); return; }
+  box.append(feedbackCards(fb, 300));
+}
+/* The roster comes from Optima every two hours. When that stops — Optima slow, session expired,
+   its page changed — the board carries on looking completely normal and the only signal is a CI
+   email nobody reads. That happened on 4 Aug: two hours of silence and an inbox nobody checked
+   until later. So the freshness of the roster is stated here, in the same place as everything
+   else that needs a person. Amber past 3 hours, red past 6 — the job runs 12 times a day, so
+   3 hours means it has already missed one. */
+function renderSyncStatus(){
+  const box = $("#attnList"); if (!box || !data) return;
+  const t = data.lastSync ? Date.parse(data.lastSync) : NaN;
+  const mins = isNaN(t) ? null : Math.max(0, Math.round((Date.now() - t) / 60000));
+  const bad = mins === null || mins > 360;
+  const warn = !bad && mins > 180;
+  const dot = bad ? "var(--red)" : warn ? "#ef9f27" : "#3d9964";
+  const said = mins === null ? "Roster has never synced"
+    : mins < 60 ? "Roster synced " + mins + " minute" + (mins === 1 ? "" : "s") + " ago"
+    : "Roster synced " + Math.round(mins / 60) + " hour" + (Math.round(mins / 60) === 1 ? "" : "s") + " ago";
+  const row = el("div", { style: "display:flex;align-items:center;gap:.6rem;background:#fff;border:1px solid #e3e3de;" +
+      (bad ? "border-left:3px solid var(--red);border-radius:0;" : "border-radius:10px;") + "padding:.6rem .85rem;margin:0 0 .7rem" },
+    el("span", { style: "width:9px;height:9px;border-radius:50%;background:" + dot + ";flex:none" }),
+    el("span", { style: "flex:1;font-size:.92rem" }, said));
+  const url = (window.__POD_KEYS && window.__POD_KEYS.sy) || "";
+  if (url) row.append(el("button", { class: "btn sec", style: "font-size:.78rem;padding:.3rem .7rem",
+    onclick: async ev => {
+      const b = ev.target; b.disabled = true; b.textContent = "Asking…";
+      try { await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+            toast("Sync asked for — the board updates in a minute or two."); }
+      catch(e){ toast("Could not reach the sync."); b.disabled = false; b.textContent = "Sync now"; }
+    } }, "Sync now"));
+  box.append(row);
 }
 function renderAttention(){
   const box = $("#attnList"); if (!box) return;
   box.innerHTML = "";
+  renderSyncStatus();
   const items = attentionItems();
   if (!items.length) {
     box.append(el("div", { class: "attnclear" }, el("b", {}, "Nothing needs attention"),
