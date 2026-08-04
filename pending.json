@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-04T18:18:57.652501+00:00",
- "build": "3d82b59",
+ "generated": "2026-08-04T18:32:03.345571+00:00",
+ "build": "883939c",
  "liveBuild": "22ab1f6",
- "count": 42,
+ "count": 44,
  "changes": [
+  {
+   "sha": "883939c",
+   "who": "alistaircranfield",
+   "when": "2026-08-04T19:31:47+01:00",
+   "msg": "Sync rows: shift pill on the name, pod in To"
+  },
+  {
+   "sha": "1cb082a",
+   "who": "github-actions[bot]",
+   "when": "2026-08-04T18:18:57Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "3d82b59",
    "who": "alistaircranfield",
