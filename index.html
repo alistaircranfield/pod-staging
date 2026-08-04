@@ -9,6 +9,10 @@
 :root{
   /* Everything shared lives in core.css. Only the role accent is this page's. */
   --accent:#4c5dd6; --accent-bg:#eef0fb;
+  /* One flat grey for every skill icon a person does NOT have. Set once so "off" can never
+     drift between columns — with eleven of them, eleven slightly different greys would read as
+     eleven different meanings. */
+  --skoff:#e2e0d9;
 }
 *{box-sizing:border-box}
 body{margin:0;font-family:Inter,-apple-system,"Segoe UI",system-ui,Arial,sans-serif;color:var(--ink);background:var(--bg);font-size:14px;-webkit-font-smoothing:antialiased}
@@ -291,6 +295,29 @@ td.col-A{background:var(--podA)} td.col-B{background:var(--podB)} td.col-C{backg
 .awdot{font-size:.54rem;font-weight:800;background:var(--accent-bg);color:var(--accent);border-radius:5px;padding:.06rem .24rem;line-height:1}
 .chip.phonehover{outline:2px dashed var(--accent);outline-offset:1px}
 /* staff table */
+/* One column per skill (Ali, 6 Aug). Before this every skill was a word-chip in one cell, and
+   with seven of them the cell wrapped to two lines and you could not compare down a column —
+   which is the only thing that page is for. The header carries the icon AND the word, and stays
+   put while the list scrolls, so you never lose which column is which. */
+.skico{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px}
+.skico svg{width:18px;height:18px;display:block}
+#staffTable th.skh{text-align:center;padding:.35rem .2rem;cursor:pointer;white-space:nowrap;vertical-align:bottom}
+#staffTable th.skh .skico{width:15px;height:15px;margin:0 auto .1rem}
+#staffTable th.skh .skico svg{width:15px;height:15px}
+#staffTable td.skc{text-align:center;padding:.4rem .2rem;color:var(--skoff)}
+#staffTable td.skc.on{color:inherit}
+#staffTable th.sortable{cursor:pointer;user-select:none}
+#staffTable th.sorted{color:var(--ink);border-bottom:2px solid var(--ink)}
+#staffTable th .fun{opacity:.35;margin-left:.15rem}
+#staffTable th .fun.on{opacity:1;color:var(--accent)}
+#staffFilters{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;padding:0 0 .6rem}
+#staffFilters .fchip{background:var(--hair);font-size:.72rem;font-weight:600;padding:.12rem .5rem;border-radius:999px;cursor:pointer}
+#staffFilters .fcount{font-size:.78rem;color:var(--muted)}
+#staffFilters .fclear{font-size:.78rem;color:var(--accent);cursor:pointer;margin-left:auto}
+.funpop{position:absolute;z-index:40;background:var(--card);border:1px solid var(--line);border-radius:10px;
+  box-shadow:0 8px 24px rgba(29,31,36,.12);padding:.5rem .6rem;font-size:.8rem;min-width:150px}
+.funpop label{display:flex;align-items:center;gap:.45rem;padding:.15rem 0;white-space:nowrap;cursor:pointer}
+.funpop .fbot{border-top:1px solid var(--hair);margin-top:.4rem;padding-top:.35rem;color:var(--accent);cursor:pointer}
 #staffTable th{position:sticky;top:0;background:var(--card);font-size:.6rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;padding:.5rem .55rem;border-bottom:1px solid var(--line);z-index:5;font-weight:700}
 #staffTable td{padding:.45rem .55rem;border-bottom:1px solid var(--hair);vertical-align:middle}
 #staffTable tr:hover td{background:#fbfbf9}
@@ -687,13 +714,14 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
         <h2 style="margin:0">Staff list</h2>
         <button class="btn" id="btnAddStaff">+ Add person</button>
         <label style="font-size:.82rem;display:flex;align-items:center;gap:.35rem"><input type="checkbox" id="showInactive"> Show expired/inactive</label>
-        <span style="font-size:.78rem;color:var(--muted)">Coloured attributes drive the checks and auto-fill · grey ones are rota information. People past their end date drop out automatically.</span>
+        <span style="font-size:.78rem;color:var(--muted)">People past their end date drop out automatically.</span>
       </div>
-      <div style="overflow-x:auto">
+      <!-- Only ever populated when a filter is on: a filtered table looks identical to a full
+           one, and that is how somebody concludes a person has left the unit. -->
+      <div id="staffFilters"></div>
+      <div style="overflow-x:auto;max-height:70vh">
       <table id="staffTable">
-        <thead><tr>
-          <th>Name</th><th>Grade</th><th>Skills</th><th>Checked</th><th></th>
-        </tr></thead>
+        <thead id="staffHead"></thead>
         <tbody id="staffBody"></tbody>
       </table>
       </div>
@@ -1918,30 +1946,221 @@ function applyGradeDefaults(s){
   return true;
 }
 
+
+/* ── The skill icons ──────────────────────────────────────────────────────────────────────────
+   Drawn here rather than taken from an icon set, because the three that matter most do not
+   exist in one: a laryngoscope, a PICC line and an arm. (Checked, not assumed — `ti-arm` and
+   `ti-elbow` render blank.) The rest are the set's own, chosen because Ali preferred them to my
+   drawings. The phone and the eye come from the BOARD, so a person carries the same glyph
+   wherever you meet them.
+
+   All one 32x32 box and one stroke weight, so a row of them sits on a single baseline without
+   per-icon nudging. `currentColor` throughout: the cell decides on or off by setting colour, so
+   there is never a second grey copy of each icon to keep in step. */
+const SK_ICON = {
+  /* Macintosh blade seated ACROSS the top of the handle and tapering to the tip. Four goes at
+     this: the first curved the wrong way, the second butted into the handle's side, the third
+     had parallel edges instead of a taper. */
+  airway: '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="19.4" y="6.6" width="7.8" height="22.8" rx="1.8"/><path d="M27.2 2.6H9C3.6 2.6.6 8 1.5 13.6c.14.86 1.2.98 1.55.2 1.6-3.5 3.9-5.6 6.8-6.5 2.9-.9 7.6-1.2 17.35-1.2z"/></svg>',
+  phoneHolder: '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.2 14.6c2 3.9 5.3 7.2 9.2 9.2l3-3c.4-.4 1-.5 1.5-.35 1.55.52 3.2.8 4.9.8.78 0 1.4.63 1.4 1.4v4.75c0 .77-.62 1.4-1.4 1.4C14.4 28.8 3.2 17.6 3.2 3.4 3.2 2.62 3.83 2 4.6 2h4.75c.77 0 1.4.63 1.4 1.4 0 1.72.28 3.36.8 4.9.16.5.04 1.05-.35 1.45z"/></svg>',
+  /* The SAME phone plus a star. A supervisor is a holder, so it must not be a different shape —
+     an earlier attempt put the phone inside a shield and it read as a third, unrelated thing. */
+  phoneSupervisor: '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.6 16.4c2 3.9 5.3 7.2 9.2 9.2l3-3c.4-.4 1-.5 1.5-.35 1.55.52 3.2.8 4.9.8.78 0 1.4.63 1.4 1.4v4.75c0 .77-.62 1.4-1.4 1.4C14.8 30.6 3.6 19.4 3.6 5.2c0-.78.63-1.4 1.4-1.4h4.75c.77 0 1.4.63 1.4 1.4 0 1.72.28 3.36.8 4.9.16.5.04 1.05-.35 1.45z"/><path d="M23.4 1.6l1.75 3.55 3.9.57-2.82 2.75.67 3.9-3.5-1.84-3.5 1.84.67-3.9-2.82-2.75 3.9-.57z"/></svg>',
+  /* The board's own eye. A shadow is somebody watching. */
+  phoneShadow: '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3.3 14.7s4.4-7.4 12.7-7.4 12.7 7.4 12.7 7.4-4.4 7.4-12.7 7.4S3.3 14.7 3.3 14.7z"/><circle cx="16" cy="14.7" r="3.1"/><path d="M11.3 27.3c1.3-1.3 2.9-2 4.7-2s3.3.7 4.7 2"/></svg>',
+  transfer: '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="9" width="17" height="12" rx="2"/><path d="M19.5 13h4.6l5.4 4.6V21h-10z"/><circle cx="9" cy="24.5" r="2.6"/><circle cx="23" cy="24.5" r="2.6"/><path d="M11 12v6M8 15h6"/></svg>',
+  /* The icon set's syringe (Ali's pick). A PICC is not literally a syringe, but no set has a
+     laryngoscope OR an arm — `ti-arm` and `ti-elbow` render blank — and a syringe is the one
+     glyph everyone already reads as "a line going in". Redrawn here as a path because the app
+     does not load an icon font; everything on this page is inline SVG. */
+  picc: '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 28.5l6-6"/><rect x="10.5" y="11.5" width="13" height="8" rx="1.2" transform="rotate(-45 17 15.5)"/><path d="M14.4 16.6l-2.6 2.6M18.2 12.8l-2.6 2.6" stroke-width="1.5"/><path d="M22.6 9.4l4.4 4.4"/><path d="M25.6 4.6l4.4 4.4M27.8 2.4l1.8 1.8"/></svg>',
+  /* Brain and hospital are the icon set's own — Ali preferred them to the ones I drew. */
+  neuro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 13a3.5 3.5 0 00-3.5 3.5v1a3.5 3.5 0 003.5 3.5 3.5 3.5 0 003.5-3.5v-1a3.5 3.5 0 00-3.5-3.5z"/><path d="M8.5 13A3.5 3.5 0 015 9.5v-1A3.5 3.5 0 018.5 5 3.5 3.5 0 0112 8.5v1A3.5 3.5 0 018.5 13z"/><path d="M17.5 16a3.5 3.5 0 003.5-3.5v-1A3.5 3.5 0 0017.5 8 3.5 3.5 0 0014 11.5v1a3.5 3.5 0 003.5 3.5z"/><path d="M6.5 21A3.5 3.5 0 013 17.5v-1A3.5 3.5 0 016.5 13 3.5 3.5 0 0110 16.5v1A3.5 3.5 0 016.5 21z"/><path d="M12 8.5V19"/></svg>',
+  /* Present, but not solid in the numbers. A struck-through person read as "deleted", which is
+     the opposite of what supernumerary means. */
+  supernum: '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3 2.6"><circle cx="16" cy="11" r="5"/><path d="M5.5 27.5c0-5.4 4.7-9.2 10.5-9.2s10.5 3.8 10.5 9.2"/></svg>',
+  nights: '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M27 19.4A11.6 11.6 0 0112.6 5 11.7 11.7 0 1027 19.4z"/></svg>',
+  fgh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1"/><path d="M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16"/></svg>',
+  /* The SAME hospital with a moon badge, not a shrunken one squeezed in beside it. */
+  fghNights: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h13M8 8h1M8 12h1M8 16h1M12 8h1M12 12h1"/><path d="M5 21V5a2 2 0 012-2h8a2 2 0 012 2v4"/><path d="M22.5 17.6a4 4 0 01-5.1-5.1 4.1 4.1 0 105.1 5.1z"/></svg>',
+};
+/* The colour each icon takes when the person HAS the skill. Off is one flat grey, set once. */
+const SK_COL = { airway: "#0C447C", phoneHolder: "#27500A", phoneSupervisor: "#1B5E20",
+  phoneShadow: "#8A5A00", transfer: "#085041", picc: "#3C3489", neuro: "#6A2C91",
+  supernum: "#72243E", nights: "#444441", fgh: "#854F0B", fghNights: "#633806" };
+/* Column order and the word under each icon, in ONE list so the header, the body, the sort and
+   the filters can never disagree about which columns exist or what they are called. The third
+   item is the hover text, which is the only explanation on the page (hard rule 2). */
+const SK_COLS = [
+  ["airway", "Airway", "Trained to manage the airway / intubate"],
+  ["phoneHolder", "Phone", "Can carry the referral phone on their own"],
+  ["phoneSupervisor", "Super", "Senior enough to supervise a learner on the phone"],
+  ["phoneShadow", "Shadow", "Still learning the phone — can only carry it alongside a supervisor"],
+  ["transfer", "Transfer", "Trained to escort transfers off the unit"],
+  ["picc", "PICC", "Trained to insert PICC lines"],
+  ["neuro", "Neuro", "On a neuro placement — auto-fill leans them towards Pods C and D"],
+  ["supernum", "Extra", "Supernumerary — never counted towards pod numbers"],
+  ["nights", "Nights", "Available to be put on night shifts"],
+  ["fgh", "FGH", "Covers Fairfield General on days"],
+  ["fghNights", "FGH nts", "Covers Fairfield General at night"],
+];
+const skIcon = k => '<span class="skico">' + SK_ICON[k] + "</span>";
+
+
+/* How the list is ordered and narrowed. Held outside renderStaff so a redraw — and there is one
+   after every tick, every check, every delete — does not throw away what you were looking at. */
+let stSort = { key: "seniority", dir: 1 };
+let stGrades = null;          // null = all; otherwise a Set of the grades to show
+let stSkills = new Set();     // skills that must ALL be present
+
+function stCmp(a, b){
+  const k = stSort.key, d = stSort.dir;
+  let v = 0;
+  if (k === "name") v = a.name.localeCompare(b.name);
+  else if (k === "grade") v = seniority(a) - seniority(b) || a.name.localeCompare(b.name);
+  else if (k === "checked") {
+    /* Never-checked first when ascending: "who has nobody looked at" is the question this
+       column exists to answer, and it is the one a blank sorts wrong for. */
+    const av = a.verified === false ? 0 : 1, bv = b.verified === false ? 0 : 1;
+    v = av - bv || a.name.localeCompare(b.name);
+  } else v = (b[k] ? 1 : 0) - (a[k] ? 1 : 0) || a.name.localeCompare(b.name);
+  return v * d;
+}
+
+function stFiltered(all){
+  return all.filter(s =>
+    (!stGrades || stGrades.has(s.grade || "")) &&
+    [...stSkills].every(k => !!s[k]));
+}
+
+/* A small tick-list hung off a header. Closes on the next click anywhere, so it can never be
+   left open behind the list it is filtering. */
+function stFunnel(anchor, title, items, isOn, toggle, onAll, onNone){
+  document.querySelectorAll(".funpop").forEach(x => x.remove());
+  const pop = el("div", { class: "funpop" });
+  pop.append(el("div", { style: "font-size:.7rem;color:var(--muted);margin-bottom:.25rem" }, title));
+  for (const [val, label, count] of items) {
+    const cb = el("input", { type: "checkbox" });
+    cb.checked = isOn(val);
+    cb.onchange = () => { toggle(val, cb.checked); renderStaff(); };
+    pop.append(el("label", {}, cb, label,
+      el("span", { style: "color:var(--muted);margin-left:auto" }, String(count))));
+  }
+  pop.append(el("div", { class: "fbot" },
+    el("span", { onclick: () => { onAll(); renderStaff(); } }, "All"), " · ",
+    el("span", { onclick: () => { onNone(); renderStaff(); } }, "None")));
+  document.body.append(pop);
+  const r = anchor.getBoundingClientRect();
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + "px";
+  pop.style.top = (r.bottom + window.scrollY + 4) + "px";
+  setTimeout(() => document.addEventListener("click", function off(e){
+    if (pop.contains(e.target)) return;
+    pop.remove(); document.removeEventListener("click", off);
+  }), 0);
+}
+
 function renderStaff(){
   const body = $("#staffBody");
-  body.innerHTML = "";
+  const head = $("#staffHead");
+  body.innerHTML = ""; if (head) head.innerHTML = "";
   if (!data) return;
   const showInactive = $("#showInactive").checked;
   const today = todayISO();
-  // Consultants only feed the cover dropdowns, and one-off locums are per-day — keep both off the list.
-  const list = [...data.staff].filter(s => s.grade !== "CON" && !s.adhoc).sort((a,b) => seniority(a) - seniority(b) || a.name.localeCompare(b.name));
+  // Consultants only feed the cover dropdowns, and one-off locums are per-day — keep both off the
+  // list. Consultants' skills are the Consultant Rota's business, not this board's.
+  const everyone = [...data.staff].filter(s => s.grade !== "CON" && !s.adhoc)
+    .filter(s => isActiveOn(s, today) || showInactive);
+  const list = stFiltered(everyone).sort(stCmp);
+
+  /* ---- the header ------------------------------------------------------------------------ */
+  if (head) {
+    const arrow = k => stSort.key === k ? (stSort.dir === 1 ? " ↑" : " ↓") : "";
+    const sortTh = (k, label, extra) => {
+      const th = el("th", { class: "sortable" + (stSort.key === k ? " sorted" : ""),
+        title: "Sort by " + label.toLowerCase() }, label + arrow(k));
+      th.onclick = () => { stSort = { key: k, dir: stSort.key === k ? -stSort.dir : 1 }; renderStaff(); };
+      if (extra) th.append(extra);
+      return th;
+    };
+    const tr = el("tr");
+    tr.append(sortTh("name", "Name"));
+
+    /* Grade: sortable by seniority, and filterable, because "show me the ACCPs" is the single
+       most asked question of this page. */
+    const gCounts = {};
+    for (const s2 of everyone) gCounts[s2.grade || ""] = (gCounts[s2.grade || ""] || 0) + 1;
+    const gFun = el("span", { class: "fun" + (stGrades ? " on" : ""), title: "Filter by grade" }, "⌷");
+    gFun.onclick = e => {
+      e.stopPropagation();
+      const all = Object.keys(gCounts).sort((x, y) => (GRADES.indexOf(x) + 99) - (GRADES.indexOf(y) + 99));
+      stFunnel(gFun, "Show grades", all.map(g => [g, g || "no grade", gCounts[g]]),
+        g => !stGrades || stGrades.has(g),
+        (g, on) => { if (!stGrades) stGrades = new Set(all); on ? stGrades.add(g) : stGrades.delete(g); },
+        () => stGrades = null, () => stGrades = new Set());
+    };
+    tr.append(sortTh("grade", "Grade", gFun));
+
+    for (const [k, word, why] of SK_COLS) {
+      const th = el("th", { class: "skh sortable" + (stSort.key === k ? " sorted" : ""),
+        title: why + " — click to sort, funnel to show only these" });
+      th.innerHTML = skIcon(k);
+      th.querySelector(".skico").style.color = SK_COL[k];
+      th.append(el("div", {}, word));
+      const fun = el("span", { class: "fun" + (stSkills.has(k) ? " on" : ""), title: "Show only people with this" }, "⌷");
+      fun.onclick = e => {
+        e.stopPropagation();
+        stSkills.has(k) ? stSkills.delete(k) : stSkills.add(k);
+        renderStaff();
+      };
+      th.append(fun);
+      th.onclick = () => { stSort = { key: k, dir: stSort.key === k ? -stSort.dir : 1 }; renderStaff(); };
+      tr.append(th);
+    }
+    tr.append(sortTh("checked", "Checked"));
+    tr.append(el("th", {}));
+    head.append(tr);
+  }
+
+  /* ---- what is being filtered out, said out loud ------------------------------------------
+     A filtered table looks exactly like a full one, which is how somebody concludes a person
+     has left. The bar only appears when something is actually filtered. */
+  const bar = $("#staffFilters");
+  if (bar) {
+    bar.innerHTML = "";
+    const on = (stGrades ? 1 : 0) + stSkills.size;
+    if (on) {
+      bar.append(el("span", { class: "fcount" }, list.length + " of " + everyone.length));
+      if (stGrades) bar.append(el("span", { class: "fchip", title: "Remove this filter",
+        onclick: () => { stGrades = null; renderStaff(); } },
+        "Grade: " + [...stGrades].map(g => g || "no grade").join(", ") + " ✕"));
+      for (const k of stSkills) {
+        const word = (SK_COLS.find(c => c[0] === k) || [, k])[1];
+        bar.append(el("span", { class: "fchip", title: "Remove this filter",
+          onclick: () => { stSkills.delete(k); renderStaff(); } }, word + " ✕"));
+      }
+      bar.append(el("span", { class: "fclear", onclick: () => {
+        stGrades = null; stSkills.clear(); renderStaff(); } }, "Clear all"));
+    }
+  }
+
+  /* ---- the rows -------------------------------------------------------------------------- */
+  const NCOL = 4 + SK_COLS.length;
   for (const s of list) {
     const active = isActiveOn(s, today);
-    if (!active && !showInactive) continue;
     const tr = el("tr", { class: active ? "" : "inactive" });
     const twist = el("button", { class: "twist", title: "Photo and profile",
-      style: "border:0;background:transparent;cursor:pointer;color:var(--muted);padding:0 .35rem 0 0;font-size:.8rem" }, "\u25b8");
+      style: "border:0;background:transparent;cursor:pointer;color:var(--muted);padding:0 .35rem 0 0;font-size:.8rem" }, "▸");
     tr.append(el("td", { class: "namecell", title: s.name }, twist, s.name,
       (s.profile && (s.profile.about || s.profile.photo)) ? el("span", { class: "pill", style: "margin-left:.3rem", title: "Has a profile" }, "profile") : "",
       !active ? el("span",{class:"pill expired"}," expired") : ""));
     tr.append(el("td", {}, s.grade ? el("span", { class: "pill grade" }, s.grade) : el("span", { class: "pill grade-empty" }, "no grade")));
-    // Skills as compact read-only pills — tick them in the person's card (Edit).
-    const skcell = el("td", { class: "skcell" });
-    for (const f of FLAGS) if (f[2] === "rule" && s[f[0]]) skcell.append(el("span", { class: "spill", style: "background:" + f[3] + "16;color:" + f[3] + ";border:1px solid " + f[3] + "40", title: f[4] || f[1] }, SKILL_SHORT[f[0]] || f[1]));
-    for (const f of FLAGS) if (f[2] === "info" && s[f[0]]) skcell.append(el("span", { class: "spill info", title: f[4] || f[1] }, SKILL_SHORT[f[0]] || f[1]));
-    if (!skcell.children.length) skcell.append(el("span", { class: "muted-sm" }, "—"));
-    tr.append(skcell);
+    for (const [k, word, why] of SK_COLS) {
+      const td = el("td", { class: "skc" + (s[k] ? " on" : ""),
+        title: s.name + (s[k] ? " — " + why : " — not " + word.toLowerCase()) });
+      td.innerHTML = skIcon(k);
+      if (s[k]) td.style.color = SK_COL[k];
+      tr.append(td);
+    }
     // New people are allocated straight away, but somebody has to confirm their skills are right.
     // This lives here, on the rota team's page — never on the board the residents see.
     const vcell = el("td", { class: "vcell" });
@@ -1965,17 +2184,18 @@ function renderStaff(){
     /* Profiles live HERE, on the resident board, because this is the page that can write them.
        The consultant page only reads them. Kept collapsed so the staff list keeps its shape. */
     const sub = el("tr", { style: "display:none" });
-    const cell = el("td", { colspan: "5", style: "background:var(--hair);padding:.7rem .9rem" });
+    const cell = el("td", { colspan: String(NCOL), style: "background:#fcfbf9;border-left:3px solid var(--accent);padding:1rem 1.2rem" });
     sub.append(cell);
     body.append(sub);
     twist.onclick = () => {
       const open = sub.style.display === "none";
       sub.style.display = open ? "" : "none";
-      twist.textContent = open ? "\u25be" : "\u25b8";
+      twist.textContent = open ? "▾" : "▸";
       if (open && !cell.children.length) profileEditor(cell, s);
     };
   }
-  if (!body.children.length) body.append(el("tr",{}, el("td",{colspan:"5",class:"empty"}, "No staff yet — click “+ Add person”.")));
+  if (!body.children.length) body.append(el("tr", {}, el("td", { colspan: String(NCOL), class: "empty" },
+    (stGrades || stSkills.size) ? "Nobody matches those filters." : "No staff yet — click “+ Add person”.")));
 }
 
 /* A photo goes into the same file as the rota, which is read and rewritten whole on every save,
@@ -2004,22 +2224,62 @@ function shrinkPhoto(file){
     fr.readAsDataURL(file);
   });
 }
+/* When did this person start? They have a `start` field, but it is null for everybody — nobody
+   has ever filled one in, and asking them to now would be a new thing to keep up to date and
+   therefore a new thing to be wrong. The rota already knows: the first day somebody appears on
+   the Optima roster is the day they started here.
+
+   With one honest exception, which is most of the unit. Optima only goes back as far as the
+   first roster we hold, so anyone already on that first day did NOT start then — they predate
+   it, and we have no idea by how much (Ali, 6 Aug). Guessing would be worse than a dash, so
+   they get a dash. Derived, never stored, so it can never drift from the truth. */
+function rotaSpan(){
+  let first = null;
+  for (const wk of Object.values((data && data.weeks) || {}))
+    for (const date of Object.keys((wk && wk.roster) || {}))
+      if (!first || date < first) first = date;
+  return first;
+}
+function firstOnRota(id){
+  let first = null, last = null;
+  for (const wk of Object.values((data && data.weeks) || {})) {
+    for (const [date, day] of Object.entries((wk && wk.roster) || {})) {
+      if (!day || !day[id]) continue;
+      if (!first || date < first) first = date;
+      if (!last || date > last) last = date;
+    }
+  }
+  return { first, last, predatesRota: !!first && first === rotaSpan() };
+}
+
 function profileEditor(box, s){
+  /* Rebuilt 6 Aug. It was a bare textarea and a dropdown floating in a grey band, with the
+     supervisor label to the LEFT of its control — matching nothing else on the site. Now: a
+     squared avatar with a filler person until there is a real photo, labels above their fields,
+     inset under the row it belongs to. */
   box.innerHTML = "";
   s.profile = s.profile || {};
   const save = msg => { logEntry(msg, "manual"); markDirty(); saveFile(true); };
+  const lbl = t => el("label", { style: "display:block;font-size:.62rem;color:var(--muted);" +
+    "letter-spacing:.07em;text-transform:uppercase;font-weight:700;margin-bottom:.28rem" }, t);
 
-  const avatar = el("div", { style: "width:74px;height:74px;border-radius:50%;flex:none;overflow:hidden;" +
-    "background:#fff;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;" +
-    "color:var(--muted);font-size:.66rem;text-align:center;cursor:pointer", title: "Drag a photo here, or click to choose one" });
+  const PERSON = '<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+    '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.6 8-6.6s8 2.6 8 6.6"/></svg>';
+
+  const avatar = el("div", { style: "width:84px;height:84px;border-radius:10px;flex:none;overflow:hidden;" +
+    "background:var(--hair);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;" +
+    "color:#c1bfb7;cursor:pointer", title: "Drag a photo here, or click to choose one" });
   const paint = () => {
     avatar.innerHTML = "";
     if (s.profile.photo) {
-      avatar.style.borderStyle = "solid";
+      avatar.style.background = "#fff";
       avatar.append(el("img", { src: s.profile.photo, alt: "", style: "width:100%;height:100%;object-fit:cover" }));
     } else {
-      avatar.style.borderStyle = "dashed";
-      avatar.append(el("span", {}, "drop a photo"));
+      /* A filler person, not the words "drop a photo". Most people will never add one, and a
+         page of dashed circles asking for something optional reads as unfinished. */
+      avatar.style.background = "var(--hair)";
+      avatar.innerHTML = PERSON;
     }
   };
   paint();
@@ -2031,9 +2291,7 @@ function profileEditor(box, s){
     if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
     try {
       s.profile.photo = await shrinkPhoto(f);
-      paint();
-      save("Photo set for " + s.name);
-      toast("Photo saved");
+      paint(); save("Photo set for " + s.name); toast("Photo saved"); renderStaff();
     } catch (e) { msg.textContent = e.message; }
   };
   avatar.onclick = () => file.click();
@@ -2045,18 +2303,26 @@ function profileEditor(box, s){
     const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
     if (f) take(f);
   };
+  const photoLink = el("div", { style: "font-size:.74rem;color:var(--accent);cursor:pointer;margin-top:.45rem;text-align:center",
+    onclick: () => file.click() }, s.profile.photo ? "Change photo" : "Add photo");
+  const removeLink = s.profile.photo ? el("div", { style: "font-size:.72rem;color:var(--muted);cursor:pointer;text-align:center",
+    onclick: async () => {
+      if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
+      delete s.profile.photo; paint(); save("Photo removed for " + s.name); renderStaff();
+    } }, "Remove") : null;
 
-  const about = el("textarea", { placeholder: "A line or two — what they are working towards, interests",
-    style: "width:100%;min-height:3.4rem;font-size:.85rem" });
+  const about = el("textarea", { rows: 3, placeholder: "What they're working towards, interests",
+    style: "width:100%;min-height:3.6rem;font-size:.86rem;line-height:1.55;background:var(--card)" });
   about.value = s.profile.about || "";
   about.onchange = async () => {
     if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) { about.value = s.profile.about || ""; return; } }
     s.profile.about = about.value.trim();
     save("Profile text set for " + s.name);
+    renderStaff();
   };
 
-  const sup = el("select", { style: "font-size:.82rem" });
-  sup.append(el("option", { value: "" }, "— none —"));
+  const sup = el("select", { style: "font-size:.86rem;max-width:19rem;width:100%;background:var(--card)" });
+  sup.append(el("option", { value: "" }, "Nobody yet"));
   for (const c of (data.staff || []).filter(x => x.grade === "CON").sort((a, b) => a.name.localeCompare(b.name)))
     sup.append(el("option", { value: c.id, ...(s.profile.supervisor === c.id ? { selected: 1 } : {}) }, c.name));
   sup.onchange = async () => {
@@ -2065,17 +2331,24 @@ function profileEditor(box, s){
     save("Educational supervisor set for " + s.name);
   };
 
-  const right = el("div", { style: "flex:1;min-width:12rem" }, about, msg,
-    el("div", { style: "display:flex;align-items:center;gap:.5rem;margin-top:.35rem;font-size:.78rem;color:var(--muted)" },
-      "Educational supervisor", sup));
-  const actions = el("div", { style: "display:flex;flex-direction:column;gap:.3rem;align-items:flex-start" },
-    el("button", { class: "btn sec", style: "font-size:.74rem;padding:.15rem .5rem", onclick: () => file.click() }, "Choose file"),
-    s.profile.photo ? el("button", { class: "btn sec", style: "font-size:.74rem;padding:.15rem .5rem", onclick: async () => {
-      if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
-      delete s.profile.photo; paint(); save("Photo removed for " + s.name); renderStaff();
-    } }, "Remove photo") : null);
+  /* Worked out rather than typed, so it is shown as a fact and not as a field. */
+  const seen = firstOnRota(s.id);
+  const startText = s.start ? niceDate(s.start)
+    : seen.predatesRota ? el("span", { class: "muted-sm",
+        title: "They were already on the first rota we hold, so they started before it — we have no way to know when" }, "—")
+    : seen.first ? niceDate(seen.first)
+    : el("span", { class: "muted-sm" }, "not on the rota yet");
+  const started = el("div", { style: "margin-top:.8rem" }, lbl("Started"),
+    el("div", { style: "font-size:.86rem" }, startText,
+      (!s.start && seen.first && !seen.predatesRota)
+        ? el("span", { style: "color:var(--muted);font-size:.75rem;margin-left:.4rem" }, "first on the rota")
+        : null));
 
-  box.append(file, el("div", { style: "display:flex;gap:.8rem;align-items:flex-start" }, avatar, right, actions));
+  box.append(file, el("div", { style: "display:flex;gap:1.4rem;align-items:flex-start;flex-wrap:wrap" },
+    el("div", { style: "flex:none" }, avatar, photoLink, removeLink),
+    el("div", { style: "flex:1;min-width:15rem;max-width:34rem" },
+      lbl("About"), about, msg, started,
+      el("div", { style: "margin-top:.8rem" }, lbl("Educational supervisor"), sup))));
 }
 function staffModal(s){
   const isNew = !s;
@@ -5426,7 +5699,12 @@ function renderSettings(){
     save("Grade default: " + g + " " + labelOf(k) + " turned " + (on ? "on" : "off"));
     renderSettings();
   };
-  for (const g of GRADES) {
+  /* Consultants are not listed. Their skills are the Consultant Rota's business, not this
+     board's — this board allocates residents, and a CON row here was a row nobody would ever
+     edit sitting above the fifteen that matter (Ali, 6 Aug). They are still supernumerary by
+     default in GRADE_DEFAULTS, which is what stops them being counted in pod numbers; that is
+     a counting rule, not a skill, and it stays. */
+  for (const g of GRADES.filter(g => g !== "CON")) {
     const cur = gradeDefaults(g) || {};
     const has = keys.filter(k => cur[k]);
     const chips = el("div", { style: "flex:1;display:flex;gap:.3rem;flex-wrap:wrap;align-items:center" });
@@ -5777,10 +6055,15 @@ function switchTab(tab){
 }
 document.querySelectorAll("aside button[data-tab], #teamPanel .tpi").forEach(b => b.onclick = () => switchTab(b.dataset.tab));
 $("#btnTeam").onclick = () => { document.body.classList.remove("railback"); switchTab("team"); };
+/* Who can… is for everybody, every day — it answers "who is on right now who can do X". It was
+   wired INSIDE the TESTMODE block below, so on rota.salford.icu the button drew, looked
+   clickable, and did nothing at all (Ali, 6 Aug). Nothing failed loudly because nothing ran.
+   Anything that is not specific to the test site belongs out here. */
+$("#btnWhoCan").onclick = whoCanDialog;
+
 if (TESTMODE) {
   document.body.classList.add("testmode");
   $("#testbar").style.display = "flex";
-  $("#btnWhoCan").onclick = whoCanDialog;
   $("#btnTestReset").onclick = async () => {
     if (!(await uiConfirm("Throw away the rota changes made on this test site and load a fresh copy of the live rota data? Only the data is replaced — the real rota is not touched.", { title: "Reload live rota data?", okLabel: "Reload", danger: true }))) return;
     try { localStorage.removeItem(TEST_KEY); } catch(e){}
