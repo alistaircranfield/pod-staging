@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-04T06:47:52.799368+00:00",
- "build": "e3d1355",
+ "generated": "2026-08-04T06:56:02.733522+00:00",
+ "build": "e4e391e",
  "liveBuild": "67e7d75",
- "count": 8,
+ "count": 10,
  "changes": [
+  {
+   "sha": "e4e391e",
+   "who": "alistaircranfield",
+   "when": "2026-08-04T07:55:47+01:00",
+   "msg": "Delete tests/consultant-tests.js"
+  },
+  {
+   "sha": "a09e7ce",
+   "who": "github-actions[bot]",
+   "when": "2026-08-04T06:47:52Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "e3d1355",
    "who": "alistaircranfield",
