@@ -308,7 +308,8 @@ td.col-A{background:var(--podA)} td.col-B{background:var(--podB)} td.col-C{backg
 #staffTable td.skc.on{color:inherit}
 #staffTable th.sortable{cursor:pointer;user-select:none}
 #staffTable th.sorted{color:var(--ink);border-bottom:2px solid var(--ink)}
-#staffTable th .fun{opacity:.35;margin-left:.15rem}
+#staffTable th .fun{opacity:.4;cursor:pointer;display:inline-flex;align-items:center;padding:.15rem}
+#staffTable th .fun:hover{opacity:1}
 #staffTable th .fun.on{opacity:1;color:var(--accent)}
 #staffFilters{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;padding:0 0 .6rem}
 #staffFilters .fchip{background:var(--hair);font-size:.72rem;font-weight:600;padding:.12rem .5rem;border-radius:999px;cursor:pointer}
@@ -331,7 +332,16 @@ td.col-A{background:var(--podA)} td.col-B{background:var(--podB)} td.col-C{backg
 .spill{display:inline-block;border-radius:999px;padding:.1rem .5rem;font-size:.68rem;font-weight:700;margin:.1rem .25rem .1rem 0;white-space:nowrap;line-height:1.5}
 .spill.info{background:var(--hair);color:var(--muted);border:1px solid var(--line)}
 .muted-sm{color:var(--muted);font-size:.8rem}
-.rowacts{white-space:nowrap;text-align:right}
+/* Edit/Delete shrink-wraps to its buttons. Without this it took every spare pixel, leaving a
+   wide gap after Checked while eleven icon columns were squeezed together in the middle
+   (Ali, 6 Aug). width:1% is the standard way of saying "as narrow as your content". */
+.rowacts{white-space:nowrap;text-align:right;width:1%}
+#staffTable{width:100%}
+/* The slack that frees up goes to the name, which is the column people actually read, and then
+   is spread evenly across the skills so no two of them are different widths. */
+#staffTable th:first-child,#staffTable td.namecell{width:20%;min-width:11rem}
+#staffTable th.skh,#staffTable td.skc{width:5.2%;min-width:3.4rem}
+#staffTable td.vcell,#staffTable th:nth-last-child(2){width:7%;white-space:nowrap}
 .rowbtn{font-size:.72rem;font-weight:700;padding:.28rem .6rem;border-radius:8px;border:1px solid var(--line);background:var(--card);cursor:pointer;margin-left:.3rem}
 .rowbtn.edit:hover{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
 .rowbtn.del{color:var(--red);border-color:#f0c9c9}
@@ -2005,6 +2015,13 @@ const SK_COLS = [
   ["fghNights", "FGH nts", "Covers Fairfield General at night"],
 ];
 const skIcon = k => '<span class="skico">' + SK_ICON[k] + "</span>";
+/* Drawn, not a character. ⌷ looked right in the editor and rendered as an empty box on the
+   page, once per column. Anything the UI depends on being *visible* has to be a shape we ship,
+   not a codepoint we hope is installed. */
+const FUNNEL_SVG = '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" ' +
+  'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px">' +
+  '<path d="M3.5 4.5h17l-6.5 7.6v6.4l-4 2.5v-8.9z"/></svg>';
+const funnelBtn = title => { const b = el("span", { class: "fun", title: title }); b.innerHTML = FUNNEL_SVG; return b; };
 
 
 /* How the list is ordered and narrowed. Held outside renderStaff so a redraw — and there is one
@@ -2077,9 +2094,10 @@ function renderStaff(){
     const arrow = k => stSort.key === k ? (stSort.dir === 1 ? " ↑" : " ↓") : "";
     const sortTh = (k, label, extra) => {
       const th = el("th", { class: "sortable" + (stSort.key === k ? " sorted" : ""),
-        title: "Sort by " + label.toLowerCase() }, label + arrow(k));
+        title: "Sort by " + label.toLowerCase() });
+      th.append(el("span", { style: "display:inline-flex;align-items:center;gap:.2rem;white-space:nowrap" },
+        label + arrow(k), extra || null));
       th.onclick = () => { stSort = { key: k, dir: stSort.key === k ? -stSort.dir : 1 }; renderStaff(); };
-      if (extra) th.append(extra);
       return th;
     };
     const tr = el("tr");
@@ -2089,7 +2107,8 @@ function renderStaff(){
        most asked question of this page. */
     const gCounts = {};
     for (const s2 of everyone) gCounts[s2.grade || ""] = (gCounts[s2.grade || ""] || 0) + 1;
-    const gFun = el("span", { class: "fun" + (stGrades ? " on" : ""), title: "Filter by grade" }, "⌷");
+    const gFun = funnelBtn("Filter by grade");
+    if (stGrades) gFun.classList.add("on");
     gFun.onclick = e => {
       e.stopPropagation();
       const all = Object.keys(gCounts).sort((x, y) => (GRADES.indexOf(x) + 99) - (GRADES.indexOf(y) + 99));
@@ -2105,14 +2124,17 @@ function renderStaff(){
         title: why + " — click to sort, funnel to show only these" });
       th.innerHTML = skIcon(k);
       th.querySelector(".skico").style.color = SK_COL[k];
-      th.append(el("div", {}, word));
-      const fun = el("span", { class: "fun" + (stSkills.has(k) ? " on" : ""), title: "Show only people with this" }, "⌷");
+      const fun = funnelBtn("Show only people with this");
+      if (stSkills.has(k)) fun.classList.add("on");
       fun.onclick = e => {
         e.stopPropagation();
         stSkills.has(k) ? stSkills.delete(k) : stSkills.add(k);
         renderStaff();
       };
-      th.append(fun);
+      /* Word and funnel on ONE line under the icon. Appended as siblings of the th they wrapped
+         to a third row, which is what made the header three deep and ragged. */
+      th.append(el("div", { style: "display:flex;align-items:center;justify-content:center;gap:.15rem;white-space:nowrap" },
+        word + arrow(k), fun));
       th.onclick = () => { stSort = { key: k, dir: stSort.key === k ? -stSort.dir : 1 }; renderStaff(); };
       tr.append(th);
     }
@@ -2377,6 +2399,17 @@ function staffModal(s){
   };
   m.append(el("div", { class: "grouphead" }, "Used by the checks and auto-fill"));
   m.append(mkChecks(FLAGS.filter(x => x[2] === "rule")));
+  /* Skills that no rule uses but people look up — PICC is the only one so far. It had NO tick
+     box at all until 6 Aug: this form rendered "rule" and "info" and nothing else, so a third
+     kind fell through the gap silently. Every one of PICC's holders got there through a one-off
+     seed, and nobody could add or remove one by hand — a straight breach of the rule that
+     everything must be editable from the front end. Written as "not the other two" rather than
+     as a list of kinds, so the next new kind cannot vanish the same way. */
+  const OTHER = FLAGS.filter(x => x[2] !== "rule" && x[2] !== "info" && x[2] !== "staff" && x[2]);
+  if (OTHER.length) {
+    m.append(el("div", { class: "grouphead" }, "Looked up on demand"));
+    m.append(mkChecks(OTHER));
+  }
   m.append(el("div", { class: "grouphead", style: "color:var(--muted)" }, "Rota information"));
   m.append(mkChecks(FLAGS.filter(x => x[2] === "info")));
   // Phone skills interlock: supervisor implies holder; a holder/supervisor can't also be a learner.
