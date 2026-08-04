@@ -1930,7 +1930,11 @@ function renderStaff(){
     const active = isActiveOn(s, today);
     if (!active && !showInactive) continue;
     const tr = el("tr", { class: active ? "" : "inactive" });
-    tr.append(el("td", { class: "namecell", title: s.name }, s.name, !active ? el("span",{class:"pill expired"}," expired") : ""));
+    const twist = el("button", { class: "twist", title: "Photo and profile",
+      style: "border:0;background:transparent;cursor:pointer;color:var(--muted);padding:0 .35rem 0 0;font-size:.8rem" }, "\u25b8");
+    tr.append(el("td", { class: "namecell", title: s.name }, twist, s.name,
+      (s.profile && (s.profile.about || s.profile.photo)) ? el("span", { class: "pill", style: "margin-left:.3rem", title: "Has a profile" }, "profile") : "",
+      !active ? el("span",{class:"pill expired"}," expired") : ""));
     tr.append(el("td", {}, s.grade ? el("span", { class: "pill grade" }, s.grade) : el("span", { class: "pill grade-empty" }, "no grade")));
     // Skills as compact read-only pills — tick them in the person's card (Edit).
     const skcell = el("td", { class: "skcell" });
@@ -1958,10 +1962,121 @@ function renderStaff(){
       }}, "Delete")
     ));
     body.append(tr);
+    /* Profiles live HERE, on the resident board, because this is the page that can write them.
+       The consultant page only reads them. Kept collapsed so the staff list keeps its shape. */
+    const sub = el("tr", { style: "display:none" });
+    const cell = el("td", { colspan: "5", style: "background:var(--hair);padding:.7rem .9rem" });
+    sub.append(cell);
+    body.append(sub);
+    twist.onclick = () => {
+      const open = sub.style.display === "none";
+      sub.style.display = open ? "" : "none";
+      twist.textContent = open ? "\u25be" : "\u25b8";
+      if (open && !cell.children.length) profileEditor(cell, s);
+    };
   }
   if (!body.children.length) body.append(el("tr",{}, el("td",{colspan:"5",class:"empty"}, "No staff yet — click “+ Add person”.")));
 }
 
+/* A photo goes into the same file as the rota, which is read and rewritten whole on every save,
+   so a full-size camera image would bloat it for everyone. Every picture is therefore redrawn to
+   a small square on the way in — typically a few KB — and the original is never stored. */
+const PHOTO_PX = 128;
+function shrinkPhoto(file){
+  return new Promise((resolve, reject) => {
+    if (!file || !/^image\//.test(file.type)) return reject(new Error("That is not an image."));
+    const fr = new FileReader();
+    fr.onerror = () => reject(new Error("Could not read that file."));
+    fr.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Could not read that image."));
+      img.onload = () => {
+        const side = Math.min(img.width, img.height);
+        const c = document.createElement("canvas");
+        c.width = c.height = PHOTO_PX;
+        const g = c.getContext("2d");
+        g.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, PHOTO_PX, PHOTO_PX);
+        try { resolve(c.toDataURL("image/jpeg", 0.72)); }
+        catch (e) { reject(new Error("Could not process that image.")); }
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+function profileEditor(box, s){
+  box.innerHTML = "";
+  s.profile = s.profile || {};
+  const save = msg => { logEntry(msg, "manual"); markDirty(); saveFile(true); };
+
+  const avatar = el("div", { style: "width:74px;height:74px;border-radius:50%;flex:none;overflow:hidden;" +
+    "background:#fff;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;" +
+    "color:var(--muted);font-size:.66rem;text-align:center;cursor:pointer", title: "Drag a photo here, or click to choose one" });
+  const paint = () => {
+    avatar.innerHTML = "";
+    if (s.profile.photo) {
+      avatar.style.borderStyle = "solid";
+      avatar.append(el("img", { src: s.profile.photo, alt: "", style: "width:100%;height:100%;object-fit:cover" }));
+    } else {
+      avatar.style.borderStyle = "dashed";
+      avatar.append(el("span", {}, "drop a photo"));
+    }
+  };
+  paint();
+
+  const file = el("input", { type: "file", accept: "image/*", style: "display:none" });
+  const msg = el("div", { style: "font-size:.72rem;color:var(--red);min-height:.9rem" });
+  const take = async f => {
+    msg.textContent = "";
+    if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
+    try {
+      s.profile.photo = await shrinkPhoto(f);
+      paint();
+      save("Photo set for " + s.name);
+      toast("Photo saved");
+    } catch (e) { msg.textContent = e.message; }
+  };
+  avatar.onclick = () => file.click();
+  file.onchange = () => { if (file.files && file.files[0]) take(file.files[0]); file.value = ""; };
+  avatar.ondragover = e => { e.preventDefault(); avatar.style.borderColor = "var(--accent)"; };
+  avatar.ondragleave = () => { avatar.style.borderColor = ""; };
+  avatar.ondrop = e => {
+    e.preventDefault(); avatar.style.borderColor = "";
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) take(f);
+  };
+
+  const about = el("textarea", { placeholder: "A line or two — what they are working towards, interests",
+    style: "width:100%;min-height:3.4rem;font-size:.85rem" });
+  about.value = s.profile.about || "";
+  about.onchange = async () => {
+    if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) { about.value = s.profile.about || ""; return; } }
+    s.profile.about = about.value.trim();
+    save("Profile text set for " + s.name);
+  };
+
+  const sup = el("select", { style: "font-size:.82rem" });
+  sup.append(el("option", { value: "" }, "— none —"));
+  for (const c of (data.staff || []).filter(x => x.grade === "CON").sort((a, b) => a.name.localeCompare(b.name)))
+    sup.append(el("option", { value: c.id, ...(s.profile.supervisor === c.id ? { selected: 1 } : {}) }, c.name));
+  sup.onchange = async () => {
+    if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
+    s.profile.supervisor = sup.value;
+    save("Educational supervisor set for " + s.name);
+  };
+
+  const right = el("div", { style: "flex:1;min-width:12rem" }, about, msg,
+    el("div", { style: "display:flex;align-items:center;gap:.5rem;margin-top:.35rem;font-size:.78rem;color:var(--muted)" },
+      "Educational supervisor", sup));
+  const actions = el("div", { style: "display:flex;flex-direction:column;gap:.3rem;align-items:flex-start" },
+    el("button", { class: "btn sec", style: "font-size:.74rem;padding:.15rem .5rem", onclick: () => file.click() }, "Choose file"),
+    s.profile.photo ? el("button", { class: "btn sec", style: "font-size:.74rem;padding:.15rem .5rem", onclick: async () => {
+      if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
+      delete s.profile.photo; paint(); save("Photo removed for " + s.name); renderStaff();
+    } }, "Remove photo") : null);
+
+  box.append(file, el("div", { style: "display:flex;gap:.8rem;align-items:flex-start" }, avatar, right, actions));
+}
 function staffModal(s){
   const isNew = !s;
   s = s || { id: uid(), name:"", grade:"", airway:false, phoneHolder:false, phoneSupervisor:false, phoneShadow:false, nights:false, fgh:false, transfer:false, supernum:false, start:null, end:null, active:true, aliases:[] };
