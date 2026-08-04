@@ -1163,7 +1163,6 @@ async function enterEditInner(){
     for (const p of data.staff || []) if (!p.adhoc && p.grade && applyGradeDefaults(p)) n2++;
     if (n2) logEntry("Reset skills to grade defaults for " + n2 + " staff (one-off)", "auto");
   }
-  try { srTriageNewPeople(); } catch(e){}
   markDirty();
   updateWhoBtn();
   updateSaveState("unsaved");
@@ -3395,7 +3394,6 @@ function showImportPreview(parsed, box){
       continue;
     }
     seen.add(key);
-    if (data.ignoredNames.includes(key)) { skipped.push(p); continue; }
     const s = matchPerson(p);
     if (s) usable.push({ p, staff: s });
     else if (Object.keys(p.duties).length) unmatched.push({ p, choice: null });
@@ -3413,7 +3411,6 @@ function showImportPreview(parsed, box){
          person for good, with no screen anywhere to undo it. Now it has to be chosen. */
       sel.append(el("option", { value: "__none__" }, "— choose —"));
       sel.append(el("option", { value: "__new__" }, "➕ Add as new staff member"));
-      sel.append(el("option", { value: "__ignore__" }, "Ignore this person from now on"));
       for (const s of [...data.staff].sort((a,b)=>a.name.localeCompare(b.name))) sel.append(el("option", { value: s.id }, s.name));
       sel.onchange = () => u.choice = (sel.value === "__none__" ? "" : sel.value);
       box.append(el("div", { class: "imp-unmatched" }, el("span", { style: "min-width:200px" }, u.p.forenames + " " + u.p.surname + " (" + (u.p.gradeText || u.p.group) + ")"), sel));
@@ -3439,8 +3436,7 @@ function showImportPreview(parsed, box){
     let added = 0;
     for (const u of unmatched) {
       const key = normName(u.p.forenames + " " + u.p.surname);
-      if (!u.choice) continue;
-      if (u.choice === "__ignore__") { if (!data.ignoredNames.includes(key)) data.ignoredNames.push(key); continue; }
+      if (!u.choice) continue;   // undecided — left alone, raised again on Needs attention
       if (u.choice === "__new__") {
         const s = { id: uid(), name: u.p.forenames.split(" ")[0] + " " + u.p.surname, grade: gradeFromText(u.p.gradeText), airway: /(-|–) ?A/i.test(Object.values(u.p.duties).join(" ")) || Object.values(u.p.duties).some(c => /airway/i.test(c)), phoneHolder: false, phoneSupervisor: false, phoneShadow: false, nights: false, fgh: false, transfer: false, supernum: false, start: null, end: null, active: true, verified: false, aliases: [key] };
         applyGradeSkills(s); // default skills for their grade (e.g. ST → airway+transfer, ACCP → transfer)
@@ -3736,7 +3732,7 @@ function logGroups(list, cap){
         stamp + " · " + (e.who || "?"));
       /* The day the change is ABOUT leads the row as a pill — it is what people scan for, and
          trailing it off the end in grey buried it. */
-      const otherTxt = (other && other !== g.date) ? fmtDate(other) : "";
+      const otherTxt = other ? fmtDate(other) : "";
       const lead = el("td", { style: "padding:.42rem .3rem;vertical-align:top;width:14%" },
         otherTxt ? el("span", { style: "background:var(--hair);color:var(--ink);font-size:.72rem;font-weight:600;padding:.1rem .5rem;border-radius:999px;white-space:nowrap" }, otherTxt) : "");
       const when = el("td", { style: "display:none" });
@@ -3744,7 +3740,8 @@ function logGroups(list, cap){
 
       const src = !d ? null
         : d.from ? pod(d.from)
-        : d.fromUnknown ? el("span", { style: "color:var(--muted);opacity:.45", title: "Not recorded — older entries only stored where the person went" }, "\u00b7")
+        : d.fromUnknown ? el("span", { style: "color:var(--muted);font-size:.7rem;font-style:italic",
+            title: "These older entries only recorded where the person went, never where they came from" }, "not recorded")
         : el("span", { style: "color:var(--muted)", title: "From the bench" }, "\u2014");
       if (d && d.act === "move") {
         const dest = !d.to ? "\u2014"
@@ -5338,10 +5335,72 @@ function renderSyncStatus(){
     } }, "Sync now"));
   box.append(row);
 }
+/* Somebody on Optima who is not on the staff list used to be handled by a modal asking about
+   everyone at once, where leaving a name unticked silently and permanently answered for them.
+   Now each person gets a card here and nothing happens until somebody chooses. "Not this day"
+   settles ONE occurrence and is never a verdict on the person — if they appear again they are
+   asked again. There is no ignore list any more.
+
+   They go to the bench, not into a pod: an unverified name inside a pod would count towards that
+   pod's minimum, so somebody nobody has identified could satisfy a staffing check. */
+function renderNewPeople(){
+  const box = $("#attnList"); if (!box || !data) return;
+  const fresh = (data.staff || []).filter(x => x.adhoc && !x.triaged && !/zlocum/i.test(x.name || ""));
+  if (!fresh.length) return;
+  const daysOf = id => {
+    const out = [];
+    for (const [k, wk] of Object.entries(data.weeks || {})) {
+      if (!wk || !wk.roster) continue;
+      for (let di = 0; di < 7; di++){
+        const date = addDays(k, di);
+        const r = wk.roster[date];
+        if (r && r[id]) out.push({ date: date, wkKey: k, code: (r[id].code || "") });
+      }
+    }
+    return out.sort((a, b) => a.date < b.date ? -1 : 1);
+  };
+  for (const p of fresh) {
+    const when = daysOf(p.id);
+    const many = when.length > 1;
+    const label = when.length
+      ? "On Optima for " + when.slice(0, 3).map(w => fmtDate(w.date)).join(", ")
+        + (when.length > 3 ? " and " + (when.length - 3) + " more" : "")
+        + (when[0].code ? " \u00b7 " + when[0].code : "")
+      : "On Optima, no days on the board yet";
+    const act = (txt, fn, quiet) => el("button", { class: quiet ? "btn sec" : "btn",
+      style: "font-size:.78rem;padding:.25rem .7rem",
+      onclick: async () => {
+        if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
+        fn(); markDirty(); saveFile(true); renderAll();
+      } }, txt);
+    box.append(el("div", { style: "background:#fff;border:1px solid #e3e3de;border-left:3px solid #ef9f27;padding:.6rem .85rem;margin:0 0 .55rem" },
+      el("div", { style: "font-size:.95rem" }, p.name),
+      el("div", { style: "font-size:.78rem;color:var(--muted);margin:.1rem 0 .55rem" }, label + " \u00b7 not on the staff list"),
+      el("div", { style: "display:flex;gap:.4rem;flex-wrap:wrap" },
+        act("Add to the staff list", () => {
+          p.adhoc = false; p.triaged = true; p.verified = false;
+          logEntry(p.name + " added to the staff list \u2014 grade still to set", "manual");
+          toast(p.name + " added \u2014 set their grade on the Staff page");
+        }),
+        act("Cover for " + (many ? "these days" : "this day"), () => {
+          p.triaged = true;
+          logEntry(p.name + " kept as one-off cover", "manual");
+        }, true),
+        act("Not " + (many ? "these days" : "this day"), () => {
+          for (const w of when) {
+            const wk = data.weeks[w.wkKey];
+            if (wk && wk.roster && wk.roster[w.date]) delete wk.roster[w.date][p.id];
+          }
+          data.staff = (data.staff || []).filter(x => x.id !== p.id);
+          logEntry(p.name + " taken off " + when.length + " day(s) \u2014 will be asked again if they reappear", "manual");
+        }, true))));
+  }
+}
 function renderAttention(){
   const box = $("#attnList"); if (!box) return;
   box.innerHTML = "";
   renderSyncStatus();
+  renderNewPeople();
   const items = attentionItems();
   if (!items.length) {
     box.append(el("div", { class: "attnclear" }, el("b", {}, "Nothing needs attention"),
@@ -5423,30 +5482,6 @@ function renderSettings(){
   box.append(el("div", { style: "font-size:.76rem;color:var(--muted);margin-top:.5rem" },
     "A default can give someone a skill. It never takes one away — remove a skill on the Staff page."));
 
-  /* There were TWO separate "never ask me about this person again" stores and neither had a
-     screen: `ignoredNames`, set by the manual importer, and `triaged` on the people the 2-hourly
-     sync creates. Same decision, two places, both permanent, both invisible — which is how three
-     real people ended up ignored with no way to find out. One list, both sources, each undoable. */
-  box.append(h("People the board is ignoring"));
-  const ignored = (data.ignoredNames || []).slice().map(n => ({
-    label: n, why: "Ignored on import",
-    undo: () => { data.ignoredNames = (data.ignoredNames || []).filter(x => x !== n);
-                  save("Stopped ignoring " + n + " on import"); }
-  }));
-  const parked = (data.staff || []).filter(x => x.adhoc && x.triaged && !/zlocum/i.test(x.name || "")).map(x => ({
-    label: x.name, why: "Kept as one-off cover",
-    undo: () => { x.triaged = false;
-                  save("Will ask about " + x.name + " again on the next sync"); }
-  }));
-  const all = ignored.concat(parked);
-  if (!all.length) box.append(el("div", { class: "empty" }, "Nobody is being ignored."));
-  else for (const it of all) box.append(el("div", { style: "display:flex;align-items:center;gap:.6rem;padding:.4rem 0;border-top:1px solid var(--hair)" },
-    el("span", { style: "flex:1;font-size:.9rem" }, it.label),
-    el("span", { style: "font-size:.72rem;color:var(--muted)" }, it.why),
-    el("button", { class: "btn sec", style: "font-size:.76rem;padding:.2rem .6rem",
-      onclick: () => { it.undo(); renderSettings(); } }, "Stop ignoring")));
-  if (all.length) box.append(el("div", { style: "font-size:.76rem;color:var(--muted);margin-top:.4rem" },
-    "Ignored on import — the file skips them. Kept as one-off cover — they still appear on the board, but the sync stops offering to add them to the staff list."));
 }
 
 /* "Who is on today who can do a PICC line?" is asked several times a week and the board cannot
