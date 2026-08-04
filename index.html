@@ -365,7 +365,7 @@ aside button .ic{position:relative}
   #logList td:nth-child(1){grid-column:1;grid-row:1}
   #logList td:nth-child(2){grid-column:2/4;grid-row:1;font-size:.9rem}
   #logList td:nth-child(3){grid-column:1;grid-row:2}
-  #logList td:nth-child(3):not(:empty)::after{content:"\2192";color:var(--muted);margin-left:.35rem}
+  #logList td.logfrom:not(:empty)::after{content:"\2192";color:var(--muted);margin-left:.35rem}
   #logList td:nth-child(4){grid-column:2;grid-row:2}
   #logList td:nth-child(5){grid-column:3;grid-row:2;text-align:right !important;font-size:.72rem;color:var(--muted)}
   #logList .loghead{margin-top:.9rem}
@@ -3766,15 +3766,16 @@ function logGroups(list, cap){
         : d.fromUnknown ? el("span", { style: "color:var(--muted);font-size:.7rem;font-style:italic",
             title: "These older entries only recorded where the person went, never where they came from" }, "not recorded")
         : el("span", { style: "color:var(--muted)", title: "From the bench" }, "\u2014");
+      const fromCell = k => { const c = fromCell(); c.className = "logfrom"; return c; };
       if (d && d.act === "move") {
         const dest = !d.to ? "\u2014"
           : d.night ? chip(d.to, "", "var(--podAb)", true)
           : pod(d.to);
-        row.append(lead, cell([d.subj], "width:30%"), cell([src], "width:12%;text-align:center"),
+        row.append(lead, cell([d.subj], "width:30%"), fromCell(),
                    cell([dest, d.night ? el("span", { style: "font-size:.6rem;color:var(--muted);margin-left:.2rem" }, "night") : null],
                         "width:12%;text-align:center"), when, by);
       } else if (d && d.act === "off") {
-        row.append(lead, cell([d.subj], "width:30%"), cell([src], "width:12%;text-align:center"),
+        row.append(lead, cell([d.subj], "width:30%"), fromCell(),
                    cell([reason(d.why)], "width:12%;text-align:center"), when, by);
       } else if (d && d.act === "fix") {
         /* Entries written before the moves were kept have no count. Saying "0 moves" and
