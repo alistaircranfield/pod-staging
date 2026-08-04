@@ -345,6 +345,20 @@ function logGroups(list, cap){
         row.append(lead, cell([d.subj], "width:30%"), fromCell(),
                    cell([dest, d.night ? __el("span", { style: "font-size:.6rem;color:var(--muted);margin-left:.2rem" }, "night") : null],
                         "width:12%;text-align:center"), when, by);
+      } else if (d && (d.act === "on" || d.act === "shift")) {
+        /* The sync putting somebody on the rota, or changing what they are down for. Added
+           6 Aug: the sync used to write "Optima sync: 1 added" and nothing else, which told
+           you a number and not a person (Ali). The duty code goes in the To column, in the
+           board's own shift colours, so these rows line up with the pod moves above and below
+           them rather than being a sentence in a wide cell. */
+        const code = c2 => __el("span", { class: "tagx " + String(c2 || "").replace(/[^A-Za-z]/g, ""),
+          style: "font-size:.66rem;font-weight:600;border-radius:999px;padding:.1rem .45rem;" +
+                 "border:1px solid var(--hair);white-space:nowrap" }, c2);
+        row.append(lead, cell([d.subj], "width:30%"),
+                   cell([d.from ? code(d.from) : __el("span", { style: "color:var(--muted)",
+                          title: d.act === "on" ? "Was not on the rota for this day" : "" }, "\u2014")],
+                        "width:12%;text-align:center"),
+                   cell([d.to ? code(d.to) : "\u2014"], "width:12%;text-align:center"), when, by);
       } else if (d && d.act === "off") {
         row.append(lead, cell([d.subj], "width:30%"), fromCell(),
                    cell([reason(d.why)], "width:12%;text-align:center"), when, by);
@@ -356,8 +370,14 @@ function logGroups(list, cap){
           ? __el("button", { style: "border:0;background:transparent;padding:0;margin-right:.35rem;cursor:pointer;color:var(--muted)" }, "\u25b8")
           : __el("span", { style: "margin-right:.35rem;opacity:.3" }, "\u2022");
         const kidRows = [];
-        row.append(lead, cell([open, "Day tidied"], "width:30%;color:var(--muted)"),
-                   cell([chip(kidList.length ? kidList.length + " move" + (kidList.length === 1 ? "" : "s") : "fixed",
+        /* The label is the entry's, not this renderer's: the same expanding row now carries a
+           day that was TIDIED (a couple of moves to clear a red) and a day that was ALLOCATED
+           from scratch (twenty-odd placements). Calling both "Day tidied" would have been a
+           small lie in the one place people go to find out what happened. */
+        const fixLabel = d.label || "Day tidied";
+        const unit = d.label ? " placed" : (kidList.length === 1 ? " move" : " moves");
+        row.append(lead, cell([open, fixLabel], "width:30%;color:var(--muted)"),
+                   cell([chip(kidList.length ? kidList.length + unit : "fixed",
                               "#eef7f1", "var(--podBb)")], "width:24%;text-align:center"));
         row.children[1].colSpan = 2;
         row.append(when, by);
