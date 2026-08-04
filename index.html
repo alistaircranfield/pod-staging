@@ -567,6 +567,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
   <button data-tab="feedback" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg>Feedback<span class="tpc" id="tabFbCount"></span></button>
   <button data-tab="fair" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l3-8 4 14 3-8h4"/></svg>Fairness</button>
   <button data-tab="log" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Change log<span class="tpc" id="tabLogCount"></span></button>
+  <button data-tab="settings" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M4 12h2M18 12h2M12 4v2M12 18v2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M17.7 6.3l-1.4 1.4M7.7 16.3l-1.4 1.4"/></svg>Settings</button>
   <button data-tab="import" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M4 20h16"/></svg>Import</button>
 </nav>
 <div id="navbackdrop"></div>
@@ -577,6 +578,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
   <span class="demopill" title="Private sandbox — nothing here touches the live rota. Changes save only on this device.">Demo</span>
   <div class="spacer"></div>
   <button class="hbtn ghost" id="autoNotice" style="display:none"></button>
+  <button class="hbtn ghost" id="btnWhoCan" title="Who is on today with a given skill">Who can…</button>
   <button class="hbtn ghost" id="btnFeedback" title="Feedback">Feedback</button>
   <button class="hbtn ghost" id="btnResetDemo" style="font-size:.72rem;padding:.35rem .7rem" title="Clear your changes and reload the sample data">Reset demo</button>
   <button class="hbtn ghost" id="btnWho" style="font-size:.75rem;padding:.35rem .7rem;color:var(--muted)" title="Changes are logged under this name — click to change who's editing"></button>
@@ -712,6 +714,20 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
       <div id="syncReview" style="display:none"></div>
       <div id="attnList" class="attn"></div>
     </div>
+  </section>
+
+  <section id="tab-settings" style="display:none">
+    <div id="setGate" style="display:none">
+      <div class="card">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+        <b id="gateTitleG">Locked — staff password</b>
+        <input type="password" id="gatePwG" placeholder="Password">
+        <button class="btn" id="gateBtnG" style="width:100%">Unlock</button>
+        <div id="gateMsgG" style="font-size:.78rem;color:var(--red);min-height:1em;margin-top:.3rem"></div>
+        <a href="#" id="gateResetG" style="font-size:.72rem;color:var(--muted)">Forgotten? Reset it</a>
+      </div>
+    </div>
+    <div class="card" id="setCard"><div id="setList"></div></div>
   </section>
 
   <section id="tab-feedback" style="display:none">
@@ -873,7 +889,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
 <div id="toast"></div>
 <div id="testbar" style="display:none">
   <b>TEST SITE</b><span>Nothing here changes the real rota.</span>
-  <button class="hbtn ghost" id="btnTestReset" title="Throw away the changes you have made here and re-read the live rota">Discard test changes</button>
+  <button class="hbtn ghost" id="btnTestReset" title="Throw away the rota changes made here and re-read the live rota data">Reload live rota data</button>
 </div>
 
 <script src="core.js?v=20260731-02"></script>
@@ -885,6 +901,13 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
 const PODS = ["A","B","C","D","E"];
 const DAYNAMES = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const GRADES = ["CON","ACCP","SCF","JCF","RCF","ST","CT","ACCS","IMT","FY1","FY2","ICM","Anaes","ED","Neurology","Other"];
+const RULE_DEFAULTS = { podMin: 2, podEMin: 1, nightMin: 4, transferAim: 4, neuroTarget: 70, retentionDays: 400 };
+/* Every number the checks argue about, editable from Settings — hard rule 1. The table above is
+   only the FALLBACK, so a board nobody has touched behaves exactly as it always did. */
+function rule(k){
+  const v = data && data.rules ? data.rules[k] : undefined;
+  return (v === undefined || v === null || v === "") ? RULE_DEFAULTS[k] : Number(v);
+}
 const RETENTION_DAYS = 400;
 function parseDataText(text){
   const t = String(text).trim();
@@ -1754,7 +1777,7 @@ function loadData(d){
   applyEnvClasses();
 }
 function pruneOldWeeks(){
-  const cutoff = addDays(todayISO(), -RETENTION_DAYS);
+  const cutoff = addDays(todayISO(), -rule("retentionDays"));
   let n = 0;
   for (const k of Object.keys(data.weeks)) if (k < cutoff) { delete data.weeks[k]; n++; }
   if (n) logEntry("Auto-deleted " + n + " week(s) older than 6 months (retention policy)", "auto");
@@ -1856,6 +1879,7 @@ const FLAGS = [
   ["transfer","Transfer trained","rule","#085041","Trained to escort transfers off the unit. The checks aim for enough transfer-trained cover on the day shift."],
   ["neuro","Neuro placement","rule","#6A2C91","On a neuro placement — auto-fill aims to keep more of their shifts on Pods C & D."],
   ["supernum","Supernumerary — never counted","rule","#72243E","Doesn't count towards pod numbers (e.g. supernumerary or purely learning)."],
+  ["picc","PICC line","find","","Trained to insert PICC lines. Deliberately not a board icon — asked for a few times a week, not read off every pod. Use Who can… to see who is on today."],
   ["nights","Works nights","info","","Available to be put on night shifts."],
   ["fgh","FGH days","info","","Covers Fairfield General on days."],
   ["fghNights","FGH nights","info","","Covers Fairfield General at night."],
@@ -1890,9 +1914,15 @@ const GRADE_DEFAULTS = {
   Other:    { nights: true },
 };
 const SKILL_KEYS = FLAGS.map(f => f[0]);
+function gradeDefaults(g){
+  const custom = data && data.gradeSkills ? data.gradeSkills[g] : null;
+  return custom || GRADE_DEFAULTS[g] || null;
+}
+/* GRANTS ONLY. It used to write s[k] = !!d[k], which silently REVOKED a skill set by hand the
+   next time that grade was applied. A default is a floor, never a ceiling. */
 function applyGradeDefaults(s){
-  const d = GRADE_DEFAULTS[s.grade]; if (!d) return false;
-  for (const k of SKILL_KEYS) s[k] = !!d[k];
+  const d = gradeDefaults(s.grade); if (!d) return false;
+  for (const k of SKILL_KEYS) if (d[k]) s[k] = true;
   return true;
 }
 
@@ -1978,7 +2008,7 @@ function staffModal(s){
   cbs.fgh.onchange = () => { if (cbs.fgh.checked) cbs.fghSuper.checked = false; };
   cbs.fghNights.onchange = () => { if (cbs.fghNights.checked) cbs.fghSuper.checked = false; };
   // Picking a grade pre-ticks that grade's default skills — still adjustable before saving.
-  grade.onchange = () => { const d = GRADE_DEFAULTS[grade.value]; if (!d) return; for (const k of SKILL_KEYS) if (cbs[k]) cbs[k].checked = !!d[k]; };
+  grade.onchange = () => { const d = gradeDefaults(grade.value); if (!d) return; for (const k of SKILL_KEYS) if (d[k] && cbs[k]) cbs[k].checked = true; };
   m.append(el("div", { class: "modalbtns" },
     el("button", { class: "btn sec", onclick: closeModal }, "Cancel"),
     el("button", { class: "btn", onclick: () => {
@@ -2892,18 +2922,18 @@ function checkDay(day, dateISO, di, wk){
   }
 
   for (const p of PODS) {
-    const min = p === "E" ? 1 : 2;
+    const min = p === "E" ? rule("podEMin") : rule("podMin");
     if (perPod[p].length < min) H("Pod " + p + " has " + perPod[p].length + " countable staff — minimum " + min + " (supernumeraries don't count).");
     const hasLD = day.pods[p].assign.some(a => a.id && a.shift === "LD" && countsInNumbers(a.id));
     if (!hasLD) H("Pod " + p + " has no long-day (8-8) person.");
   }
 
   const nCount = nightCountables(day).length;
-  if (nCount < 4) H("Night team has " + nCount + " countable staff — minimum 4 (one doubles up to cover Pod E).");
+  if (nCount < rule("nightMin")) H("Night team has " + nCount + " countable staff — minimum " + rule("nightMin") + " (one doubles up to cover Pod E).");
 
   const transferDay = [...new Set(dayIds)].filter(id => { const s = staffById(id); return s && s.transfer && !s.supernum; }).length;
   // Depends on who's rostered — an aim rather than a block.
-  if (dayIds.length && transferDay < 4) S("Only " + transferDay + " transfer-trained on the day shift — aim for 4 (depends who's rostered).");
+  if (dayIds.length && transferDay < rule("transferAim")) S("Only " + transferDay + " transfer-trained on the day shift — aim for " + rule("transferAim") + " (depends who's rostered).");
 
   for (const id of [...dayIds, ...nightIds]) {
     const s = staffById(id);
@@ -2982,8 +3012,8 @@ function checkWeek(wk){
       t.total++; if (p === "C" || p === "D") t.cd++;
     }
   });
-  for (const [id, t] of Object.entries(neuroDays)) if (t.total >= 3 && t.cd / t.total < 0.7)
-    S(name(id) + " (neuro) — " + Math.round(t.cd / t.total * 100) + "% of shifts on Pods C/D this week; aim ~70%.");
+  for (const [id, t] of Object.entries(neuroDays)) if (t.total >= 3 && t.cd / t.total < rule("neuroTarget") / 100)
+    S(name(id) + " (neuro) — " + Math.round(t.cd / t.total * 100) + "% of shifts on Pods C/D this week; aim ~" + rule("neuroTarget") + "%.");
   return issues;
 }
 
@@ -3377,10 +3407,13 @@ function showImportPreview(parsed, box){
     box.append(el("div", { style: "font-size:.84rem;font-weight:600;margin:.4rem 0 .2rem" }, unmatched.length + " name(s) I couldn't match — tell me who they are (or ignore):"));
     for (const u of unmatched) {
       const sel = el("select");
-      sel.append(el("option", { value: "" }, "— ignore this person —"));
+      /* Ignoring was PRE-SELECTED and permanent — clicking past this screen ignored a real
+         person for good, with no screen anywhere to undo it. Now it has to be chosen. */
+      sel.append(el("option", { value: "__none__" }, "— choose —"));
       sel.append(el("option", { value: "__new__" }, "➕ Add as new staff member"));
+      sel.append(el("option", { value: "__ignore__" }, "Ignore this person from now on"));
       for (const s of [...data.staff].sort((a,b)=>a.name.localeCompare(b.name))) sel.append(el("option", { value: s.id }, s.name));
-      sel.onchange = () => u.choice = sel.value;
+      sel.onchange = () => u.choice = (sel.value === "__none__" ? "" : sel.value);
       box.append(el("div", { class: "imp-unmatched" }, el("span", { style: "min-width:200px" }, u.p.forenames + " " + u.p.surname + " (" + (u.p.gradeText || u.p.group) + ")"), sel));
     }
   }
@@ -3404,7 +3437,8 @@ function showImportPreview(parsed, box){
     let added = 0;
     for (const u of unmatched) {
       const key = normName(u.p.forenames + " " + u.p.surname);
-      if (!u.choice) { if (!data.ignoredNames.includes(key)) data.ignoredNames.push(key); continue; }
+      if (!u.choice) continue;
+      if (u.choice === "__ignore__") { if (!data.ignoredNames.includes(key)) data.ignoredNames.push(key); continue; }
       if (u.choice === "__new__") {
         const s = { id: uid(), name: u.p.forenames.split(" ")[0] + " " + u.p.surname, grade: gradeFromText(u.p.gradeText), airway: /(-|–) ?A/i.test(Object.values(u.p.duties).join(" ")) || Object.values(u.p.duties).some(c => /airway/i.test(c)), phoneHolder: false, phoneSupervisor: false, phoneShadow: false, nights: false, fgh: false, transfer: false, supernum: false, start: null, end: null, active: true, verified: false, aliases: [key] };
         applyGradeSkills(s); // default skills for their grade (e.g. ST → airway+transfer, ACCP → transfer)
@@ -3618,7 +3652,7 @@ function feedbackCards(list, cap){
 }
 
 /* How the log is being read. Kept outside renderLog so the choice survives a redraw. */
-let logBy = "made", logFilter = "all";
+let logBy = "made", logFilter = "all", logWhen = "ahead";
 
 /* Two segmented controls, no sentence explaining them (hard rule 2). The left one names the
    thing the groups below are keyed on, so the headings are the explanation. */
@@ -3638,6 +3672,8 @@ function logControls(redraw){
     pick("Group by", [["made", "When changed"], ["affects", "Rota day"]], () => logBy, v => logBy = v),
     pick("Show", [["all", "All changes"], ["manual", "Manual only"], ["auto", "Automatic only"]], () => logFilter, v => logFilter = v)
   );
+  if (logBy === "affects")
+    wrap.append(pick("Days", [["ahead", "Today and ahead"], ["past", "Already been"]], () => logWhen, v => logWhen = v));
   return wrap;
 }
 
@@ -3654,11 +3690,16 @@ function logGroups(list, cap){
      to the shifts they are about to work, not what happened three weeks ago. Read by when the
      change was made, newest-first is right and is left alone. */
   if (logBy === "affects") {
-    /* Read by rota day, the page runs FORWARDS in time from top to bottom: the past above,
-       today in the middle, the days coming up below. Scrolling down is moving forwards, which
-       is the only ordering that does not need explaining. It does mean the top of the page is
-       ancient history, so the view is dropped on today — see the scroll below. */
-    groups = groups.slice().sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+    /* A change to a day already worked is history — nobody can act on it, so it gets its own
+       view instead of burying today under a year of it. */
+    groups = logWhen === "past"
+      ? groups.filter(g => g.date <  today).sort((a, b) => a.date > b.date ? -1 : 1)
+      : groups.filter(g => g.date >= today).sort((a, b) => a.date < b.date ? -1 : 1);
+    if (!groups.length) {
+      out.append(el("div", { class: "empty" }, logWhen === "past"
+        ? "Nothing recorded against days already worked." : "Nothing recorded against today or the days ahead."));
+      return out;
+    }
   }
 
   const podTint = { A: "var(--podA)", B: "var(--podB)", C: "var(--podC)", D: "var(--podD)", E: "var(--podE)" };
@@ -3679,35 +3720,52 @@ function logGroups(list, cap){
     if (g.date === today) head.dataset.today = "1";
     out.append(head);
     const tbl = el("table", { style: "width:100%;table-layout:fixed;border-collapse:collapse;font-size:.85rem;margin-bottom:.4rem" });
+    /* Without this you cannot tell which chip is where they came FROM and which is where they
+       went TO — the columns were carrying meaning nothing declared. */
+    const th = t => el("th", { style: "text-align:left;font-weight:500;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:0 .3rem .25rem" }, t);
+    const thC = t => el("th", { style: "text-align:center;font-weight:500;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:0 .3rem .25rem" }, t);
+    tbl.append(el("tr", {}, th(logBy === "made" ? "Rota day" : ""), th("Person"), thC("From"), thC("To"),
+      el("th", { style: "text-align:right;font-weight:500;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:0 .3rem .25rem" }, "By")));
     for (const e of g.entries) {
       const d = logDet(e);
       const other = (logBy === "made") ? logOn(e) : logMade(e);
       const stamp = new Date(e.t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
       const by = el("td", { style: "padding:.42rem .3rem;text-align:right;color:var(--muted);font-size:.78rem;white-space:nowrap;vertical-align:top;width:26%" },
         stamp + " · " + (e.who || "?"));
-      const when = el("td", { style: "padding:.42rem .3rem;color:var(--muted);font-size:.8rem;vertical-align:top;width:20%" },
-        (other && other !== g.date) ? fmtDate(other) : "");
+      /* The day the change is ABOUT leads the row as a pill — it is what people scan for, and
+         trailing it off the end in grey buried it. */
+      const otherTxt = (other && other !== g.date) ? fmtDate(other) : "";
+      const lead = el("td", { style: "padding:.42rem .3rem;vertical-align:top;width:14%" },
+        otherTxt ? el("span", { style: "background:var(--hair);color:var(--ink);font-size:.72rem;font-weight:600;padding:.1rem .5rem;border-radius:999px;white-space:nowrap" }, otherTxt) : "");
+      const when = el("td", { style: "display:none" });
       const row = el("tr", { style: "border-top:1px solid var(--hair)" });
 
       if (d && d.act === "move") {
         const dest = !d.to ? "\u2014"
           : d.night ? chip(d.to, "", "var(--podAb)", true)
           : pod(d.to);
-        row.append(cell([d.subj], "width:30%"), cell([d.from ? pod(d.from) : "\u2014"], "width:12%;text-align:center"),
+        row.append(lead, cell([d.subj], "width:30%"), cell([d.from ? pod(d.from) : "\u2014"], "width:12%;text-align:center"),
                    cell([dest, d.night ? el("span", { style: "font-size:.6rem;color:var(--muted);margin-left:.2rem" }, "night") : null],
                         "width:12%;text-align:center"), when, by);
       } else if (d && d.act === "off") {
-        row.append(cell([d.subj], "width:30%"), cell([d.from ? pod(d.from) : "\u2014"], "width:12%;text-align:center"),
+        row.append(lead, cell([d.subj], "width:30%"), cell([d.from ? pod(d.from) : "\u2014"], "width:12%;text-align:center"),
                    cell([reason(d.why)], "width:12%;text-align:center"), when, by);
       } else if (d && d.act === "fix") {
-        const open = el("button", { style: "border:0;background:transparent;padding:0;margin-right:.35rem;cursor:pointer;color:var(--muted)" }, "\u25b8");
+        /* Entries written before the moves were kept have no count. Saying "0 moves" and
+           offering a triangle with nothing behind it states something untrue. */
+        const kidList = d.kids || [];
+        const open = kidList.length
+          ? el("button", { style: "border:0;background:transparent;padding:0;margin-right:.35rem;cursor:pointer;color:var(--muted)" }, "\u25b8")
+          : el("span", { style: "margin-right:.35rem;opacity:.3" }, "\u2022");
         const kidRows = [];
-        row.append(cell([open, "Whole day"], "width:30%;color:var(--muted)"),
-                   cell([chip("fixed · " + (d.n || 0) + " move" + ((d.n || 0) === 1 ? "" : "s"), "#eef7f1", "var(--podBb)")], "width:24%;text-align:center", 2));
+        row.append(lead, cell([open, "Day tidied"], "width:30%;color:var(--muted)"),
+                   cell([chip(kidList.length ? kidList.length + " move" + (kidList.length === 1 ? "" : "s") : "fixed",
+                              "#eef7f1", "var(--podBb)")], "width:24%;text-align:center"));
         row.children[1].colSpan = 2;
         row.append(when, by);
-        (d.kids || []).forEach(k => {
+        kidList.forEach(k => {
           const kr = el("tr", { style: "border-top:1px solid var(--hair);display:none;background:var(--hair)" },
+            el("td", {}),
             cell([" \u2937 " + k.subj], "width:30%;padding-left:1.4rem"),
             cell([k.from ? pod(k.from) : "\u2014"], "width:12%;text-align:center"),
             cell([k.to ? pod(k.to) : reason(k.why)], "width:12%;text-align:center"),
@@ -3726,16 +3784,12 @@ function logGroups(list, cap){
            one person — an import, a password change. One wide cell, no invented columns. */
         const wide = cell([String(e.msg || "")], "width:54%");
         wide.colSpan = 3;
-        row.append(wide, when, by);
+        row.append(lead, wide, when, by);
       }
       tbl.append(row);
     }
     out.append(tbl);
   }
-  if (logBy === "affects") setTimeout(() => {
-    const t = out.querySelector('[data-today="1"]');
-    if (t && t.scrollIntoView) t.scrollIntoView({ block: "start" });
-  }, 0);
   return out;
 }
 
@@ -4879,7 +4933,7 @@ async function sha256(s){
 }
 function staffUnlocked(){ return store.sget("staffUnlocked") === "1" || (data && !data.staffPw); }
 function gateRefs(sfx){
-  const gates = { S: "#staffGate", F: "#fairGate", I: "#importGate", L: "#logGate", T: "#teamGate", O: "#ovrGate" };
+  const gates = { S: "#staffGate", F: "#fairGate", I: "#importGate", L: "#logGate", T: "#teamGate", O: "#ovrGate", G: "#setGate" };
   return { gate: $(gates[sfx]), title: $("#gateTitle"+sfx), pw: $("#gatePw"+sfx), btn: $("#gateBtn"+sfx), msg: $("#gateMsg"+sfx), reset: $("#gateReset"+sfx) };
 }
 function renderGate(sfx, cardSel, onShow){
@@ -4934,7 +4988,7 @@ function showLockScreen(then){
   document.body.classList.add("teamlocked");
   document.body.classList.remove("teamopen");
   document.body.classList.remove("navopen");   // on a phone the drawer would sit on top of the box
-  for (const t of ["rota","import","staff","fair","log","overrides","help","team","feedback","lock"])
+  for (const t of ["rota","import","staff","fair","log","settings","help","team","feedback","lock"])
     $("#tab-" + t).style.display = (t === "lock") ? "" : "none";
   $("#pageTitle").textContent = "Rota team";
   document.querySelectorAll("aside button[data-tab]").forEach(x => x.classList.remove("active"));
@@ -5297,6 +5351,111 @@ function renderAttention(){
 }
 function renderFairGate(){ renderGate("F", "#fairCard", renderFairness); }
 function renderImportGate(){ renderGate("I", "#importCard", () => {}); }
+function renderSettingsGate(){ renderGate("G", "#setCard", renderSettings); }
+/* Hard rule 1: every functional value is editable here by an authorised person — no code change,
+   no repo access, no me. */
+function renderSettings(){
+  const box = $("#setList"); if (!box) return;
+  box.innerHTML = "";
+  const h = t => el("div", { style: "font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:1.2rem 0 .5rem" }, t);
+  const save = msg => { logEntry(msg, "manual"); markDirty(); saveFile(true); };
+
+  box.append(h("Pod rules"));
+  const nums = [["podMin","Countable staff per pod, minimum"],["podEMin","Pod E minimum"],
+    ["nightMin","Night team minimum"],["transferAim","Transfer-trained on days, aim for"],
+    ["neuroTarget","Neuro placement — % of shifts on Pods C/D"],["retentionDays","Keep past weeks for (days)"]];
+  const grid = el("div", { style: "display:grid;gap:.45rem" });
+  for (const [k, label] of nums) {
+    const inp = el("input", { type: "number", value: String(rule(k)), style: "width:6rem" });
+    inp.onchange = () => {
+      const v = Number(inp.value), was = rule(k);
+      if (!isFinite(v) || v < 0) { inp.value = String(was); return; }
+      data.rules = data.rules || {}; data.rules[k] = v;
+      save("Setting: " + label + " changed from " + was + " to " + v);
+      renderAll();
+    };
+    grid.append(el("label", { style: "display:flex;align-items:center;gap:.6rem;font-size:.88rem" },
+      el("span", { style: "flex:1" }, label), inp));
+  }
+  box.append(grid);
+
+  box.append(h("Skills a grade starts with"));
+  const keys = FLAGS.filter(f => f[2] !== "info").map(f => f[0]);
+  const t = el("table", { style: "border-collapse:collapse;font-size:.78rem" });
+  const hr = el("tr", {}, el("th", { style: "text-align:left;padding:.3rem .4rem" }, "Grade"));
+  for (const k of keys) hr.append(el("th", { style: "padding:.3rem .3rem;font-weight:600;font-size:.66rem;white-space:nowrap" },
+    ((FLAGS.find(f => f[0] === k) || [])[1] || k).replace(" trained", "").replace(" (learning)", "")));
+  t.append(hr);
+  for (const g of GRADES) {
+    const row = el("tr", { style: "border-top:1px solid var(--hair)" }, el("td", { style: "padding:.3rem .4rem;white-space:nowrap" }, g));
+    const cur = gradeDefaults(g) || {};
+    for (const k of keys) {
+      const cb = el("input", { type: "checkbox" }); cb.checked = !!cur[k];
+      cb.onchange = () => {
+        data.gradeSkills = data.gradeSkills || {};
+        data.gradeSkills[g] = Object.assign({}, gradeDefaults(g) || {});
+        data.gradeSkills[g][k] = cb.checked;
+        save("Grade default: " + g + " " + k + " turned " + (cb.checked ? "on" : "off"));
+      };
+      row.append(el("td", { style: "padding:.3rem .3rem;text-align:center" }, cb));
+    }
+    t.append(row);
+  }
+  box.append(el("div", { style: "overflow:auto" }, t));
+  box.append(el("div", { style: "font-size:.76rem;color:var(--muted);margin-top:.4rem" },
+    "A default can give someone a skill. It never takes one away — remove a skill on the Staff page."));
+
+  box.append(h("People the import ignores"));
+  const ign = (data.ignoredNames || []).slice();
+  if (!ign.length) box.append(el("div", { class: "empty" }, "Nobody is being ignored."));
+  else for (const n of ign) box.append(el("div", { style: "display:flex;align-items:center;gap:.6rem;padding:.35rem 0;border-top:1px solid var(--hair)" },
+    el("span", { style: "flex:1;font-size:.9rem" }, n),
+    el("button", { class: "btn sec", style: "font-size:.76rem;padding:.2rem .6rem", onclick: () => {
+      data.ignoredNames = (data.ignoredNames || []).filter(x => x !== n);
+      save("Stopped ignoring " + n + " on import"); renderSettings();
+    } }, "Stop ignoring")));
+}
+
+/* "Who is on today who can do a PICC line?" is asked several times a week and the board cannot
+   answer it — putting another icon on every pill to serve an occasional question is the wrong
+   trade. This answers it directly, and works for any skill, so PICC is not a special case. */
+function whoCanDialog(){
+  const m = $("#modal"); m.innerHTML = "";
+  m.append(el("h3", {}, "Who can…"));
+  const opts = FLAGS.filter(f => f[2] === "rule" || f[2] === "find").map(f => [f[0], f[1]]);
+  let pickKey = "picc";
+  const list = el("div", { style: "margin-top:.7rem" });
+  const chips = el("div", { style: "display:flex;gap:.35rem;flex-wrap:wrap" });
+  const draw = () => {
+    list.innerHTML = "";
+    const date = todayISO();
+    const wk = (data.weeks || {})[mondayOf(date)];
+    const di = wk ? Math.round((new Date(date) - new Date(mondayOf(date))) / 86400000) : -1;
+    const day = wk && wk.days ? wk.days[di] : null;
+    if (!day) { list.append(el("div", { class: "empty" }, "Nothing allocated for today.")); return; }
+    const where = id => {
+      for (const pd of PODS) if (day.pods[pd].assign.some(a => a && a.id === id)) return "Pod " + pd;
+      if (day.night && ((day.night.AB || []).includes(id) || (day.night.CDE || []).includes(id) || (day.night.E || []).includes(id))) return "night";
+      return "";
+    };
+    const found = [...dayAllAssigned(day)].map(id => staffById(id)).filter(p => p && p[pickKey]);
+    if (!found.length) { list.append(el("div", { class: "empty" }, "Nobody on today.")); return; }
+    for (const pp of found) list.append(el("div", { style: "display:flex;gap:.6rem;align-items:center;padding:.35rem 0;border-top:1px solid var(--hair)" },
+      el("span", { style: "flex:1;font-size:.92rem" }, pp.name),
+      el("span", { style: "font-size:.78rem;color:var(--muted)" }, where(pp.id))));
+  };
+  const paint = () => {
+    chips.innerHTML = "";
+    for (const [k, label] of opts) {
+      const b = el("button", { class: "btn sec", style: "font-size:.76rem;padding:.2rem .6rem" + (k === pickKey ? ";background:var(--ink);color:#fff" : ""),
+        onclick: () => { pickKey = k; paint(); draw(); } }, label);
+      chips.append(b);
+    }
+  };
+  paint(); draw();
+  m.append(chips, list, el("div", { class: "modalbtns" }, el("button", { class: "btn", onclick: closeModal }, "Close")));
+  $("#modalBg").style.display = "flex";
+}
 function renderLogGate(){ renderGate("L", "#logCard", () => {
   renderLog();
   /* Opening the page is what marks it read — per browser, so one person looking does not clear
@@ -5559,14 +5718,14 @@ function resolveSyncClash(i, how){
   toast(how === "take" ? "Changed to Optima's version: " + c.allocate : "Kept " + (c.app || "blank") + " — Optima won't override it");
 }
 function renderAll(){ renderWeek(); renderAutoNotice(); renderStaffGate(); renderFairGate(); renderImportGate(); renderLogGate(); renderOverridesGate(); renderTeamGate(); renderSyncReview(); updateTeamBadge(); }
-const PAGE_TITLES = { rota: "Pod Allocator", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", help: "How it works", team: "Needs attention", feedback: "Trial feedback" };
-const TEAM_TABS = ["team", "import", "staff", "fair", "log", "overrides", "feedback"];
+const PAGE_TITLES = { rota: "Pod Allocator", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", settings: "Settings", help: "How it works", team: "Needs attention", feedback: "Trial feedback" };
+const TEAM_TABS = ["team", "import", "staff", "fair", "log", "settings", "feedback"];
 function switchTab(tab){
   // Locked out? Ask once, here, then carry on to where they were going.
   if (TEAM_TABS.includes(tab) && data && !staffUnlocked()) { showLockScreen(() => switchTab(tab)); return; }
   document.body.classList.remove("teamlocked");
   document.querySelectorAll("aside button[data-tab]").forEach(x => x.classList.toggle("active", x.dataset.tab === tab));
-  for (const t of ["rota","import","staff","fair","log","overrides","help","team","feedback","lock"]) $("#tab-" + t).style.display = (tab === t) ? "" : "none";
+  for (const t of ["rota","import","staff","fair","log","settings","help","team","feedback","lock"]) $("#tab-" + t).style.display = (tab === t) ? "" : "none";
   $("#pageTitle").textContent = PAGE_TITLES[tab];
   // The rota-team pages stay folded away until you go in, so residents only ever see two items.
   document.body.classList.toggle("teamopen", TEAM_TABS.includes(tab));
@@ -5577,6 +5736,7 @@ function switchTab(tab){
   if (tab === "fair") renderFairGate();
   if (tab === "import") renderImportGate();
   if (tab === "log") renderLogGate();
+  if (tab === "settings") renderSettingsGate();
   if (tab === "overrides") renderOverridesGate();
   if (tab === "feedback") { renderFeedback(); markFeedbackRead(); }
 }
@@ -5585,8 +5745,9 @@ $("#btnTeam").onclick = () => { document.body.classList.remove("railback"); swit
 if (TESTMODE) {
   document.body.classList.add("testmode");
   $("#testbar").style.display = "flex";
+  $("#btnWhoCan").onclick = whoCanDialog;
   $("#btnTestReset").onclick = async () => {
-    if (!(await uiConfirm("Throw away the changes made in this test copy and re-read the live rota? The live rota is not affected.", { title: "Discard test changes?", okLabel: "Discard", danger: true }))) return;
+    if (!(await uiConfirm("Throw away the rota changes made on this test site and load a fresh copy of the live rota data? Only the data is replaced — the real rota is not touched.", { title: "Reload live rota data?", okLabel: "Reload", danger: true }))) return;
     try { localStorage.removeItem(TEST_KEY); } catch(e){}
     location.reload();
   };
