@@ -92,31 +92,62 @@ document.addEventListener("DOMContentLoaded", function(){
   fetch("pending.json?t=" + Date.now(), { cache: "no-store" })
     .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(p){
-      if (!p || !Array.isArray(p.changes) || !p.changes.length) return;
+      if (!p || !Array.isArray(p.changes)) return;
+
+      /* pending.json is generated from `git log live/main..HEAD`, so each change is an object,
+         not a string — printing it straight gave a column of [object Object]. It also contains
+         the workflow's own "regenerated" commits, which are bookkeeping and not a change to the
+         board, so they are dropped: this list answers "what would go live", and a commit that
+         only rewrote this very file is not part of the answer. */
+      var real = p.changes.filter(function(c){
+        return c && c.msg && !/^What is pending/.test(c.msg);
+      });
+      if (!real.length) return;
 
       var chip = document.createElement("button");
       chip.id = "pendingChip";
-      chip.textContent = p.changes.length + " change" + (p.changes.length === 1 ? "" : "s") + " not yet live";
+      chip.textContent = real.length + " change" + (real.length === 1 ? "" : "s") + " not yet live";
 
       var panel = document.createElement("div");
       panel.id = "pendingList";
       var h = document.createElement("h4");
       h.textContent = "On this test site, not on rota.salford.icu";
       var ul = document.createElement("ul");
-      p.changes.forEach(function(c){
+      real.forEach(function(c){
         var li = document.createElement("li");
-        li.textContent = c;
+        var when = "";
+        try { when = new Date(c.when).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); } catch (e) {}
+        li.textContent = c.msg + (when ? "  ·  " + when : "");
         ul.appendChild(li);
       });
       var bld = document.createElement("div");
       bld.className = "bld";
-      bld.textContent = "test build " + (window.__POD_BUILD || "?") +
+      /* The build the tab is actually running, taken from the generated file rather than a
+         hand-typed constant — a stale tab is what made the same import happen twice on 3 Aug. */
+      bld.textContent = "test build " + (p.build || window.__POD_BUILD || "?") +
                         (p.liveBuild ? " · live build " + p.liveBuild : "");
       panel.appendChild(h); panel.appendChild(ul); panel.appendChild(bld);
 
-      chip.onclick = function(){
+      /* It opened but there was no way to shut it: the chip toggles, but nothing said so and
+         the panel covers the board. A close control, Escape, and clicking away all dismiss it. */
+      var x = document.createElement("button");
+      x.className = "pclose"; x.type = "button"; x.setAttribute("aria-label", "Close");
+      x.textContent = "\u00d7";
+      x.style.cssText = "position:absolute;top:.35rem;right:.5rem;border:0;background:transparent;" +
+        "font-size:1.1rem;line-height:1;cursor:pointer;color:inherit;opacity:.6";
+      panel.style.position = "relative";
+      panel.insertBefore(x, panel.firstChild);
+
+      function close(){ panel.style.display = "none"; }
+      x.onclick = function(ev){ ev.stopPropagation(); close(); };
+      chip.onclick = function(ev){
+        ev.stopPropagation();
         panel.style.display = panel.style.display === "block" ? "none" : "block";
       };
+      document.addEventListener("keydown", function(ev){ if (ev.key === "Escape") close(); });
+      document.addEventListener("click", function(ev){
+        if (panel.style.display === "block" && !panel.contains(ev.target) && ev.target !== chip) close();
+      });
       /* The resident page has a fixed gold band across the bottom, which sat on top of a
          free-floating chip and hid it. Where a band exists the chip belongs inside it — one place
          to look, nothing overlapping. Where there isn't one, it floats bottom-right. */

@@ -567,7 +567,6 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
   <button data-tab="feedback" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg>Feedback<span class="tpc" id="tabFbCount"></span></button>
   <button data-tab="fair" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l3-8 4 14 3-8h4"/></svg>Fairness</button>
   <button data-tab="log" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Change log</button>
-  <button data-tab="overrides" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13M17 8l-3-3M17 8l-3 3M20 16H7M7 16l3-3M7 16l3 3"/></svg>Overrides</button>
   <button data-tab="import" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M4 20h16"/></svg>Import</button>
 </nav>
 <div id="navbackdrop"></div>
@@ -1393,6 +1392,8 @@ async function changeEditor(){
    accumulates the evidence a human needs in order to decide a rule should change. */
 function recordOverride(dateISO, id, fromPod, toPod, shift){
   if (!data || !fromPod || fromPod === toPod) return;   // only real pod-to-pod moves
+  logEntry(nameOf(id) + ": " + fromPod + " to " + toPod, "manual", dateISO, null,
+    { act: "move", subj: nameOf(id) || "", from: fromPod, to: toPod, shift: shift || "" });
   data.overrides = data.overrides || [];
   data.overrides.unshift({
     t: new Date().toISOString(), d: dateISO, id: id, name: nameOf(id) || "",
@@ -1411,11 +1412,19 @@ function recordOverride(dateISO, id, fromPod, toPod, shift){
    who is normally whoever is in edit mode. allocate_auto.py drives this page in a headless
    browser to allocate untouched days, and there is no person there — it passes "sync" so the
    log doesn't credit its work to whoever happened to be editing last. */
-function logEntry(msg, kind, on, who){
-  data.log.unshift({ t: new Date().toISOString(), who: who || editorName(), msg,
-                     kind: kind === "auto" ? "auto" : "manual", on: on || null });
+function logEntry(msg, kind, on, who, d){
+  const e = { t: new Date().toISOString(), who: who || editorName(), msg,
+              kind: kind === "auto" ? "auto" : "manual", on: on || null };
+  /* d = the change as FIELDS rather than as a sentence: { act, subj, from, to, why, n, kids }.
+     Everything the log has ever written is a string, which is why the page could only ever show
+     prose with badges glued into it — four grammars for the same event and stray brackets. New
+     entries carry both; the table reads d, and anything without one still renders its msg. */
+  if (d) e.d = d;
+  data.log.unshift(e);
   if (data.log.length > 500) data.log.length = 500;
 }
+/* Reader, so every call site agrees on the shape. */
+function logDet(e){ return (e && e.d && typeof e.d === "object") ? e.d : null; }
 /* logKind, logOn, groupLog and logDayLabel live in core.js — both boards read the log the
    same way, so the reading lives in one place. */
 /* The rota date a day index on the week currently open refers to. */
@@ -3618,23 +3627,84 @@ function logControls(redraw){
    is shown on the row itself, so both dates are always visible without a legend. */
 function logGroups(list, cap){
   const out = el("div");
-  const groups = groupLog((list || []).slice(0, cap || 400), logBy, logFilter);
+  let groups = groupLog((list || []).slice(0, cap || 400), logBy, logFilter);
   if (!groups.length) { out.append(el("div", { class: "empty" }, "Nothing to show.")); return out; }
   const today = todayISO ? todayISO() : new Date().toISOString().slice(0, 10);
+
+  /* Read by rota day, the useful order is not "newest first" — it is TODAY, then the days
+     coming up, and the past underneath. Someone opening this wants to know what has been done
+     to the shifts they are about to work, not what happened three weeks ago. Read by when the
+     change was made, newest-first is right and is left alone. */
+  if (logBy === "affects") {
+    const future = groups.filter(g => g.date >= today).sort((a, b) => a.date < b.date ? -1 : 1);
+    const past   = groups.filter(g => g.date <  today).sort((a, b) => a.date > b.date ? -1 : 1);
+    groups = future.concat(past);
+  }
+
+  const podTint = { A: "var(--podA)", B: "var(--podB)", C: "var(--podC)", D: "var(--podD)", E: "var(--podE)" };
+  const podInk  = { A: "var(--podAb)", B: "var(--podBb)", C: "var(--podCb)", D: "var(--podDb)", E: "var(--podEb)" };
+  const chip = (txt, tint, ink, outline) => el("span", { style:
+    "font-size:.72rem;font-weight:600;padding:.1rem .5rem;border-radius:999px;white-space:nowrap;" +
+    (outline ? "border:1px solid " + ink + ";color:" + ink + ";background:transparent"
+             : "background:" + tint + ";color:" + ink) }, txt);
+  const pod = p => chip(p, podTint[p] || "var(--hair)", podInk[p] || "var(--muted)");
+  const reason = w => w === "sick" ? chip("sick", "#fdf8ef", "var(--podCb)")
+                    : w === "rota" ? chip("off rota", "#fdf4f6", "var(--podEb)")
+                    : chip(w || "off", "var(--hair)", "var(--muted)");
+
+  const cell = (kids, style) => el("td", { style: "padding:.42rem .3rem;vertical-align:top;" + (style || "") }, ...kids);
+
   for (const g of groups) {
     out.append(el("div", { class: "loghead" }, logDayLabel(g.date, today), el("span", {}, String(g.entries.length))));
+    const tbl = el("table", { style: "width:100%;table-layout:fixed;border-collapse:collapse;font-size:.85rem;margin-bottom:.4rem" });
     for (const e of g.entries) {
+      const d = logDet(e);
       const other = (logBy === "made") ? logOn(e) : logMade(e);
       const stamp = new Date(e.t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-      out.append(el("div", { class: "logrow" + (logKind(e) === "auto" ? " auto" : ""),
-          style: "display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap" },
-        el("span", { style: "flex:1;min-width:12rem" }, podChipify(String(e.msg || "")),
-          (other && other !== g.date)
-            ? el("span", { class: "logon" }, (logBy === "made" ? "rota " : "changed ") + fmtDate(other))
-            : null),
-        el("span", { class: "t", style: "flex:none;white-space:nowrap;margin:0" },
-          stamp + " · " + (e.who || "?"))));
+      const by = el("td", { style: "padding:.42rem .3rem;text-align:right;color:var(--muted);font-size:.78rem;white-space:nowrap;vertical-align:top;width:26%" },
+        stamp + " · " + (e.who || "?"));
+      const when = el("td", { style: "padding:.42rem .3rem;color:var(--muted);font-size:.8rem;vertical-align:top;width:20%" },
+        (other && other !== g.date) ? fmtDate(other) : "");
+      const row = el("tr", { style: "border-top:1px solid var(--hair)" });
+
+      if (d && d.act === "move") {
+        row.append(cell([d.subj], "width:30%"), cell([d.from ? pod(d.from) : "\u2014"], "width:12%;text-align:center"),
+                   cell([d.to ? pod(d.to) : "\u2014"], "width:12%;text-align:center"), when, by);
+      } else if (d && d.act === "off") {
+        row.append(cell([d.subj], "width:30%"), cell([d.from ? pod(d.from) : "\u2014"], "width:12%;text-align:center"),
+                   cell([reason(d.why)], "width:12%;text-align:center"), when, by);
+      } else if (d && d.act === "fix") {
+        const open = el("button", { style: "border:0;background:transparent;padding:0;margin-right:.35rem;cursor:pointer;color:var(--muted)" }, "\u25b8");
+        const kidRows = [];
+        row.append(cell([open, "Whole day"], "width:30%;color:var(--muted)"),
+                   cell([chip("fixed · " + (d.n || 0) + " move" + ((d.n || 0) === 1 ? "" : "s"), "#eef7f1", "var(--podBb)")], "width:24%;text-align:center", 2));
+        row.children[1].colSpan = 2;
+        row.append(when, by);
+        (d.kids || []).forEach(k => {
+          const kr = el("tr", { style: "border-top:1px solid var(--hair);display:none;background:var(--hair)" },
+            cell([" \u2937 " + k.subj], "width:30%;padding-left:1.4rem"),
+            cell([k.from ? pod(k.from) : "\u2014"], "width:12%;text-align:center"),
+            cell([k.to ? pod(k.to) : reason(k.why)], "width:12%;text-align:center"),
+            el("td", {}), el("td", {}));
+          kidRows.push(kr);
+        });
+        open.onclick = () => {
+          const show = kidRows.length && kidRows[0].style.display === "none";
+          kidRows.forEach(r => r.style.display = show ? "" : "none");
+          open.textContent = show ? "\u25be" : "\u25b8";
+        };
+        tbl.append(row); kidRows.forEach(r => tbl.append(r));
+        continue;
+      } else {
+        /* Anything written before the fields existed, and anything that genuinely is not about
+           one person — an import, a password change. One wide cell, no invented columns. */
+        const wide = cell([String(e.msg || "")], "width:54%");
+        wide.colSpan = 3;
+        row.append(wide, when, by);
+      }
+      tbl.append(row);
     }
+    out.append(tbl);
   }
   return out;
 }
@@ -4584,9 +4654,15 @@ function planDayFix(di){
   if (orig.night.phone !== day.night.phone && day.night.phone) changes.push({ icon: "phone", text: "Night phone → " + sn(day.night.phone), reason: "" });
   return { changes, fixed: day, unresolved: [...new Set(unresolved)] };
 }
-function applyFixedDay(di, fixed){
+function applyFixedDay(di, fixed, changes){
   getWeek(currentWeekKey).days[di] = fixed;
-  logEntry("Fixed " + DAYNAMES[di] + " " + fmtDate(addDays(currentWeekKey, di)) + " (minimal changes)", "auto", dateOfDi(di));
+  /* The individual moves inside a fix used to be discarded — the log said "2 changes" and there
+     was nowhere to see WHICH two. They are kept as children so the row can be opened. */
+  const kids = (changes || []).map(c => ({
+    subj: c.name || c.who || "", from: c.from || "", to: c.to || "", why: c.why || ""
+  })).filter(k => k.subj);
+  logEntry("Fixed " + DAYNAMES[di] + " " + fmtDate(addDays(currentWeekKey, di)) + " (minimal changes)",
+    "auto", dateOfDi(di), null, { act: "fix", n: kids.length || (changes || []).length, kids: kids });
   markDirty(); renderWeek();
 }
 /* ---- Add a one-off (locum / bank / NHSp) person, just for a single day ---- */
@@ -4735,7 +4811,7 @@ function fixDayDialog(di){
   if (plan.unresolved.length) m.append(el("div", { class: "fixnote" }, el("span", { html: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/></svg>' }), plan.unresolved.join(" ")));
   m.append(el("div", { class: "dlg-btns" },
     el("button", { class: "btn ghost", onclick: closeModal }, "Cancel"),
-    el("button", { class: "btn", onclick: () => { applyFixedDay(di, plan.fixed); closeModal(); toast("Fixed " + DAYNAMES[di].slice(0,3) + " — Undo reverses it"); } }, "Apply " + plan.changes.length + " change" + (plan.changes.length>1?"s":""))));
+    el("button", { class: "btn", onclick: () => { applyFixedDay(di, plan.fixed, plan.changes); closeModal(); toast("Fixed " + DAYNAMES[di].slice(0,3) + " — Undo reverses it"); } }, "Apply " + plan.changes.length + " change" + (plan.changes.length>1?"s":""))));
   $("#modalBg").style.display = "flex";
 }
 async function fixWeekDialog(){
@@ -5346,11 +5422,13 @@ function srApplySickFix(g, reallocate){
   if (!EDIT_MODE){ toast("Press Edit first, then apply the fix."); return; }
   const day = getWeek(currentWeekKey).days[g.di];
   const hits = srRemoveFromDay(day, g.sid);
-  logEntry("Sickness fix " + g.date + ": removed " + g.name + (hits.length ? " from " + hits.join(", ") : ""), "auto", g.date);
+  const fromPod = (hits.find(h => /^Pod ([A-E])$/.test(h)) || "").replace("Pod ", "");
+  logEntry("Sickness fix " + g.date + ": removed " + g.name + (hits.length ? " from " + hits.join(", ") : ""),
+    "auto", g.date, null, { act: "off", subj: g.name, from: fromPod, why: "sick" });
   let moved = 0;
   if (reallocate){
     const plan = planDayFix(g.di);
-    if (plan.changes.length){ applyFixedDay(g.di, plan.fixed); moved = plan.changes.length; }
+    if (plan.changes.length){ applyFixedDay(g.di, plan.fixed, plan.changes); moved = plan.changes.length; }
   }
   markDirty(); renderAll();
   toast(g.name + " removed" + (reallocate ? (moved ? " — covered with " + moved + " move" + (moved > 1 ? "s" : "") : " — no moves needed to cover") : "") + ". Undo reverses it.");
@@ -5434,7 +5512,7 @@ function resolveSyncClash(i, how){
   toast(how === "take" ? "Changed to Optima's version: " + c.allocate : "Kept " + (c.app || "blank") + " — Optima won't override it");
 }
 function renderAll(){ renderWeek(); renderAutoNotice(); renderStaffGate(); renderFairGate(); renderImportGate(); renderLogGate(); renderOverridesGate(); renderTeamGate(); renderSyncReview(); updateTeamBadge(); }
-const PAGE_TITLES = { rota: "Pod Allocator", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", overrides: "Overrides", help: "How it works", team: "Needs attention", feedback: "Trial feedback" };
+const PAGE_TITLES = { rota: "Pod Allocator", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", help: "How it works", team: "Needs attention", feedback: "Trial feedback" };
 const TEAM_TABS = ["team", "import", "staff", "fair", "log", "overrides", "feedback"];
 function switchTab(tab){
   // Locked out? Ask once, here, then carry on to where they were going.
