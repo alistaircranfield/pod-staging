@@ -135,7 +135,6 @@ document.addEventListener("DOMContentLoaded", function(){
       x.textContent = "\u00d7";
       x.style.cssText = "position:absolute;top:.35rem;right:.5rem;border:0;background:transparent;" +
         "font-size:1.1rem;line-height:1;cursor:pointer;color:inherit;opacity:.6";
-      panel.style.position = "relative";
       panel.insertBefore(x, panel.firstChild);
 
       function close(){ panel.style.display = "none"; }

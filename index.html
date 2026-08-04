@@ -873,7 +873,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
 <div id="toast"></div>
 <div id="testbar" style="display:none">
   <b>TEST SITE</b><span>Nothing here changes the real rota.</span>
-  <button class="hbtn ghost" id="btnTestReset">Start again from live</button>
+  <button class="hbtn ghost" id="btnTestReset" title="Throw away the changes you have made here and re-read the live rota">Discard test changes</button>
 </div>
 
 <script src="core.js?v=20260731-02"></script>
@@ -5586,7 +5586,7 @@ if (TESTMODE) {
   document.body.classList.add("testmode");
   $("#testbar").style.display = "flex";
   $("#btnTestReset").onclick = async () => {
-    if (!(await uiConfirm("Throw away everything you've done in this test copy and pull a fresh copy of the live rota?", { title: "Start again?", okLabel: "Start again", danger: true }))) return;
+    if (!(await uiConfirm("Throw away the changes made in this test copy and re-read the live rota? The live rota is not affected.", { title: "Discard test changes?", okLabel: "Discard", danger: true }))) return;
     try { localStorage.removeItem(TEST_KEY); } catch(e){}
     location.reload();
   };
