@@ -13,7 +13,13 @@ const fs = require("fs");
 const path = require("path");
 const { JSDOM } = require("jsdom");
 
-const APP = path.join(__dirname, "..", "Pod-Allocations.html");
+/* The page is index.html everywhere it is actually served; Pod-Allocations.html is the name it
+   had here first and is kept in step locally. Hard-coding the old one meant this suite could not
+   run against a clone of either deployed repo — it looked for a file neither of them has, and
+   said ENOENT rather than anything about the rules. Prefer index.html, fall back. */
+const APP = fs.existsSync(path.join(__dirname, "..", "index.html"))
+  ? path.join(__dirname, "..", "index.html")
+  : path.join(__dirname, "..", "Pod-Allocations.html");
 
 // ---- load the app and expose its internals via a single hook ---------------------------------
 function loadApp() {
