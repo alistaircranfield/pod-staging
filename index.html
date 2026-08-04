@@ -353,6 +353,23 @@ aside button .ic{position:relative}
 .attnrow .tx span{font-size:.78rem;color:var(--muted);line-height:1.5}
 .attnclear{text-align:center;padding:2.4rem 1rem;color:var(--muted)}
 .attnclear b{display:block;font-size:1rem;color:var(--ink);margin-bottom:.3rem}
+/* The change log is a five-column table, which is right on a laptop and impossible on a phone:
+   "14:16 · Nicholas Coffin" alone is 26 characters. Below 640px each row folds into two lines —
+   rota day and person on top, the move and who did it underneath — and the header is dropped,
+   because an arrow between two pod chips says From and To without needing labels. */
+@media (max-width:640px){
+  #logList table{display:block}
+  #logList tr{display:grid;grid-template-columns:auto auto 1fr;gap:.15rem .45rem;align-items:center;padding:.5rem 0;border-top:1px solid var(--hair)}
+  #logList tr:first-child{display:none}
+  #logList td{display:block;padding:0 !important;width:auto !important;text-align:left !important;vertical-align:middle}
+  #logList td:nth-child(1){grid-column:1;grid-row:1}
+  #logList td:nth-child(2){grid-column:2/4;grid-row:1;font-size:.9rem}
+  #logList td:nth-child(3){grid-column:1;grid-row:2}
+  #logList td:nth-child(3):not(:empty)::after{content:"\2192";color:var(--muted);margin-left:.35rem}
+  #logList td:nth-child(4){grid-column:2;grid-row:2}
+  #logList td:nth-child(5){grid-column:3;grid-row:2;text-align:right !important;font-size:.72rem;color:var(--muted)}
+  #logList .loghead{margin-top:.9rem}
+}
 #testbar{position:fixed;left:0;right:0;bottom:0;z-index:200;background:#8a5a00;color:#fff;display:flex;align-items:center;gap:.8rem;padding:.5rem .9rem calc(.5rem + env(safe-area-inset-bottom));font-size:.78rem}
 #testbar b{background:#fff;color:#8a5a00;border-radius:5px;padding:.1rem .4rem;font-size:.62rem;letter-spacing:.08em}
 #testbar span{opacity:.92;flex:1;min-width:0}
@@ -1157,6 +1174,12 @@ async function enterEditInner(){
   document.body.classList.remove("viewmode");
   data.editLock = { by: n.trim(), at: new Date().toISOString() };
   // One-off (26.07.24): reset every graded person's skills to the grade defaults.
+  if (!data.piccSeedV1){
+    data.piccSeedV1 = true;
+    let np = 0;
+    for (const q of data.staff || []) if (q.grade === "ACCP" && !q.picc) { q.picc = true; np++; }
+    if (np) logEntry("PICC line marked for " + np + " ACCP" + (np === 1 ? "" : "s") + " (one-off)", "auto");
+  }
   if (!data.gradeDefaultsV1){
     data.gradeDefaultsV1 = true;
     let n2 = 0;
@@ -1898,7 +1921,7 @@ const SKILL_SHORT = { airway:"Airway", phoneHolder:"Phone", phoneSupervisor:"Ph 
 // pre-ticks these (still adjustable per person before saving).
 const GRADE_DEFAULTS = {
   CON:      { supernum: true },
-  ACCP:     { nights: true, transfer: true },
+  ACCP:     { nights: true, transfer: true, picc: true },
   SCF:      { nights: true, airway: true, phoneHolder: true, phoneSupervisor: true, transfer: true, fgh: true, fghNights: true },
   JCF:      { nights: true, fgh: true },
   RCF:      { nights: true },
@@ -5490,7 +5513,8 @@ function renderSettings(){
 function whoCanDialog(){
   const m = $("#modal"); m.innerHTML = "";
   m.append(el("h3", {}, "Who can…"));
-  const opts = FLAGS.filter(f => f[2] === "rule" || f[2] === "find").map(f => [f[0], f[1]]);
+  const FIND_KEYS = ["airway", "phoneHolder", "transfer", "picc"];
+  const opts = FIND_KEYS.map(k => [k, ((FLAGS.find(f => f[0] === k) || [])[1] || k)]);
   let pickKey = "picc";
   const list = el("div", { style: "margin-top:.7rem" });
   const chips = el("div", { style: "display:flex;gap:.35rem;flex-wrap:wrap" });
