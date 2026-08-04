@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-04T20:08:52.881532+00:00",
- "build": "17dc8a4",
- "liveBuild": "1fb5f61",
- "count": 50,
+ "generated": "2026-08-04T20:53:20.221105+00:00",
+ "build": "231249a",
+ "liveBuild": "4cbad8d",
+ "count": 52,
  "changes": [
+  {
+   "sha": "231249a",
+   "who": "alistaircranfield",
+   "when": "2026-08-04T21:53:09+01:00",
+   "msg": "The site's own tooltip, on the header only; a brain and a syringe that read at 20px"
+  },
+  {
+   "sha": "5648c02",
+   "who": "github-actions[bot]",
+   "when": "2026-08-04T20:08:52Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "17dc8a4",
    "who": "alistaircranfield",
