@@ -1464,10 +1464,12 @@ function deriveDet(msg){
     return { act: "off", subj: x[1].trim(), from: x[2] || "", why: "rota" };
   if ((x = m.match(/^Sickness fix [^:]*:\s*removed (.+?)(?: from (?:Pod ([A-E])|(.+)))?$/)))
     return { act: "off", subj: x[1].trim(), from: x[2] || "", why: "sick" };
+  /* These shapes only ever recorded a DESTINATION. A dash in the From column claimed the person
+     came from nowhere, which is not what happened — the old message simply never carried it. */
   if ((x = m.match(/^(.+?)\s*(?:→|->)\s*night Pod ([A-E])(?:\s*&\s*([A-E]))?/)))
-    return { act: "move", subj: x[1].trim(), to: x[2] + (x[3] ? "&" + x[3] : ""), night: true };
+    return { act: "move", subj: x[1].trim(), to: x[2] + (x[3] ? "&" + x[3] : ""), night: true, fromUnknown: true };
   if ((x = m.match(/^(.+?)\s*(?:→|->)\s*Pod ([A-E])/)))
-    return { act: "move", subj: x[1].trim(), to: x[2] };
+    return { act: "move", subj: x[1].trim(), to: x[2], fromUnknown: true };
   if ((x = m.match(/^(.+?):\s*Pod ([A-E]) to Pod ([A-E])/)))
     return { act: "move", subj: x[1].trim(), from: x[2], to: x[3] };
   if ((x = m.match(/^Fixed .+?\(minimal changes\)/)))
@@ -3740,15 +3742,19 @@ function logGroups(list, cap){
       const when = el("td", { style: "display:none" });
       const row = el("tr", { style: "border-top:1px solid var(--hair)" });
 
+      const src = !d ? null
+        : d.from ? pod(d.from)
+        : d.fromUnknown ? el("span", { style: "color:var(--muted);opacity:.45", title: "Not recorded — older entries only stored where the person went" }, "\u00b7")
+        : el("span", { style: "color:var(--muted)", title: "From the bench" }, "\u2014");
       if (d && d.act === "move") {
         const dest = !d.to ? "\u2014"
           : d.night ? chip(d.to, "", "var(--podAb)", true)
           : pod(d.to);
-        row.append(lead, cell([d.subj], "width:30%"), cell([d.from ? pod(d.from) : "\u2014"], "width:12%;text-align:center"),
+        row.append(lead, cell([d.subj], "width:30%"), cell([src], "width:12%;text-align:center"),
                    cell([dest, d.night ? el("span", { style: "font-size:.6rem;color:var(--muted);margin-left:.2rem" }, "night") : null],
                         "width:12%;text-align:center"), when, by);
       } else if (d && d.act === "off") {
-        row.append(lead, cell([d.subj], "width:30%"), cell([d.from ? pod(d.from) : "\u2014"], "width:12%;text-align:center"),
+        row.append(lead, cell([d.subj], "width:30%"), cell([src], "width:12%;text-align:center"),
                    cell([reason(d.why)], "width:12%;text-align:center"), when, by);
       } else if (d && d.act === "fix") {
         /* Entries written before the moves were kept have no count. Saying "0 moves" and
@@ -5361,12 +5367,13 @@ function renderSettings(){
   const save = msg => { logEntry(msg, "manual"); markDirty(); saveFile(true); };
 
   box.append(h("Pod rules"));
-  const nums = [["podMin","Countable staff per pod, minimum"],["podEMin","Pod E minimum"],
-    ["nightMin","Night team minimum"],["transferAim","Transfer-trained on days, aim for"],
-    ["neuroTarget","Neuro placement — % of shifts on Pods C/D"],["retentionDays","Keep past weeks for (days)"]];
-  const grid = el("div", { style: "display:grid;gap:.45rem" });
-  for (const [k, label] of nums) {
-    const inp = el("input", { type: "number", value: String(rule(k)), style: "width:6rem" });
+  const nums = [["podMin","staff per pod, minimum",""],["podEMin","Pod E minimum",""],
+    ["nightMin","night team minimum",""],["transferAim","transfer-trained on days, aim for",""],
+    ["neuroTarget","neuro shifts on Pods C/D","%"],["retentionDays","keep past weeks for","days"]];
+  const grid = el("div", { style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.55rem" });
+  for (const [k, label, unit] of nums) {
+    const inp = el("input", { type: "number", value: String(rule(k)),
+      style: "font-size:1.35rem;font-weight:600;width:100%;border:0;background:transparent;padding:0" });
     inp.onchange = () => {
       const v = Number(inp.value), was = rule(k);
       if (!isFinite(v) || v < 0) { inp.value = String(was); return; }
@@ -5374,35 +5381,46 @@ function renderSettings(){
       save("Setting: " + label + " changed from " + was + " to " + v);
       renderAll();
     };
-    grid.append(el("label", { style: "display:flex;align-items:center;gap:.6rem;font-size:.88rem" },
-      el("span", { style: "flex:1" }, label), inp));
+    grid.append(el("div", { style: "background:var(--hair);border-radius:10px;padding:.6rem .75rem" },
+      el("div", { style: "display:flex;align-items:baseline;gap:.2rem" }, inp,
+        unit ? el("span", { style: "font-size:.9rem;color:var(--muted)" }, unit) : null),
+      el("div", { style: "font-size:.76rem;color:var(--muted);line-height:1.35;margin-top:.15rem" }, label)));
   }
   box.append(grid);
 
   box.append(h("Skills a grade starts with"));
+  /* A 16 x 8 checkbox grid was almost entirely empty boxes. The data is sparse and reads far
+     better as a sentence than a matrix: one row per grade, its skills as chips you can take off,
+     and a picker for the rest. */
   const keys = FLAGS.filter(f => f[2] !== "info").map(f => f[0]);
-  const t = el("table", { style: "border-collapse:collapse;font-size:.78rem" });
-  const hr = el("tr", {}, el("th", { style: "text-align:left;padding:.3rem .4rem" }, "Grade"));
-  for (const k of keys) hr.append(el("th", { style: "padding:.3rem .3rem;font-weight:600;font-size:.66rem;white-space:nowrap" },
-    ((FLAGS.find(f => f[0] === k) || [])[1] || k).replace(" trained", "").replace(" (learning)", "")));
-  t.append(hr);
+  const labelOf = k => ((FLAGS.find(f => f[0] === k) || [])[1] || k).replace(" — never counted", "").replace(" (learning)", "");
+  const setSkill = (g, k, on) => {
+    data.gradeSkills = data.gradeSkills || {};
+    data.gradeSkills[g] = Object.assign({}, gradeDefaults(g) || {});
+    data.gradeSkills[g][k] = on;
+    save("Grade default: " + g + " " + labelOf(k) + " turned " + (on ? "on" : "off"));
+    renderSettings();
+  };
   for (const g of GRADES) {
-    const row = el("tr", { style: "border-top:1px solid var(--hair)" }, el("td", { style: "padding:.3rem .4rem;white-space:nowrap" }, g));
     const cur = gradeDefaults(g) || {};
-    for (const k of keys) {
-      const cb = el("input", { type: "checkbox" }); cb.checked = !!cur[k];
-      cb.onchange = () => {
-        data.gradeSkills = data.gradeSkills || {};
-        data.gradeSkills[g] = Object.assign({}, gradeDefaults(g) || {});
-        data.gradeSkills[g][k] = cb.checked;
-        save("Grade default: " + g + " " + k + " turned " + (cb.checked ? "on" : "off"));
-      };
-      row.append(el("td", { style: "padding:.3rem .3rem;text-align:center" }, cb));
+    const has = keys.filter(k => cur[k]);
+    const chips = el("div", { style: "flex:1;display:flex;gap:.3rem;flex-wrap:wrap;align-items:center" });
+    if (!has.length) chips.append(el("span", { style: "font-size:.8rem;color:var(--muted);font-style:italic" }, "nothing by default"));
+    for (const k of has) chips.append(el("button", {
+      style: "background:#eef2fb;color:var(--podAb);border:0;font-size:.74rem;padding:.15rem .5rem;border-radius:6px;cursor:pointer",
+      title: "Remove " + labelOf(k) + " from " + g, onclick: () => setSkill(g, k, false) }, labelOf(k) + " \u00d7"));
+    const missing = keys.filter(k => !cur[k]);
+    if (missing.length) {
+      const add = el("select", { style: "font-size:.74rem;padding:.1rem .3rem;max-width:9rem" });
+      add.append(el("option", { value: "" }, "+ add"));
+      for (const k of missing) add.append(el("option", { value: k }, labelOf(k)));
+      add.onchange = () => { if (add.value) setSkill(g, add.value, true); };
+      chips.append(add);
     }
-    t.append(row);
+    box.append(el("div", { style: "display:flex;align-items:center;gap:.7rem;padding:.4rem 0;border-top:1px solid var(--hair)" },
+      el("span", { style: "width:3.4rem;font-size:.86rem;font-weight:600;flex:none" }, g), chips));
   }
-  box.append(el("div", { style: "overflow:auto" }, t));
-  box.append(el("div", { style: "font-size:.76rem;color:var(--muted);margin-top:.4rem" },
+  box.append(el("div", { style: "font-size:.76rem;color:var(--muted);margin-top:.5rem" },
     "A default can give someone a skill. It never takes one away — remove a skill on the Staff page."));
 
   box.append(h("People the import ignores"));
