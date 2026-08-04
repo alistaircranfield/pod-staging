@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-04T20:54:00.360000+00:00",
- "build": "3db9612",
- "liveBuild": "4cbad8d",
- "count": 54,
+ "generated": "2026-08-04T20:57:07.128602+00:00",
+ "build": "32d0273",
+ "liveBuild": "6f73bce",
+ "count": 56,
  "changes": [
+  {
+   "sha": "32d0273",
+   "who": "alistaircranfield",
+   "when": "2026-08-04T21:56:51+01:00",
+   "msg": "The rule suite looks for index.html, so it can run against a clone of this repo"
+  },
+  {
+   "sha": "6d65f34",
+   "who": "github-actions[bot]",
+   "when": "2026-08-04T20:54:00Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "3db9612",
    "who": "alistaircranfield",
