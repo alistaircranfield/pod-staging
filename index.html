@@ -1437,8 +1437,6 @@ async function changeEditor(){
    accumulates the evidence a human needs in order to decide a rule should change. */
 function recordOverride(dateISO, id, fromPod, toPod, shift){
   if (!data || !fromPod || fromPod === toPod) return;   // only real pod-to-pod moves
-  logEntry(nameOf(id) + ": " + fromPod + " to " + toPod, "manual", dateISO, null,
-    { act: "move", subj: nameOf(id) || "", from: fromPod, to: toPod, shift: shift || "" });
   data.overrides = data.overrides || [];
   data.overrides.unshift({
     t: new Date().toISOString(), d: dateISO, id: id, name: nameOf(id) || "",
@@ -2738,7 +2736,11 @@ function renderDayRow(day, di, dateISO, issues){
       const fromPod = PODS.find(q => day.pods[q].assign.some(a => a.id === id)) || null;
       removeAssign(day, id);
       pod.assign.push({ id, shift: keepShift != null ? keepShift : shiftFromPool(pool, id) });
-      logEntry(s.name + " → Pod " + p + " (" + dayShort(di) + ")", "manual", dateOfDi(di));
+      /* fromPod was computed above and then thrown away — which is why a year of entries say
+         only where somebody went. "bench" is a real answer too: it means they were unallocated,
+         which is different from not knowing. */
+      logEntry(s.name + " → Pod " + p + " (" + dayShort(di) + ")", "manual", dateOfDi(di), null,
+        { act: "move", subj: s.name, from: fromPod || "", to: p, bench: !fromPod });
       recordOverride(dateISO, id, fromPod, p, keepShift);
     }, oid => { const o = (day.obs || []).find(x => x.oid === oid); if (o) { o.pod = p; logEntry("Observer " + o.name + " → Pod " + p + " (" + dayShort(di) + ")", "manual", dateOfDi(di)); } });
     const consAll = data.staff.filter(s => s.grade === "CON" && isActiveOn(s, dateISO));
@@ -3700,11 +3702,30 @@ function logControls(redraw){
 
 /* One <div> holding date headings and their rows. Whichever date the grouping is NOT keyed on
    is shown on the row itself, so both dates are always visible without a legend. */
+/* Answering "surely there must be some memory of it": there is, in the log itself. If somebody
+   was moved into Pod C on Tuesday and moved again later that same Tuesday, the earlier entry
+   says where the later one started. Walking the log oldest-first per person and rota day
+   recovers the from-pod for every move except the first in each chain. Read-only — nothing is
+   written back, so this is a lens over the stored log, not a migration of it. */
+function inferFroms(list){
+  const seen = {};
+  const out = new Map();
+  const chron = (list || []).slice().reverse();          // stored newest-first
+  for (const e of chron) {
+    const d = logDet(e);
+    if (!d || d.act !== "move" || !d.subj) continue;
+    const key = d.subj + "|" + logOn(e);
+    if (!d.from && !d.bench && seen[key]) out.set(e, seen[key]);
+    if (d.to) seen[key] = d.to;
+  }
+  return out;
+}
 function logGroups(list, cap){
   const out = el("div");
   let groups = groupLog((list || []).slice(0, cap || 400), logBy, logFilter);
   if (!groups.length) { out.append(el("div", { class: "empty" }, "Nothing to show.")); return out; }
   const today = todayISO ? todayISO() : new Date().toISOString().slice(0, 10);
+  const inferredFrom = inferFroms(list);
 
   /* Read by rota day, the useful order is not "newest first" — it is TODAY, then the days
      coming up, and the past underneath. Someone opening this wants to know what has been done
@@ -3748,7 +3769,9 @@ function logGroups(list, cap){
     tbl.append(el("tr", {}, th(logBy === "made" ? "Rota day" : ""), th("Person"), thC("From"), thC("To"),
       el("th", { style: "text-align:right;font-weight:500;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:0 .3rem .25rem" }, "By")));
     for (const e of g.entries) {
-      const d = logDet(e);
+      const d0 = logDet(e);
+      const inferred = d0 && !d0.from && !d0.bench ? inferredFrom.get(e) : null;
+      const d = inferred ? Object.assign({}, d0, { fromInferred: inferred }) : d0;
       const other = (logBy === "made") ? logOn(e) : logMade(e);
       const stamp = new Date(e.t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
       const by = el("td", { style: "padding:.42rem .3rem;text-align:right;color:var(--muted);font-size:.78rem;white-space:nowrap;vertical-align:top;width:26%" },
@@ -3763,10 +3786,18 @@ function logGroups(list, cap){
 
       const src = !d ? null
         : d.from ? pod(d.from)
+        : d.bench ? el("span", { style: "color:var(--muted);font-size:.72rem" , title: "Was unallocated" }, "bench")
+        : d.fromInferred ? el("span", { style: "color:var(--muted);opacity:.8", title: "Worked out from an earlier entry the same day" }, pod(d.fromInferred))
         : d.fromUnknown ? el("span", { style: "color:var(--muted);font-size:.7rem;font-style:italic",
-            title: "These older entries only recorded where the person went, never where they came from" }, "not recorded")
+            title: "Older entries only recorded where the person went, never where they came from" }, "not recorded")
         : el("span", { style: "color:var(--muted)", title: "From the bench" }, "\u2014");
-      const fromCell = k => { const c = fromCell(); c.className = "logfrom"; return c; };
+      /* Was written as fromCell() calling fromCell() — a blind string replace rewrote the body
+         of the very helper it was defining, so every move row recursed until the stack blew. */
+      const fromCell = () => {
+        const c = cell([src], "width:12%;text-align:center");
+        c.className = "logfrom";
+        return c;
+      };
       if (d && d.act === "move") {
         const dest = !d.to ? "\u2014"
           : d.night ? chip(d.to, "", "var(--podAb)", true)
