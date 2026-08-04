@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-04T20:01:05.858888+00:00",
- "build": "82cbb89",
+ "generated": "2026-08-04T20:02:20.899707+00:00",
+ "build": "21924cd",
  "liveBuild": "1fb5f61",
- "count": 46,
+ "count": 48,
  "changes": [
+  {
+   "sha": "21924cd",
+   "who": "alistaircranfield",
+   "when": "2026-08-04T21:02:12+01:00",
+   "msg": "A render suite for the resident board \u2014 the gap that let Who can... ship broken"
+  },
+  {
+   "sha": "209c777",
+   "who": "github-actions[bot]",
+   "when": "2026-08-04T20:01:05Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "82cbb89",
    "who": "alistaircranfield",
