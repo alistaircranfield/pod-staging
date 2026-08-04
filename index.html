@@ -3654,9 +3654,11 @@ function logGroups(list, cap){
      to the shifts they are about to work, not what happened three weeks ago. Read by when the
      change was made, newest-first is right and is left alone. */
   if (logBy === "affects") {
-    const future = groups.filter(g => g.date >= today).sort((a, b) => a.date < b.date ? -1 : 1);
-    const past   = groups.filter(g => g.date <  today).sort((a, b) => a.date > b.date ? -1 : 1);
-    groups = future.concat(past);
+    /* Read by rota day, the page runs FORWARDS in time from top to bottom: the past above,
+       today in the middle, the days coming up below. Scrolling down is moving forwards, which
+       is the only ordering that does not need explaining. It does mean the top of the page is
+       ancient history, so the view is dropped on today — see the scroll below. */
+    groups = groups.slice().sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
   }
 
   const podTint = { A: "var(--podA)", B: "var(--podB)", C: "var(--podC)", D: "var(--podD)", E: "var(--podE)" };
@@ -3673,7 +3675,9 @@ function logGroups(list, cap){
   const cell = (kids, style) => el("td", { style: "padding:.42rem .3rem;vertical-align:top;" + (style || "") }, ...kids);
 
   for (const g of groups) {
-    out.append(el("div", { class: "loghead" }, logDayLabel(g.date, today), el("span", {}, String(g.entries.length))));
+    const head = el("div", { class: "loghead" }, logDayLabel(g.date, today), el("span", {}, String(g.entries.length)));
+    if (g.date === today) head.dataset.today = "1";
+    out.append(head);
     const tbl = el("table", { style: "width:100%;table-layout:fixed;border-collapse:collapse;font-size:.85rem;margin-bottom:.4rem" });
     for (const e of g.entries) {
       const d = logDet(e);
@@ -3728,6 +3732,10 @@ function logGroups(list, cap){
     }
     out.append(tbl);
   }
+  if (logBy === "affects") setTimeout(() => {
+    const t = out.querySelector('[data-today="1"]');
+    if (t && t.scrollIntoView) t.scrollIntoView({ block: "start" });
+  }, 0);
   return out;
 }
 
