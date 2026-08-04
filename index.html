@@ -563,10 +563,10 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
   <button id="tpBack" class="tpback"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>Menu</button>
   <div class="tpttl">Rota team</div>
   <button data-tab="team" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l8.5 15h-17z"/><path d="M12 10v4"/><circle cx="12" cy="16.6" r=".5" fill="currentColor"/></svg>Attention<span class="tpc" id="tabAttnCount"></span></button>
-  <button data-tab="staff" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19.5c.8-3.3 3.3-5 6.2-5s5.4 1.7 6.2 5"/><path d="M15.5 5.5a3.2 3.2 0 011.6 6"/></svg>Staff</button>
+  <button data-tab="staff" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19.5c.8-3.3 3.3-5 6.2-5s5.4 1.7 6.2 5"/><path d="M15.5 5.5a3.2 3.2 0 011.6 6"/></svg>Staff<span class="tpc" id="tabStaffCount"></span></button>
   <button data-tab="feedback" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg>Feedback<span class="tpc" id="tabFbCount"></span></button>
   <button data-tab="fair" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l3-8 4 14 3-8h4"/></svg>Fairness</button>
-  <button data-tab="log" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Change log</button>
+  <button data-tab="log" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Change log<span class="tpc" id="tabLogCount"></span></button>
   <button data-tab="import" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M4 20h16"/></svg>Import</button>
 </nav>
 <div id="navbackdrop"></div>
@@ -1424,7 +1424,33 @@ function logEntry(msg, kind, on, who, d){
   if (data.log.length > 500) data.log.length = 500;
 }
 /* Reader, so every call site agrees on the shape. */
-function logDet(e){ return (e && e.d && typeof e.d === "object") ? e.d : null; }
+function logDet(e){
+  if (e && e.d && typeof e.d === "object") return e.d;
+  return deriveDet(e && e.msg);
+}
+/* Months of entries were written before the fields existed, and they are the bulk of the log —
+   so a table that only fills in for NEW entries is a table nobody sees the point of. The old
+   messages are not free prose though: they came from a handful of call sites and have a handful
+   of shapes. They are read back into fields HERE, at display time. Nothing is rewritten, so the
+   stored log is untouched and this is reversible by deleting the function. A shape that is not
+   recognised falls through to the plain wide row, which is the honest outcome. */
+function deriveDet(msg){
+  const m = String(msg || "");
+  let x;
+  if ((x = m.match(/^Off the Optima rota\s*[—-]\s*(.+?) removed from the day(?:\s*\(Pod ([A-E])[^)]*\))?/)))
+    return { act: "off", subj: x[1].trim(), from: x[2] || "", why: "rota" };
+  if ((x = m.match(/^Sickness fix [^:]*:\s*removed (.+?)(?: from (?:Pod ([A-E])|(.+)))?$/)))
+    return { act: "off", subj: x[1].trim(), from: x[2] || "", why: "sick" };
+  if ((x = m.match(/^(.+?)\s*(?:→|->)\s*night Pod ([A-E])(?:\s*&\s*([A-E]))?/)))
+    return { act: "move", subj: x[1].trim(), to: x[2] + (x[3] ? "&" + x[3] : ""), night: true };
+  if ((x = m.match(/^(.+?)\s*(?:→|->)\s*Pod ([A-E])/)))
+    return { act: "move", subj: x[1].trim(), to: x[2] };
+  if ((x = m.match(/^(.+?):\s*Pod ([A-E]) to Pod ([A-E])/)))
+    return { act: "move", subj: x[1].trim(), from: x[2], to: x[3] };
+  if ((x = m.match(/^Fixed .+?\(minimal changes\)/)))
+    return { act: "fix", n: 0, kids: [] };
+  return null;
+}
 /* logKind, logOn, groupLog and logDayLabel live in core.js — both boards read the log the
    same way, so the reading lives in one place. */
 /* The rota date a day index on the week currently open refers to. */
@@ -3542,14 +3568,6 @@ function renderDrift(rows){
 function renderLog(){
   const box = $("#logList");
   box.innerHTML = "";
-  const fb = (data && data.feedback) || [];
-  if (fb.length) {
-    box.append(el("div", { style: "font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:.2rem 0 .5rem" },
-      "Trial feedback (" + fb.length + ")"));
-    box.append(feedbackCards(fb, 100));
-
-    box.append(el("div", { style: "font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:1.1rem 0 .5rem" }, "Changes"));
-  }
   if (!data || !data.log.length) { box.append(el("div", { class: "empty" }, "No changes logged yet.")); return; }
 
   box.append(logControls(renderLog), logGroups(data.log, 400));
@@ -3668,8 +3686,12 @@ function logGroups(list, cap){
       const row = el("tr", { style: "border-top:1px solid var(--hair)" });
 
       if (d && d.act === "move") {
+        const dest = !d.to ? "\u2014"
+          : d.night ? chip(d.to, "", "var(--podAb)", true)
+          : pod(d.to);
         row.append(cell([d.subj], "width:30%"), cell([d.from ? pod(d.from) : "\u2014"], "width:12%;text-align:center"),
-                   cell([d.to ? pod(d.to) : "\u2014"], "width:12%;text-align:center"), when, by);
+                   cell([dest, d.night ? el("span", { style: "font-size:.6rem;color:var(--muted);margin-left:.2rem" }, "night") : null],
+                        "width:12%;text-align:center"), when, by);
       } else if (d && d.act === "off") {
         row.append(cell([d.subj], "width:30%"), cell([d.from ? pod(d.from) : "\u2014"], "width:12%;text-align:center"),
                    cell([reason(d.why)], "width:12%;text-align:center"), when, by);
@@ -5183,7 +5205,11 @@ function attentionItems(){
 }
 // Feedback has its own page so it doesn't clog this list, but it still counts on the badge.
 function unreadFeedback(){ return ((data && data.feedback) || []).filter(f => !f.read).length; }
-function attentionCount(){ return attentionItems().reduce((n, x) => n + x.n, 0) + unreadFeedback(); }
+function attentionCount(){
+  const seen = store.get("logSeen") || "";
+  const freshLog = data ? (data.log || []).filter(x => x && x.t > seen).length : 0;
+  return attentionItems().reduce((n, x) => n + x.n, 0) + unreadFeedback() + (freshLog ? 1 : 0);
+}
 function updateTeamBadge(){
   const n = data ? attentionCount() : 0;
   const txt = n > 99 ? "99+" : String(n);
@@ -5192,6 +5218,13 @@ function updateTeamBadge(){
   const attnOnly = data ? attentionItems().reduce((a, x) => a + x.n, 0) : 0;
   const t = $("#tabAttnCount");
   if (t) { t.textContent = String(attnOnly); t.classList.toggle("on", attnOnly > 0); }
+  const st = $("#tabStaffCount");
+  const unver = data ? (data.staff || []).filter(x => x.verified === false && x.active !== false).length : 0;
+  if (st) { st.textContent = String(unver); st.classList.toggle("on", unver > 0); }
+  const lg = $("#tabLogCount");
+  const seen = store.get("logSeen") || "";
+  const fresh = data ? (data.log || []).filter(x => x && x.t > seen).length : 0;
+  if (lg) { lg.textContent = fresh > 99 ? "99+" : String(fresh); lg.classList.toggle("on", fresh > 0); }
   const f = $("#tabFbCount"); const u = data ? unreadFeedback() : 0;
   if (f) { f.textContent = String(u); f.classList.toggle("on", u > 0); }
 }
@@ -5256,7 +5289,13 @@ function renderAttention(){
 }
 function renderFairGate(){ renderGate("F", "#fairCard", renderFairness); }
 function renderImportGate(){ renderGate("I", "#importCard", () => {}); }
-function renderLogGate(){ renderGate("L", "#logCard", renderLog); }
+function renderLogGate(){ renderGate("L", "#logCard", () => {
+  renderLog();
+  /* Opening the page is what marks it read — per browser, so one person looking does not clear
+     the badge for everybody else. */
+  const newest = (data && data.log && data.log[0] && data.log[0].t) || "";
+  if (newest) { store.set("logSeen", newest); updateTeamBadge(); }
+}); }
 
 function keyDialog(){
   const m = $("#modal");
