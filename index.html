@@ -308,6 +308,16 @@ td.col-A{background:var(--podA)} td.col-B{background:var(--podB)} td.col-C{backg
 #staffTable td.skc.on{color:inherit}
 #staffTable th.sortable{cursor:pointer;user-select:none}
 #staffTable th.sorted{color:var(--ink);border-bottom:2px solid var(--ink)}
+/* The browser's own tooltip is a grey box in the system font and it fired on all eleven cells
+   of every row — "Abdallah Khalil — not neuro", over and over, wherever the mouse rested
+   (Ali, 6 Aug). This one is the site's, and it is only on the HEADER, which is the only place
+   with something worth saying: what the column means. The cells say it already by being on
+   or off, and a person's own row says who they are. */
+#skTip{position:fixed;z-index:60;background:var(--ink);color:#fff;font-size:.76rem;line-height:1.4;
+  padding:.4rem .6rem;border-radius:8px;max-width:16rem;pointer-events:none;opacity:0;
+  transition:opacity .11s ease;box-shadow:0 4px 14px rgba(29,31,36,.18)}
+#skTip.on{opacity:1}
+#skTip b{display:block;font-weight:600;margin-bottom:.1rem}
 #staffTable th .fun{opacity:.4;cursor:pointer;display:inline-flex;align-items:center;padding:.15rem}
 #staffTable th .fun:hover{opacity:1}
 #staffTable th .fun.on{opacity:1;color:var(--accent)}
@@ -1983,9 +1993,9 @@ const SK_ICON = {
      laryngoscope OR an arm — `ti-arm` and `ti-elbow` render blank — and a syringe is the one
      glyph everyone already reads as "a line going in". Redrawn here as a path because the app
      does not load an icon font; everything on this page is inline SVG. */
-  picc: '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 28.5l6-6"/><rect x="10.5" y="11.5" width="13" height="8" rx="1.2" transform="rotate(-45 17 15.5)"/><path d="M14.4 16.6l-2.6 2.6M18.2 12.8l-2.6 2.6" stroke-width="1.5"/><path d="M22.6 9.4l4.4 4.4"/><path d="M25.6 4.6l4.4 4.4M27.8 2.4l1.8 1.8"/></svg>',
+  picc: '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 29.5l6.5-6.5"/><rect x="9.8" y="11.6" width="14.5" height="8.8" rx="1.6" transform="rotate(-45 17 16)"/><path d="M21.5 8.5l5 5"/><path d="M25 3.6l5.4 5.4"/></svg>',
   /* Brain and hospital are the icon set's own — Ali preferred them to the ones I drew. */
-  neuro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 13a3.5 3.5 0 00-3.5 3.5v1a3.5 3.5 0 003.5 3.5 3.5 3.5 0 003.5-3.5v-1a3.5 3.5 0 00-3.5-3.5z"/><path d="M8.5 13A3.5 3.5 0 015 9.5v-1A3.5 3.5 0 018.5 5 3.5 3.5 0 0112 8.5v1A3.5 3.5 0 018.5 13z"/><path d="M17.5 16a3.5 3.5 0 003.5-3.5v-1A3.5 3.5 0 0017.5 8 3.5 3.5 0 0014 11.5v1a3.5 3.5 0 003.5 3.5z"/><path d="M6.5 21A3.5 3.5 0 013 17.5v-1A3.5 3.5 0 016.5 13 3.5 3.5 0 0110 16.5v1A3.5 3.5 0 016.5 21z"/><path d="M12 8.5V19"/></svg>',
+  neuro: '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4.5c-3.2 0-5.4 1.9-5.9 4.3-2.4.4-4 2.2-4 4.5 0 1.2.45 2.3 1.2 3.1-.9.9-1.3 2-1.1 3.2.3 1.9 1.9 3.3 3.9 3.5.5 2.4 2.7 4.2 5.4 4.2h.5z"/><path d="M16 4.5c3.2 0 5.4 1.9 5.9 4.3 2.4.4 4 2.2 4 4.5 0 1.2-.45 2.3-1.2 3.1.9.9 1.3 2 1.1 3.2-.3 1.9-1.9 3.3-3.9 3.5-.5 2.4-2.7 4.2-5.4 4.2H16z"/><path d="M16 4.5v22.8"/></svg>',
   /* Present, but not solid in the numbers. A struck-through person read as "deleted", which is
      the opposite of what supernumerary means. */
   supernum: '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3 2.6"><circle cx="16" cy="11" r="5"/><path d="M5.5 27.5c0-5.4 4.7-9.2 10.5-9.2s10.5 3.8 10.5 9.2"/></svg>',
@@ -2015,6 +2025,23 @@ const SK_COLS = [
   ["fghNights", "FGH nts", "Covers Fairfield General at night"],
 ];
 const skIcon = k => '<span class="skico">' + SK_ICON[k] + "</span>";
+/* One tooltip element for the whole table, moved about — eleven columns each owning their own
+   would be eleven things to keep in step. */
+function skTipOn(anchor, title, body){
+  let tip = document.getElementById("skTip");
+  if (!tip) { tip = el("div", { id: "skTip" }); document.body.append(tip); }
+  tip.innerHTML = "";
+  tip.append(el("b", {}, title), body);
+  const show = () => {
+    const r = anchor.getBoundingClientRect();
+    tip.classList.add("on");
+    tip.style.left = Math.max(8, Math.min(r.left + r.width / 2 - tip.offsetWidth / 2,
+      window.innerWidth - tip.offsetWidth - 8)) + "px";
+    tip.style.top = (r.bottom + 8) + "px";
+  };
+  anchor.onmouseenter = () => { tip.innerHTML = ""; tip.append(el("b", {}, title), body); show(); };
+  anchor.onmouseleave = () => tip.classList.remove("on");
+}
 /* Drawn, not a character. ⌷ looked right in the editor and rendered as an empty box on the
    page, once per column. Anything the UI depends on being *visible* has to be a shape we ship,
    not a codepoint we hope is installed. */
@@ -2120,8 +2147,8 @@ function renderStaff(){
     tr.append(sortTh("grade", "Grade", gFun));
 
     for (const [k, word, why] of SK_COLS) {
-      const th = el("th", { class: "skh sortable" + (stSort.key === k ? " sorted" : ""),
-        title: why + " — click to sort, funnel to show only these" });
+      const th = el("th", { class: "skh sortable" + (stSort.key === k ? " sorted" : "") });
+      skTipOn(th, word === "Extra" ? "Supernumerary" : word, why);
       th.innerHTML = skIcon(k);
       th.querySelector(".skico").style.color = SK_COL[k];
       const fun = funnelBtn("Show only people with this");
@@ -2177,8 +2204,9 @@ function renderStaff(){
       !active ? el("span",{class:"pill expired"}," expired") : ""));
     tr.append(el("td", {}, s.grade ? el("span", { class: "pill grade" }, s.grade) : el("span", { class: "pill grade-empty" }, "no grade")));
     for (const [k, word, why] of SK_COLS) {
-      const td = el("td", { class: "skc" + (s[k] ? " on" : ""),
-        title: s.name + (s[k] ? " — " + why : " — not " + word.toLowerCase()) });
+      /* No tooltip here on purpose. On or off is the whole message, and eleven of them per row
+         made the mouse trail a grey box across the page. */
+      const td = el("td", { class: "skc" + (s[k] ? " on" : "") });
       td.innerHTML = skIcon(k);
       if (s[k]) td.style.color = SK_COL[k];
       tr.append(td);
