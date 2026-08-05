@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-05T20:09:35.070145+00:00",
- "build": "ec72676",
+ "generated": "2026-08-05T20:13:58.010626+00:00",
+ "build": "4e0ce77",
  "liveBuild": "c5d20a1",
- "count": 76,
+ "count": 78,
  "changes": [
+  {
+   "sha": "4e0ce77",
+   "who": "alistaircranfield",
+   "when": "2026-08-05T21:13:39+01:00",
+   "msg": "Never offer this week \u2014 whole-week rewriting would move days already worked"
+  },
+  {
+   "sha": "8056da1",
+   "who": "github-actions[bot]",
+   "when": "2026-08-05T20:09:35Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "ec72676",
    "who": "alistaircranfield",
