@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-05T09:54:58.540546+00:00",
- "build": "602b40a",
+ "generated": "2026-08-05T09:55:42.003345+00:00",
+ "build": "ba139fb",
  "liveBuild": "6f73bce",
- "count": 58,
+ "count": 60,
  "changes": [
+  {
+   "sha": "ba139fb",
+   "who": "alistaircranfield",
+   "when": "2026-08-05T10:55:32+01:00",
+   "msg": "15 tests for the neuro rule and the log, and two that were counting their own fixture"
+  },
+  {
+   "sha": "6b2a0a6",
+   "who": "github-actions[bot]",
+   "when": "2026-08-05T09:54:58Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "602b40a",
    "who": "alistaircranfield",
