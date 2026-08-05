@@ -217,7 +217,21 @@ function deriveDet(msg){
   return null;
 }
 
-let logBy = "made", logFilter = "all", logWhen = "ahead";
+let logBy = "made", logFilter = "all", logWhen = "ahead", logQuery = "";
+
+/* Everything an entry can be searched BY, as one lowercase string: the person, where they came
+   from and went to, whoever made the change, and the original message for older entries that
+   never had fields. Built per entry at search time — the log is capped at 500, so there is
+   nothing here worth indexing for. */
+function logHaystack(e){
+  const d = logDet(e) || {};
+  return [d.subj, d.from, d.to, d.why, e.who, e.msg, logOn(e)]
+    .filter(Boolean).join(" ").toLowerCase();
+}
+function logMatches(e){
+  const q = logQuery.trim().toLowerCase();
+  return !q || logHaystack(e).indexOf(q) >= 0;
+}
 
 /* Two segmented controls, no sentence explaining them (hard rule 2). The left one names the
    thing the groups below are keyed on, so the headings are the explanation. */
@@ -233,6 +247,19 @@ function logControls(redraw){
     });
     return __el("label", { style: "display:inline-flex;align-items:center;gap:.4rem;font-size:.78rem;color:var(--muted)" }, label, sel);
   };
+  /* A search box, because scrolling is not a way to answer "what happened to Ambrose?" — Ali,
+     4 Aug. Filters as you type and keeps focus, so the box does not fight the redraw. */
+  const box = __el("input", { type: "text", placeholder: "Search the change log",
+    "aria-label": "Search the change log",
+    style: "flex:1;min-width:11rem;max-width:20rem" });
+  box.value = logQuery;
+  box.addEventListener("input", () => {
+    logQuery = box.value;
+    redraw();
+    const again = document.querySelector("#logBox input[type=text]");
+    if (again) { again.focus(); try { again.setSelectionRange(again.value.length, again.value.length); } catch(e){} }
+  });
+  wrap.append(box);
   wrap.append(
     pick("Group by", [["made", "When changed"], ["affects", "Rota day"]], () => logBy, v => logBy = v),
     pick("Show", [["all", "All changes"], ["manual", "Manual only"], ["auto", "Automatic only"]], () => logFilter, v => logFilter = v)
@@ -277,8 +304,18 @@ function inferFroms(list){
 }
 function logGroups(list, cap){
   const out = __el("div");
-  let groups = groupLog((list || []).slice(0, cap || 400), logBy, logFilter);
-  if (!groups.length) { out.append(__el("div", { class: "empty" }, "Nothing to show.")); return out; }
+  const all = (list || []).slice(0, cap || 400);
+  const shown = all.filter(logMatches);
+  let groups = groupLog(shown, logBy, logFilter);
+  if (logQuery.trim()) {
+    out.append(__el("div", { style: "font-size:.8rem;color:var(--muted);margin:0 0 .7rem" },
+      shown.length + " of " + all.length + " entries match \u201c" + logQuery.trim() + "\u201d"));
+  }
+  if (!groups.length) {
+    out.append(__el("div", { class: "empty" },
+      logQuery.trim() ? "Nothing matches that." : "Nothing to show."));
+    return out;
+  }
   const today = __todayISO();
   const inferredFrom = inferFroms(list);
 

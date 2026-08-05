@@ -1566,7 +1566,7 @@ function dateOfDay(day){
 let suppressDirty = false;
 // The rota content only, ignoring metadata (savedAt, editLock heartbeat, log) so Undo compares
 // what a user actually sees, not housekeeping fields.
-function rotaSig(d){ try { const c = JSON.parse(JSON.stringify(d)); delete c.savedAt; delete c.savedBy; delete c.editLock; delete c.log; return JSON.stringify(c); } catch(e){ return "sig" + Math.random(); } }
+function rotaSig(d){ try { const c = JSON.parse(JSON.stringify(d)); delete c.savedAt; delete c.savedBy; delete c.editLock; delete c.log; delete c.logSeen; return JSON.stringify(c); } catch(e){ return "sig" + Math.random(); } }
 function markDirty(){
   if (!EDIT_MODE || suppressDirty) return;
   const snap = JSON.stringify(data);
@@ -5781,11 +5781,19 @@ function attentionItems(){
     body: unver.slice(0, 6).map(s => s.name).join(", ") + (unver.length > 6 ? " and " + (unver.length - 6) + " more" : "") + " — added automatically from Optima. Confirm their skills are right.",
     go: () => switchTab("staff") });
 
-  const pend = (data.pendingSkills || []);
-  if (pend.length) out.push({ n: pend.length, title: "New skills auto-fill isn't using yet",
-    body: "These skills are already ticked and showing on the staff page — auto-fill just waits to use them: "
-      + pend.slice(0, 4).map(x => x.name + " (" + niceDate(x.from) + ")").join(" · ") + (pend.length > 4 ? " and " + (pend.length - 4) + " more" : ""),
-    go: () => switchTab("staff") });
+  /* One row per person, not one row listing everybody. The old wording led with what the
+     software was doing ("New skills auto-fill isn't using yet") and buried the person, the skill
+     and the date in a sentence at the end — Ali, 4 Aug: "This isnt clear at all". A reader wants
+     who, what, and the date it starts mattering, in that order. */
+  for (const x of (data.pendingSkills || [])) {
+    const words = Object.keys(x.add || {}).map(k => (SKILL_SHORT[k] || k).toLowerCase());
+    if (!words.length) continue;
+    const list = words.length > 1 ? words.slice(0, -1).join(", ") + " and " + words[words.length - 1] : words[0];
+    out.push({ n: 1,
+      title: x.name + " — " + list + " from " + niceDate(x.from),
+      body: "Ticked and in use now. Auto-fill starts choosing them for " + list + " on " + niceDate(x.from) + ".",
+      go: () => switchTab("staff") });
+  }
 
     /* The consultant pod allocations arrive as a 4-week sheet dropped on the Import page. When the
      imported cover is about to run out, say so HERE — before the board quietly starts showing
@@ -5812,8 +5820,15 @@ function attentionItems(){
 }
 // Feedback has its own page so it doesn't clog this list, but it still counts on the badge.
 function unreadFeedback(){ return ((data && data.feedback) || []).filter(f => !f.read).length; }
+/* The shared mark and this browser's own, whichever is later. Shared is the answer; the local
+   copy only ever fills the gap between looking and the next save. */
+function logSeenAt(){
+  const shared = (data && data.logSeen) || "";
+  const local = store.get("logSeen") || "";
+  return shared > local ? shared : local;
+}
 function attentionCount(){
-  const seen = store.get("logSeen") || "";
+  const seen = logSeenAt();
   const freshLog = data ? (data.log || []).filter(x => x && x.t > seen).length : 0;
   return attentionItems().reduce((n, x) => n + x.n, 0) + unreadFeedback() + (freshLog ? 1 : 0);
 }
@@ -5829,7 +5844,7 @@ function updateTeamBadge(){
   const unver = data ? (data.staff || []).filter(x => x.verified === false && x.active !== false).length : 0;
   if (st) { st.textContent = String(unver); st.classList.toggle("on", unver > 0); }
   const lg = $("#tabLogCount");
-  const seen = store.get("logSeen") || "";
+  const seen = logSeenAt();
   const fresh = data ? (data.log || []).filter(x => x && x.t > seen).length : 0;
   if (lg) { lg.textContent = fresh > 99 ? "99+" : String(fresh); lg.classList.toggle("on", fresh > 0); }
   const f = $("#tabFbCount"); const u = data ? unreadFeedback() : 0;
@@ -6074,10 +6089,20 @@ function whoCanDialog(){
 }
 function renderLogGate(){ renderGate("L", "#logCard", () => {
   renderLog();
-  /* Opening the page is what marks it read — per browser, so one person looking does not clear
-     the badge for everybody else. */
+  /* Opening the page marks it read FOR EVERYONE (Ali, 4 Aug). It used to live in localStorage,
+     so the same board showed one number to one person and a different number to the next — the
+     badge described a browser rather than the rota.
+
+     It is written into data and rides along with the next save rather than saving on its own: a
+     whole-file write from someone who is only reading would sit outside the edit lock, and that
+     is how a day's rota gets overwritten. The local copy is kept too, so the badge clears on
+     this screen at once instead of waiting for somebody to press Save. */
   const newest = (data && data.log && data.log[0] && data.log[0].t) || "";
-  if (newest) { store.set("logSeen", newest); updateTeamBadge(); }
+  if (newest) {
+    if (data) data.logSeen = newest;
+    store.set("logSeen", newest);
+    updateTeamBadge();
+  }
 }); }
 
 function keyDialog(){
