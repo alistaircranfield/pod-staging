@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-05T19:57:06.442283+00:00",
- "build": "5e0dd7f",
+ "generated": "2026-08-05T19:58:26.501739+00:00",
+ "build": "7de526c",
  "liveBuild": "c5d20a1",
- "count": 70,
+ "count": 72,
  "changes": [
+  {
+   "sha": "7de526c",
+   "who": "alistaircranfield",
+   "when": "2026-08-05T20:58:18+01:00",
+   "msg": "11 tests for the log search, the shared badge and the reworded attention row"
+  },
+  {
+   "sha": "c3ed293",
+   "who": "github-actions[bot]",
+   "when": "2026-08-05T19:57:06Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "5e0dd7f",
    "who": "alistaircranfield",
