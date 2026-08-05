@@ -313,6 +313,19 @@ td.col-A{background:var(--podA)} td.col-B{background:var(--podB)} td.col-C{backg
    (Ali, 6 Aug). This one is the site's, and it is only on the HEADER, which is the only place
    with something worth saying: what the column means. The cells say it already by being on
    or off, and a person's own row says who they are. */
+.wkpick{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.35rem;margin:.2rem 0 .5rem}
+.wkbtn{display:flex;flex-direction:column;align-items:center;gap:.15rem;padding:.5rem .2rem;border:1px solid var(--hair);
+  border-radius:8px;background:var(--card);cursor:pointer;text-align:center;line-height:1.25;font:inherit}
+.wkbtn.on{border:2px solid var(--accent);background:var(--accent-bg)}
+.wkbtn.future{border-style:dashed;cursor:default;opacity:.85}
+.wkname{font-size:.74rem;font-weight:600}
+.wkdate{font-size:.66rem;color:var(--muted)}
+.wkn{font-size:.62rem;padding:.05rem .3rem;border-radius:999px;margin-top:.15rem;white-space:nowrap}
+.wkn.none{background:var(--hair);color:var(--muted)}
+.wkn.low{background:#e7f4ea;color:#1b5e20}
+.wkn.mid{background:#fdf3e0;color:#8a5a00}
+.wkn.high{background:#fdeceb;color:#a3231b}
+@media (max-width:640px){.wkpick{grid-template-columns:repeat(2,minmax(0,1fr))}}
 #skTip{position:fixed;z-index:60;background:var(--ink);color:#fff;font-size:.76rem;line-height:1.4;
   padding:.4rem .6rem;border-radius:8px;max-width:16rem;pointer-events:none;opacity:0;
   transition:opacity .11s ease;box-shadow:0 4px 14px rgba(29,31,36,.18)}
@@ -1566,7 +1579,8 @@ function dateOfDay(day){
 let suppressDirty = false;
 // The rota content only, ignoring metadata (savedAt, editLock heartbeat, log) so Undo compares
 // what a user actually sees, not housekeeping fields.
-function rotaSig(d){ try { const c = JSON.parse(JSON.stringify(d)); delete c.savedAt; delete c.savedBy; delete c.editLock; delete c.log; delete c.logSeen; return JSON.stringify(c); } catch(e){ return "sig" + Math.random(); } }
+function rotaSig(d){ try { const c = JSON.parse(JSON.stringify(d)); delete c.savedAt; delete c.savedBy; delete c.editLock; delete c.log; delete c.logSeen;
+  try { (c.feedback || []).forEach(f => { delete f.read; }); } catch(e){} return JSON.stringify(c); } catch(e){ return "sig" + Math.random(); } }
 function markDirty(){
   if (!EDIT_MODE || suppressDirty) return;
   const snap = JSON.stringify(data);
@@ -2530,7 +2544,8 @@ function staffModal(s){
 function closeModal(){ $("#modalBg").style.display = "none"; }
 // Ask when the new skill starts, show exactly what it would move, then queue or land it.
 async function queueSkillGain(s, added, addMap){
-  const from = await askWhenSkillStarts(s.name, added);
+  const ans = await askWhenSkillStarts(s.name, added, s.id, addMap);
+  const from = ans && ans.from;
   if (!from) { toast(s.name + ": " + added.join(", ") + " in use straight away"); return; }
   data.pendingSkills = data.pendingSkills || [];
   // One hold per person+skill: queueing again replaces the old date instead of stacking.
@@ -2538,7 +2553,18 @@ async function queueSkillGain(s, added, addMap){
   data.pendingSkills = data.pendingSkills.filter(x => x.add && Object.keys(x.add).length);
   data.pendingSkills.push({ id: s.id, name: s.name, add: addMap, from, by: editorName(), at: new Date().toISOString(), applied: true });
   logEntry(s.name + " gains " + added.join(", ") + " now — auto-fill starts using them " + niceDate(from), "manual", from);
-  markDirty(); renderStaff(); updateTeamBadge();
+  /* Rewriting is the whole point of picking an early week — without it the skill lands and then
+     quietly does nothing to anything already written, which is what happened before today. The
+     trial has already run this exact reallocation to produce the number on the button, so this
+     runs it once more for real and logs the outcome as ONE line rather than one per person. */
+  if (ans.rewrite) {
+    const moves = trialSkillFrom(from, s.id, s.name, addMap, ans.touchesPods, true);
+    if (moves.length) logEntry("Rota worked out again from " + niceDate(from) + " for " + s.name +
+      " (" + added.join(", ").toLowerCase() + ") — " + moves.length + " change" + (moves.length === 1 ? "" : "s"),
+      "manual", from, null, { act: "fix", n: moves.length, kids: moves.slice(0, 40),
+        label: moves.length + " change" + (moves.length === 1 ? "" : "s") });
+  }
+  markDirty(); renderStaff(); renderWeek(); updateTeamBadge();
   toast(s.name + ": " + added.join(", ") + " — auto-fill from " + niceDate(from));
 }
 
@@ -5605,11 +5631,23 @@ function renderStaffGate(){ renderGate("S", "#staffCard", renderStaff); }
 function renderTeamGate(){ renderGate("T", "#teamCard", renderAttention); }
 // Actually opening the Log page counts as reading the feedback. renderAll() redraws every page
 // whether it's on screen or not, so this must never live inside renderLog.
+/* markDirty() returns early when you are not in edit mode, so this used to set f.read = true in
+   memory and lose it on reload — the feedback badge came back from the dead every time (found
+   4 Aug while fixing the same flaw on the log badge). Reading is not editing, so the answer is
+   not to force edit mode: the flag rides along with the next save, exactly like logSeen, and a
+   local mirror clears the badge on this screen straight away. */
+function readFeedbackLocal(){
+  try { return new Set(JSON.parse(store.get("fbRead") || "[]")); } catch(e){ return new Set(); }
+}
+function feedbackKey(f){ return (f && (f.t || "")) + "|" + (f && (f.name || "")); }
+function isFeedbackRead(f){ return !!(f && f.read) || readFeedbackLocal().has(feedbackKey(f)); }
 function markFeedbackRead(){
   const fb = (data && data.feedback) || [];
-  if (!fb.some(f => !f.read)) return;
+  if (!fb.some(f => !isFeedbackRead(f))) return;
   if (!staffUnlocked()) return;                 // still behind the password — they haven't seen it
-  fb.forEach(f => f.read = true);
+  const local = readFeedbackLocal();
+  fb.forEach(f => { f.read = true; local.add(feedbackKey(f)); });
+  store.set("fbRead", JSON.stringify([...local].slice(-400)));
   markDirty(); updateTeamBadge();
 }
 
@@ -5710,30 +5748,115 @@ function diffWeeks(before, monISO){
 }
 function nameOf(id){ const s = id && staffById(id); return s ? s.name : ""; }
 
-// Ask when a newly-added skill should start, then queue it.
-async function askWhenSkillStarts(name, added){
-  const opts = [["1", "Next Monday"], ["2", "In 2 weeks"], ["3", "In 3 weeks"]];
+/* What a start date would actually cost, worked out by DOING it: apply the skill from that
+   Monday, re-run the allocation the same way the real thing does, diff, then put everything back.
+   No estimate, no rule-of-thumb — the number on the button is the number of changes you get.
+
+   Ali, 4 Aug, on why this matters: "phone shadow would hardly change anything but making somebody
+   phone holder may result in quite a few pod moves and pgone swaps right? people might want to
+   only do that 3 or 4 weeks in future." Right on both counts, and the only way to show it is to
+   run it. */
+function trialSkillFrom(monISO, sId, sName, addMap, touchesPods, keep){
+  const snapWeeks = JSON.stringify(data.weeks);
+  const snapPend = JSON.stringify(data.pendingSkills || []);
+  const before = JSON.parse(snapWeeks);
+  data.pendingSkills = (data.pendingSkills || [])
+    .filter(x => !(x.id === sId && x.add && Object.keys(addMap).every(k => x.add[k])));
+  data.pendingSkills.push({ id: sId, name: sName, add: addMap, from: monISO, applied: true });
+  let moves = [];
+  try {
+    for (let pass = 0; pass < 3; pass++) {   // settle, exactly as reallocateSettled does
+      const b = JSON.parse(JSON.stringify(data.weeks));
+      reallocateFrom(monISO, touchesPods);
+      if (!diffWeeks(b, monISO).length) break;
+    }
+    moves = diffWeeks(before, monISO);
+  } catch (e) { moves = []; }
+  if (!keep) { data.weeks = JSON.parse(snapWeeks); data.pendingSkills = JSON.parse(snapPend); }
+  return moves;
+}
+/* The four written weeks, and only those. Nothing exists beyond them — the puller asks Allocate
+   for this week plus three, so week five is not hidden, it has not been fetched. */
+function writtenWeeks(){
+  const first = mondayOf(todayISO());
+  return [0, 1, 2, 3].map(n => addDays(first, n * 7)).filter(k => data.weeks[k]);
+}
+function countMoves(moves){
+  const pods = moves.filter(m => /: Pod [A-E] → Pod [A-E]/.test(m)).length;
+  const phone = moves.filter(m => /^Phone: /.test(m)).length;
+  const nphone = moves.filter(m => /^Night phone: /.test(m)).length;
+  return { pods: pods, phone: phone, nphone: nphone, total: moves.length };
+}
+
+// Ask when a newly-added skill should start, show what each week would cost, then queue it.
+async function askWhenSkillStarts(name, added, sId, addMap){
+  const touchesPods = Object.keys(addMap || {}).some(k => POD_SKILLS.includes(k)) ||
+                      Object.keys(addMap || {}).some(k => k === "phoneHolder" || k === "phoneSupervisor");
+  const weeks = writtenWeeks();
   const m = $("#modal"); m.innerHTML = "";
-  m.append(el("h3", {}, "When should this start?"));
-  m.append(el("p", { style: "font-size:.85rem;color:#4a4f58;line-height:1.6;margin:0 0 .9rem" },
-    name + " has " + added.join(", ") + " from now — the board and checks already honour it. The rota is written weeks ahead, so pick the Monday the ALLOCATOR starts using it; everything from that Monday is worked out again."));
-  let pick = "1";
-  const seg = el("div", { class: "seg" });
-  opts.forEach(([v, l]) => {
-    const b = el("button", { class: "segbtn" + (v === pick ? " on" : ""), onclick: () => { pick = v; [...seg.children].forEach(c => c.classList.toggle("on", c.dataset.v === v)); } }, l);
-    b.dataset.v = v; seg.append(b);
+  m.append(el("h3", {}, name + " — " + added.join(", ").toLowerCase()));
+  m.append(el("p", { style: "font-size:.85rem;color:var(--muted);line-height:1.6;margin:0 0 .9rem" },
+    "Ticked and in use now. Pick the week auto-fill starts choosing them."));
+
+  const counts = {};
+  for (const k of weeks) counts[k] = countMoves(trialSkillFrom(k, sId, name, addMap, touchesPods, false));
+
+  let pick = weeks.length ? weeks[weeks.length - 1] : null;
+  const detail = el("div", { style: "margin:.7rem 0" });
+  const row = el("div", { class: "wkpick" });
+  const LBL = ["This week", "Next week", "In 2 weeks", "In 3 weeks"];
+  weeks.forEach((k, i) => {
+    const c = counts[k];
+    const tone = c.total === 0 ? "none" : c.total <= 8 ? "low" : c.total <= 16 ? "mid" : "high";
+    const b = el("button", { class: "wkbtn" + (k === pick ? " on" : ""), onclick: () => {
+      pick = k; [...row.querySelectorAll(".wkbtn")].forEach(x => x.classList.toggle("on", x.dataset.k === k)); paint(); } },
+      el("span", { class: "wkname" }, LBL[i] || fmtDate(k)),
+      el("span", { class: "wkdate" }, fmtDate(k)),
+      el("span", { class: "wkn " + tone }, c.total === 0 ? "no changes" : c.total + (c.total === 1 ? " change" : " changes")));
+    b.dataset.k = k; row.append(b);
   });
-  m.append(seg);
-  const wkLbl = el("div", { style: "font-size:.78rem;color:var(--muted);margin-top:.6rem" });
-  const dateFor = v => addDays(nextMonday(), (parseInt(v, 10) - 1) * 7);
-  const refresh = () => wkLbl.textContent = "Starts " + niceDate(dateFor(pick)) + ".";
-  seg.querySelectorAll("button").forEach(b => b.addEventListener("click", refresh));
-  refresh();
-  m.append(wkLbl);
+  /* The fifth box is a box, not a footnote. Ali, 4 Aug: "to casual user its not clear that after
+     4 weeks not yet written so no changes" — and it read as an aside because I had drawn it as
+     one, below and apart from the row it belongs to. */
+  row.append(el("div", { class: "wkbtn future" },
+    el("span", { class: "wkname" }, fmtDate(addDays(mondayOf(todayISO()), 28)) + " on"),
+    el("span", { class: "wkdate" }, "not written yet"),
+    el("span", { class: "wkn none" }, "includes it anyway")));
+  m.append(row);
+
+  const fixPods = el("input", { type: "checkbox" }); fixPods.checked = true;
+  const fixLbl = el("label", { style: "display:flex;gap:.5rem;align-items:flex-start;font-size:.82rem;margin:.2rem 0 .8rem" },
+    fixPods, el("span", {}, "Fix the pods to the rules while rewriting",
+      el("span", { style: "display:block;color:var(--muted);font-size:.75rem;margin-top:.1rem" },
+        "Minimal changes — nobody moves unless a rule needs it")));
+
+  function paint(){
+    detail.innerHTML = "";
+    if (!pick) { detail.append(el("div", { class: "hint" }, "No weeks are written yet.")); return; }
+    const c = counts[pick];
+    detail.append(el("div", { style: "font-size:.82rem;font-weight:600;margin:0 0 .35rem" },
+      c.total === 0 ? "Starting " + fmtDate(pick) + " changes nothing already written"
+                    : "Starting " + fmtDate(pick) + " would change " + c.total + (c.total === 1 ? " thing" : " things")));
+    const line = (n, one, many) => { if (!n) return;
+      detail.append(el("div", { style: "font-size:.8rem;color:var(--muted);margin:.15rem 0" }, n + " " + (n === 1 ? one : many))); };
+    line(c.phone, "phone day moves", "phone days move");
+    line(c.nphone, "night phone day moves", "night phone days move");
+    line(c.pods, "pod move", "pod moves");
+  }
+  paint();
+  m.append(detail, fixLbl);
+
   return new Promise(res => {
+    const go = el("button", { class: "btn", onclick: () => { closeModal();
+      res({ from: pick, rewrite: true, touchesPods: touchesPods && fixPods.checked }); } }, "Apply");
+    const upd = () => { const c = pick ? counts[pick] : { total: 0 };
+      go.textContent = c.total ? "Apply " + c.total + " change" + (c.total === 1 ? "" : "s") : "Set it"; };
+    upd();
+    row.querySelectorAll(".wkbtn").forEach(b => b.addEventListener("click", upd));
     m.append(el("div", { class: "modalbtns" },
-      el("button", { class: "btn sec", onclick: () => { closeModal(); res(null); } }, "Use it straight away"),
-      el("button", { class: "btn", onclick: () => { closeModal(); res(dateFor(pick)); } }, "Set the date")));
+      el("button", { class: "btn sec", onclick: () => { closeModal();
+        res({ from: pick, rewrite: false, touchesPods: false }); } }, "Set the date only"),
+      go));
     $("#modalBg").style.display = "flex";
   });
 }
@@ -5819,7 +5942,7 @@ function attentionItems(){
   return out;
 }
 // Feedback has its own page so it doesn't clog this list, but it still counts on the badge.
-function unreadFeedback(){ return ((data && data.feedback) || []).filter(f => !f.read).length; }
+function unreadFeedback(){ return ((data && data.feedback) || []).filter(f => !isFeedbackRead(f)).length; }
 /* The shared mark and this browser's own, whichever is later. Shared is the answer; the local
    copy only ever fills the gap between looking and the next save. */
 function logSeenAt(){
