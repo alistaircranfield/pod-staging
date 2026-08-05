@@ -2612,15 +2612,36 @@ function personSelect(dateISO, value, onchange, filter){
   sel.disabled = !canEdit();
   return sel;
 }
-function idListEditor(container, dateISO, arr, filter, addLabel){
+/* `day` is optional and only the POD Super boxes pass it: with it, each row carries the person's
+   shift as a pill that toggles 8–8 / 8–4 exactly like the pill on a pod chip. Without it (the
+   night Super box) there is no pill, because a night is a night and LD/SD would be a lie.
+
+   The shift was being kept but not shown, which is only half of "dont drop the shift" — a fact
+   stored where nobody can read it is no more use than one that was thrown away. */
+function idListEditor(container, dateISO, arr, filter, addLabel, day){
   container.innerHTML = "";
   arr.forEach((id, i) => {
     const row = el("div", { class: "slotrow" });
     row.append(personSelect(dateISO, id, v => {
-      if (v) arr[i] = v; else arr.splice(i, 1);
+      if (v) { if (day && arr[i] && arr[i] !== v) setSuperShift(day, v, superShiftOf(day, arr[i])); arr[i] = v; }
+      else arr.splice(i, 1);
+      if (day) pruneSuperShift(day);
       markDirty(); renderWeek();
     }, filter));
-    row.append(el("button", { class: "mini", title: "Remove", onclick: () => { arr.splice(i,1); markDirty(); renderWeek(); } }, "✕"));
+    if (day && id) {
+      const sh = superShiftOf(day, id);
+      if (sh) row.append(el("button", { class: "tag", title: "Supernumerary — " + (sh === "LD" ? "long day, 8–8" : "standard day, 8–4") + (canEdit() ? ". Click to change." : ""),
+        onclick: async () => {
+          if (!canEdit()) return;
+          const next = sh === "LD" ? "SD" : "LD";
+          const nm = staffById(id) ? staffById(id).name : "";
+          if (!(await uiConfirm(nm + ": " + (next === "LD" ? "standard day → long day (8–8)?" : "long day → standard day (8–4)?"), { title: "Change shift?", okLabel: "Change to " + next }))) return;
+          setSuperShift(day, id, next);
+          logEntry(nm + ": " + (next === "LD" ? "SD → LD" : "LD → SD") + " (supernumerary)" + dayOfWeekName(day), "manual", dateOfDay(day));
+          markDirty(); renderWeek();
+        } }, sh));
+    }
+    row.append(el("button", { class: "mini", title: "Remove", onclick: () => { arr.splice(i,1); if (day) pruneSuperShift(day); markDirty(); renderWeek(); } }, "✕"));
     container.append(row);
   });
   container.append(el("button", { class: "addbtn", onclick: () => { arr.push(""); markDirty(); renderWeek(); } }, "+ " + addLabel));
@@ -2848,6 +2869,7 @@ function normalizePods(day){
       const st = staffById(a.id);
       if (!isSupernumerary(st)) continue;                 // includes every neurology registrar
       pod.assign = pod.assign.filter(x => x !== a);
+      if (a.shift) setSuperShift(day, a.id, a.shift);     // 8–8 and 8–4 are not the same thing
       const dest = isNeuroReg(st) && !NEURO_PODS.includes(p) ? lighter() : p;
       day.pods[dest].super = day.pods[dest].super || [];
       if (!day.pods[dest].super.includes(a.id)) day.pods[dest].super.push(a.id);
@@ -2861,6 +2883,7 @@ function normalizePods(day){
       if (!day.pods[dest].super.includes(id)) day.pods[dest].super.push(id);
     }
   }
+  pruneSuperShift(day);
   /* Nights run in two halves: A&B, and C,D&E (which narrows to C&D once somebody is in E). The
      neuro half is CDE, so that is where a neurology registrar goes — never AB, never E alone. */
   if (day.night) {
@@ -2927,6 +2950,13 @@ function removeAssign(day, id, opts){
   day.night.CDE = day.night.CDE.filter(x => x !== id);
   day.night.E = (day.night.E || []).filter(x => x !== id);
   for (const p of PODS) day.pods[p].assign = day.pods[p].assign.filter(a => a.id !== id);
+  /* ...and the Super boxes. These were missed, so dragging a supernumerary from Pod C's Super
+     box to Pod A's left them in BOTH — the drop added them to A without anything taking them out
+     of C. Barely reachable while only manual drops used Super; unavoidable now the allocator
+     does. The shift map is deliberately NOT cleared here: this is also how a move BETWEEN Super
+     boxes starts, and pruneSuperShift() below forgets it only once they are really gone. */
+  for (const p of PODS) day.pods[p].super = (day.pods[p].super || []).filter(x => x !== id);
+  day.night.super = (day.night.super || []).filter(x => x !== id);
   // Moving someone into a pod / bench / night also takes them out of Fairfield, so they're never in two places.
   if (!(opts && opts.keepFgh)) { try { const dd = getWeek(currentWeekKey).days.indexOf(day); if (dd >= 0){ const iso = addDays(currentWeekKey, dd); if (inFairfield(day, iso, id)) removeFromFairfield(day, iso, id); } } catch(e){} }
 }
@@ -3141,12 +3171,34 @@ function shiftFromPool(pool, id){
 }
 // If this person is already placed in a pod today, return the shift they were given there so
 // moving them between pods keeps it. Otherwise fall back to the roster default.
+/* A supernumerary's shift, kept beside the Super lists rather than inside them.
+   `super` is a plain array of ids and half a dozen places read it that way, so widening it to
+   objects would mean finding every one of them and would leave older saved days a different
+   shape from new ones. A map on the day carries the same fact and breaks nothing.
+
+   Ali, 4 Aug: "dont drop the shift". It used to be lost the moment somebody became supernumerary
+   — an 8–8 and an 8–4 looked identical in the Super box — and once saved there was no way back
+   to it, because assign was the only thing that had ever held a shift. */
+function superShiftOf(day, id){ return (day && day.superShift && day.superShift[id]) || null; }
+function setSuperShift(day, id, shift){
+  if (!day || !id || !shift) return;
+  day.superShift = day.superShift || {};
+  day.superShift[id] = shift;
+}
+/* Only forget it once they are in no Super list at all — moving between two pods' Super boxes
+   must keep it, and that is a remove followed by an add. */
+function pruneSuperShift(day){
+  if (!day || !day.superShift) return;
+  const held = new Set([...PODS.flatMap(p => day.pods[p].super || []), ...(day.night.super || [])]);
+  for (const id of Object.keys(day.superShift)) if (!held.has(id)) delete day.superShift[id];
+}
 function currentAssignShift(day, id){
   for (const p of PODS){
     const a = (day.pods[p].assign || []).find(x => x.id === id);
     if (a && a.shift) return a.shift;
   }
-  return null;
+  // Coming back OUT of a Super box: they keep the shift they went in with.
+  return superShiftOf(day, id);
 }
 function poolState(p){ return p.kind === "night" ? "N" : (p.code && p.code.toUpperCase().startsWith("LD") ? "LD" : "SD"); }
 // bench ordering: LD first, then SD, each by seniority (edit the ranking here if the pecking order changes)
@@ -3309,9 +3361,11 @@ function renderDayRow(day, di, dateISO, issues){
            recorded, this isnt acceptable"). */
         const wasIn = PODS.find(q => day.pods[q].assign.some(a => a.id === id)
                                   || (day.pods[q].super || []).includes(id)) || "";
+        const keepShift = currentAssignShift(day, id) || shiftFromPool(pool, id);
         removeAssign(day, id);
         pod.super = pod.super || [];
         if (!pod.super.includes(id)) pod.super.push(id);
+        setSuperShift(day, id, keepShift);
         logEntry(s.name + " → Pod " + p + " (supernumerary) (" + dayShort(di) + ")", "manual", dateOfDi(di), null,
           { act: "move", subj: s.name, from: wasIn, to: p, super: true, bench: !wasIn });
         return;
@@ -3371,7 +3425,7 @@ function renderDayRow(day, di, dateISO, issues){
     if (pod.super.length || (canEdit() && activeStaff(dateISO).some(s => isSupernumerary(s)))) {
       col.append(el("div", { class: "subhead" }, "Super"));
       const supBox = el("div"); col.append(supBox);
-      idListEditor(supBox, dateISO, pod.super, s => isSupernumerary(s) && neuroPodOK(s, p), "super");
+      idListEditor(supBox, dateISO, pod.super, s => isSupernumerary(s) && neuroPodOK(s, p), "super", day);
     }
     for (const o of (day.obs || []).filter(x => x.pod === p)) col.append(obsChip(day, o, di));
     tr.append(col);
