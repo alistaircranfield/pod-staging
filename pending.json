@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-05T10:04:15.386788+00:00",
- "build": "b2ddc0d",
+ "generated": "2026-08-05T10:05:06.274716+00:00",
+ "build": "ae78b27",
  "liveBuild": "1191a14",
- "count": 62,
+ "count": 64,
  "changes": [
+  {
+   "sha": "ae78b27",
+   "who": "alistaircranfield",
+   "when": "2026-08-05T11:04:58+01:00",
+   "msg": "Super is a placement: the conservation check counts it, and three tests for the Aron Cook bug"
+  },
+  {
+   "sha": "57a88fa",
+   "who": "github-actions[bot]",
+   "when": "2026-08-05T10:04:15Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "b2ddc0d",
    "who": "alistaircranfield",
