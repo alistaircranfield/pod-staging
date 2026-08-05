@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-05T20:14:56.361295+00:00",
- "build": "b31c0e2",
- "liveBuild": "c5d20a1",
- "count": 80,
+ "generated": "2026-08-05T20:56:40.767072+00:00",
+ "build": "3b0bb8b",
+ "liveBuild": "d7d36dd",
+ "count": 82,
  "changes": [
+  {
+   "sha": "3b0bb8b",
+   "who": "alistaircranfield",
+   "when": "2026-08-05T21:56:29+01:00",
+   "msg": "Seed the 12-month sim: no more crying wolf, and SEED=7 reproduces the LD-before-E breach"
+  },
+  {
+   "sha": "92a58fe",
+   "who": "github-actions[bot]",
+   "when": "2026-08-05T20:14:56Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "b31c0e2",
    "who": "alistaircranfield",
