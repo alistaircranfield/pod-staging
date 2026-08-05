@@ -388,6 +388,60 @@ const SEED = `(function(){
   ok("a night move now records where the person came from",
      w.eval("typeof nightSpotOf === 'function' && NIGHT_LABEL.AB === 'A&B' && NIGHT_LABEL.CDE === 'C&D'") === true);
 
+  /* ---- the change log: searchable, and the badge belongs to the board ----------------------
+     Ali, 4 Aug: "there needs to be search bar on the change log", and the log badge should clear
+     for everyone rather than for whoever happened to look. */
+  console.log("\n-- the change log --");
+  w.eval("switchTab('log'); data.log = [" +
+    "{ t:'2026-08-04T10:00:00Z', who:'Alistair', kind:'manual', on: todayISO(), msg:'x'," +
+    "  d:{ act:'move', subj:'Christopher Ambrose', from:'A', to:'B' } }," +
+    "{ t:'2026-08-04T09:00:00Z', who:'allocate sync', kind:'auto', on: todayISO(), msg:'y'," +
+    "  d:{ act:'move', subj:'Sam Aziz', from:'C', to:'D' } }]; renderLog();");
+  ok("the log page draws a search box",
+     w.eval("!!document.querySelector('#logList input[type=text]')"));
+  ok("typing a name narrows it to that person",
+     w.eval("(function(){ logQuery = 'ambrose'; renderLog();" +
+            "const t = document.getElementById('logList').textContent;" +
+            "return t.indexOf('Ambrose') >= 0 && t.indexOf('Sam Aziz') < 0; })()") === true);
+  ok("and says how many matched",
+     /1 of 2 entries match/.test(w.eval("document.getElementById('logList').textContent")));
+  ok("a search matching nobody says so rather than looking broken",
+     w.eval("(function(){ logQuery = 'zzzz'; renderLog();" +
+            "return /Nothing matches that/.test(document.getElementById('logList').textContent); })()") === true);
+  ok("clearing the box brings everything back",
+     w.eval("(function(){ logQuery = ''; renderLog();" +
+            "const t = document.getElementById('logList').textContent;" +
+            "return t.indexOf('Ambrose') >= 0 && t.indexOf('Sam Aziz') >= 0; })()") === true);
+  ok("you can search by who made the change, not just by person",
+     w.eval("(function(){ logQuery = 'allocate sync'; renderLog();" +
+            "const t = document.getElementById('logList').textContent;" +
+            "const r = t.indexOf('Sam Aziz') >= 0 && t.indexOf('Ambrose') < 0; logQuery=''; renderLog(); return r; })()") === true);
+
+  ok("the log mark lives on the board, not in this browser",
+     w.eval("(function(){ data.logSeen = ''; store.set('logSeen','');" +
+            "renderLogGate(); return (data.logSeen || '').length > 0; })()") === true);
+  ok("and a metadata mark is not treated as a rota edit",
+     w.eval("(function(){ const a = rotaSig(data); const keep = data.logSeen;" +
+            "data.logSeen = '2099-01-01T00:00:00Z'; const b = rotaSig(data);" +
+            "data.logSeen = keep; return a === b; })()") === true);
+
+  /* ---- the reworded attention item -------------------------------------------------------- */
+  console.log("\n-- a pending skill reads name first, date last --");
+  ok("the attention row names the person, the skill and the date",
+     w.eval("(function(){ data.pendingSkills = [{ id:'r1', name:'Locum Doctor'," +
+            "add:{ airway:true }, from: addDays(todayISO(), 14), applied:true }];" +
+            "const it = attentionItems().filter(function(x){ return /Locum Doctor/.test(x.title); })[0];" +
+            "return it ? it.title : 'no row'; })()").indexOf("Locum Doctor — airway from") === 0);
+  ok("and the body says what actually changes on that date",
+     /Ticked and in use now\. Auto-fill starts choosing them for airway on/.test(
+       w.eval("(function(){ const it = attentionItems().filter(function(x){" +
+              "return /Locum Doctor/.test(x.title); })[0]; return it ? it.body : ''; })()")));
+  ok("two skills at once read as a list, not as a key name",
+     w.eval("(function(){ data.pendingSkills = [{ id:'r1', name:'Locum Doctor'," +
+            "add:{ airway:true, phoneHolder:true }, from: addDays(todayISO(), 14), applied:true }];" +
+            "const it = attentionItems().filter(function(x){ return /Locum Doctor/.test(x.title); })[0];" +
+            "data.pendingSkills = []; return it ? it.title : ''; })()").indexOf("airway and phone") > 0);
+
   ok("no errors across the whole run", errors.length === 0, errors.slice(0, 3).join(" | "));
 
   console.log("\n=== " + pass + " passed, " + fail + " failed ===");
