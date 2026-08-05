@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-05T10:14:48.847388+00:00",
- "build": "32a50f4",
- "liveBuild": "f312da6",
- "count": 66,
+ "generated": "2026-08-05T10:20:40.634685+00:00",
+ "build": "566c036",
+ "liveBuild": "c5d20a1",
+ "count": 68,
  "changes": [
+  {
+   "sha": "566c036",
+   "who": "alistaircranfield",
+   "when": "2026-08-05T11:20:30+01:00",
+   "msg": "Five more: the shift is not dropped, and nobody is ever in two Super boxes"
+  },
+  {
+   "sha": "5a0178a",
+   "who": "github-actions[bot]",
+   "when": "2026-08-05T10:14:48Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "32a50f4",
    "who": "alistaircranfield",
