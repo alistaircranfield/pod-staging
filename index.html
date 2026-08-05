@@ -2808,7 +2808,7 @@ function putBackOnDay(day, id){ day.removed = (day.removed || []).filter(x => x 
    only get the soft `neuroTarget` aim (~70% of shifts on C/D). That aim is untouched.
 
    Enforced in ONE place, the way normalizeNight is: every path that draws, checks, fills or
-   exports a day calls normalizeNeuro() first, so a day arriving from an import, an older save or
+   exports a day calls normalizePods() first, so a day arriving from an import, an older save or
    the allocator cannot hold a neurology registrar on Pod A however it got there. There are
    eighteen places in this file that push somebody into a pod; guarding each one would mean the
    nineteenth is wrong. The manual drop paths refuse UP FRONT as well, because silently relocating
@@ -2821,19 +2821,34 @@ function neuroPodOK(s, p){ return !isNeuroReg(s) || NEURO_PODS.includes(p); }
    this off: a neurology registrar is never in the numbers, so the question is answered here and
    not by a tick box somebody can reach. */
 function isSupernumerary(s){ return !!s && (s.supernum || isNeuroReg(s)); }
-/* Put every neurology registrar where the rule says, wherever this day came from. Supernumerary
-   means "not in the numbers", and `assign` IS the numbers — so they come out of assign entirely
-   and sit in the Super list under C or D, whichever is carrying fewer. */
-function normalizeNeuro(day){
+/* Two rules, one pass over the day, because they are the same question asked twice: is this
+   person in a place the rules allow?
+
+   1. A SUPERNUMERARY IS NEVER IN THE NUMBERS. `assign` is the numbers and `super` is the box
+      underneath, and until now only the MANUAL drop knew that — auto-fill pushed everybody into
+      assign and merely declined to COUNT the supernumeraries (countsInNumbers). So a pod could
+      show five names, be counted as four, and read as staffed when it wasn't. Ali, 4 Aug: "aron
+      cook is supernumerary on the board. how has it allowed a drop into pod numbers and not into
+      supernumerary column". It didn't allow it — the allocator put him there and the board drew
+      what it was given. Two paths disagreeing about the same rule is the bug; this is the rule,
+      once, for whatever wrote the day.
+
+   2. A NEUROLOGY REGISTRAR IS ON C OR D. See above.
+
+   The shift (LD/SD) is dropped on the way into Super, exactly as it already is when you drag
+   somebody there by hand — a supernumerary is not the pod's long day, so carrying a shift into
+   the Super box would be recording a fact nothing may act on. */
+function normalizePods(day){
   if (!day || !day.pods) return;
   const lighter = () => ((day.pods.C.super || []).length <= (day.pods.D.super || []).length) ? "C" : "D";
   for (const p of PODS) {
     const pod = day.pods[p]; if (!pod) continue;
     pod.super = pod.super || [];
     for (const a of [...(pod.assign || [])]) {
-      if (!isNeuroReg(staffById(a.id))) continue;
+      const st = staffById(a.id);
+      if (!isSupernumerary(st)) continue;                 // includes every neurology registrar
       pod.assign = pod.assign.filter(x => x !== a);
-      const dest = NEURO_PODS.includes(p) ? p : lighter();
+      const dest = isNeuroReg(st) && !NEURO_PODS.includes(p) ? lighter() : p;
       day.pods[dest].super = day.pods[dest].super || [];
       if (!day.pods[dest].super.includes(a.id)) day.pods[dest].super.push(a.id);
     }
@@ -2887,10 +2902,19 @@ function nightSpotOf(day, id){
   for (const k of ["AB", "CDE", "E"]) if ((day.night[k] || []).includes(id)) return NIGHT_LABEL[k];
   return "";
 }
+/* Everybody who already HAS a place today. The Super boxes were missing from this list, which is
+   the whole of the Aron Cook bug (Ali, 4 Aug): drag a supernumerary into Pod B's Super box, and
+   because nothing here could see him, the next auto-fill counted him as unplaced and pushed him
+   straight back into the pod's numbers. The board then showed a supernumerary among the counted
+   staff, and it looked as though the drop had been allowed into the wrong column — when in fact
+   the drop was right and the allocator undid it.
+
+   Super IS a placement. It is the placement that says "here, but not in your numbers". */
 function assignedIds(day){
   return new Set([day.phone, day.night.phone, ...day.shadow, ...day.night.AB, ...day.night.CDE,
-    ...(day.night.E || []),
-    ...PODS.flatMap(p => day.pods[p].assign.map(a => a.id))].filter(Boolean));
+    ...(day.night.E || []), ...(day.night.super || []),
+    ...PODS.flatMap(p => day.pods[p].assign.map(a => a.id)),
+    ...PODS.flatMap(p => day.pods[p].super || [])].filter(Boolean));
 }
 const dayShort = di => DAYNAMES[di] ? DAYNAMES[di].slice(0,3) : "";
 function dayOfWeekName(day){
@@ -3158,7 +3182,7 @@ function cycleShift(day, id, pool){
   markDirty(); renderWeek();
 }
 function renderDayRow(day, di, dateISO, issues){
-  normalizeNeuro(day);
+  normalizePods(day);
   const tr = el("tr");
   const pool = poolFor(day, dateISO);
   const assigned = assignedIds(day);
@@ -3479,7 +3503,7 @@ function dayAllAssigned(day){
 }
 function checkDay(day, dateISO, di, wk){
   normalizeNight(day);
-  normalizeNeuro(day);
+  normalizePods(day);
   const issues = [];
   const H = msg => issues.push({ hard: true, msg });
   const S = msg => issues.push({ hard: false, msg });
@@ -4085,7 +4109,7 @@ function staticSnapshotHtml(){
     wk.days.forEach((day, di) => {
       const iso = addDays(k, di);
       normalizeNight(day);
-      normalizeNeuro(day);
+      normalizePods(day);
       const podCells = PODS.map(p => {
         const cons = day.pods[p].cons ? '<div style="color:#8a8f98;font-size:10px">' + esc(cl(day.pods[p].cons)) + '</div>' : "";
         const rows = day.pods[p].assign.filter(a => a.id).map(a =>
@@ -4315,7 +4339,7 @@ async function publishWeek(){
       podCells += `<td style="background:${bg}"><div class="ph" style="color:${fg}">POD ${p}</div>${consLine}${rows || '<div class="pr none">—</div>'}${sups}${obs}</td>`;
     }
     normalizeNight(day);
-    normalizeNeuro(day);
+    normalizePods(day);
     const nAB = day.night.AB.filter(Boolean).map(id => esc(name(id))).join("<br>") || "—";
     const nCDE = day.night.CDE.filter(Boolean).map(id => esc(name(id))).join("<br>") || "—";
     const nE = (day.night.E || []).filter(Boolean).map(id => esc(name(id))).join("<br>");
@@ -4756,7 +4780,7 @@ function autoFillDay(wk, di, wkKey, opts){
       // Neuro-trained lean towards Pods C & D (the neuro pods) — a nudge, not a rule, so it still
       // yields to keeping the pods evenly sized. Aims for roughly two-thirds of their shifts on C/D.
       if (neuroOn(s) && (p === "C" || p === "D")) score += 5;
-      /* A neurology REGISTRAR is a different matter — C or D, always (Ali, 4 Aug). normalizeNeuro
+      /* A neurology REGISTRAR is a different matter — C or D, always (Ali, 4 Aug). normalizePods
          would put them right afterwards either way; doing it here as well means the allocator's
          own counts and continuity reasoning are never built on a placement that cannot stand. */
       if (!neuroPodOK(s, p)) score -= 1e6;
@@ -4964,7 +4988,7 @@ function autoFillDay(wk, di, wkKey, opts){
   }
 
   normalizeNight(day);
-  normalizeNeuro(day);
+  normalizePods(day);
   const nightAssigned = new Set([...day.night.AB, ...day.night.CDE, ...(day.night.E || [])]);
   const nightUnplaced = nightIds.filter(id => !nightAssigned.has(id) && !assignedIds(day).has(id) || (id === day.night.phone && !nightAssigned.has(id)));
   // phone holder covers a pod — with five on, somebody splits off to cover Pod E alone, and
