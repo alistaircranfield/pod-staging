@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-04T20:57:07.128602+00:00",
- "build": "32d0273",
+ "generated": "2026-08-05T09:54:58.540546+00:00",
+ "build": "602b40a",
  "liveBuild": "6f73bce",
- "count": 56,
+ "count": 58,
  "changes": [
+  {
+   "sha": "602b40a",
+   "who": "alistaircranfield",
+   "when": "2026-08-05T10:54:43+01:00",
+   "msg": "Neurology registrars: supernumerary, Pods C and D, refused anywhere else. And the log records changes, not drags"
+  },
+  {
+   "sha": "6811923",
+   "who": "github-actions[bot]",
+   "when": "2026-08-04T20:57:07Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "32d0273",
    "who": "alistaircranfield",
