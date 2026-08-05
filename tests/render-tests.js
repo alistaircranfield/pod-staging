@@ -86,6 +86,7 @@ const SEED = `(function(){
   mk("a1", "An ACCP", "ACCP", { transfer: true, picc: true, nights: true, supernum: true });
   mk("a2", "Another ACCP", "ACCP", { picc: true, phoneShadow: true });
   mk("c1", "A Consultant", "CON", {});
+  mk("n1", "Nia Reggie", "Neurology", { nights: true, supernum: true });
   wk.roster = wk.roster || {};
   wk.roster[T] = { r1:{code:"LD",kind:"day",src:"a"}, r2:{code:"SD",kind:"day",src:"a"} };
   const di = Math.round((new Date(T) - new Date(K)) / 86400000);
@@ -171,6 +172,13 @@ const SEED = `(function(){
   w.eval("stSort = { key:'picc', dir:1 }; renderStaff();");
   ok("sorting by a skill puts the people who have it first", /ACCP/.test(firstName()), firstName());
 
+  /* How many people the Staff page shows with nothing filtered. Taken from the page rather than
+     from data.staff, because the two are not the same number — consultants are reference-only and
+     never listed — and hard-coding either one means these tests fail the next time somebody adds
+     a person to SEED, which is a test measuring its own fixture instead of the behaviour. */
+  const staffRows = w.eval("(function(){ stGrades = null; stSkills = new Set(); renderStaff();" +
+    "return document.querySelectorAll('#staffBody tr td.namecell').length; })()");
+
   console.log("\n-- filtering --");
   w.eval("stSort = { key:'name', dir:1 }; stSkills = new Set(['picc']); renderStaff();");
   ok("filtering by a skill narrows the list",
@@ -178,7 +186,7 @@ const SEED = `(function(){
      w.eval("document.querySelectorAll('#staffBody tr td.namecell').length") + " rows");
   ok("and says so, with the count and a removable chip",
      (function(){ const t = w.eval("document.getElementById('staffFilters').textContent");
-       return /2 of 5/.test(t) && /PICC/.test(t) && /Clear all/.test(t); })(),
+       return new RegExp("2 of " + staffRows).test(t) && /PICC/.test(t) && /Clear all/.test(t); })(),
      w.eval("document.getElementById('staffFilters').textContent"));
   w.eval("stGrades = new Set(['ACCP']); renderStaff();");
   ok("grade and skill filters combine",
@@ -188,7 +196,7 @@ const SEED = `(function(){
      /Nobody matches/.test(w.eval("document.getElementById('staffBody').textContent")));
   w.eval("stGrades = null; stSkills = new Set(); renderStaff();");
   ok("clearing the filters brings everyone back",
-     w.eval("document.querySelectorAll('#staffBody tr td.namecell').length") === 5);
+     w.eval("document.querySelectorAll('#staffBody tr td.namecell').length") === staffRows);
   ok("and the filter bar disappears when nothing is filtered",
      w.eval("document.getElementById('staffFilters').textContent").trim() === "");
 
@@ -248,6 +256,93 @@ const SEED = `(function(){
   ok("no missing-glyph characters in the page source",
      !/[\u2300-\u23FF\u2B00-\u2BFF]/.test(
        fs.readFileSync(PAGE, "utf8").replace(/\/\*[\s\S]*?\*\//g, "")));
+
+  /* ---- neurology registrars: supernumerary, Pods C & D, and nothing else ------------------
+     Ali, 4 Aug: "set a firm rule that neurology registrars are supernumerary and only ever
+     allocated to C & D". A hard block, so these assert REFUSAL, not a warning. The rule is on the
+     GRADE, not on the Neuro tick — the tick keeps its soft neuroTarget aim, and a test that
+     confused the two would lock the wrong people to C/D without anyone noticing. */
+  console.log("\n-- neurology registrars --");
+  ok("a neurology registrar is supernumerary even with the tick off",
+     w.eval("(function(){ const s = staffById('n1'); s.supernum = false;" +
+            "const r = isSupernumerary(s) && !countsInNumbers('n1'); s.supernum = true; return r; })()") === true);
+  ok("the Neuro TICK is left alone — it is not the same thing",
+     w.eval("isNeuroReg(staffById('r1')) === false && isSupernumerary(staffById('r2')) === false") === true);
+
+  ok("Pods C and D are allowed, A, B and E are not",
+     w.eval("['A','B','C','D','E'].filter(function(p){ return neuroPodOK(staffById('n1'), p); }).join('')") === "CD");
+
+  ok("dropped onto Pod A they are put back on C or D wherever the day came from",
+     w.eval("(function(){ const wk = getWeek(currentWeekKey), di = " +
+            "Math.round((new Date(todayISO()) - new Date(currentWeekKey))/86400000), d = wk.days[di];" +
+            "d.pods.A.assign.push({ id:'n1', shift:'SD' });" +      // as an import or an old save might
+            "normalizeNeuro(d);" +
+            "const onA = d.pods.A.assign.some(function(a){ return a.id === 'n1'; }) ||" +
+            "            (d.pods.A.super||[]).indexOf('n1') >= 0;" +
+            "const onCD = (d.pods.C.super||[]).concat(d.pods.D.super||[]).indexOf('n1') >= 0;" +
+            "return !onA && onCD; })()") === true);
+
+  ok("and never in the counted list, only in Super",
+     w.eval("(function(){ const wk = getWeek(currentWeekKey), di = " +
+            "Math.round((new Date(todayISO()) - new Date(currentWeekKey))/86400000), d = wk.days[di];" +
+            "return ['A','B','C','D','E'].every(function(p){" +
+            "  return !(d.pods[p].assign||[]).some(function(a){ return a.id === 'n1'; }); }); })()") === true);
+
+  ok("at night they end up in C,D&E, never A&B or E",
+     w.eval("(function(){ const wk = getWeek(currentWeekKey), di = " +
+            "Math.round((new Date(todayISO()) - new Date(currentWeekKey))/86400000), d = wk.days[di];" +
+            "d.night.AB = ['n1']; d.night.CDE = []; d.night.E = [];" +
+            "normalizeNeuro(d);" +
+            "return d.night.AB.indexOf('n1') < 0 && d.night.CDE.indexOf('n1') >= 0; })()") === true);
+
+  ok("auto-fill will not score them onto a general pod",
+     w.eval("(function(){ const s = staffById('n1');" +
+            "return ['A','B','E'].every(function(p){ return !neuroPodOK(s, p); }); })()") === true);
+
+  ok("the form ticks supernumerary and locks it for a neurology registrar",
+     (function(){ w.eval("staffModal(staffById('n1'))");
+       const r = w.eval("(function(){ const b = [...document.querySelectorAll('#modal input[type=checkbox]')]" +
+         ".find(function(c){ return c.parentElement && /Supernumerary/i.test(c.parentElement.textContent); });" +
+         "return b ? (b.checked && b.disabled) : 'no box'; })()");
+       w.eval("try{ closeModal(); }catch(e){}"); return r; })() === true);
+
+  /* ---- the change log records changes, not drags ------------------------------------------
+     Ali, 4 Aug: "i dragged and changed back so no actual change occurred - is there a way to stop
+     this showing and clogging up change log?" */
+  console.log("\n-- a move and a move back leave nothing behind --");
+  ok("there and back cancels both entries",
+     w.eval("(function(){ data.log = []; const T = todayISO();" +
+            "logEntry('x', 'manual', T, 'A', { act:'move', subj:'Nia Reggie', from:'C', to:'D' });" +
+            "logEntry('x', 'manual', T, 'A', { act:'move', subj:'Nia Reggie', from:'D', to:'C' });" +
+            "return data.log.length; })()") === 0);
+  ok("a longer round trip cancels the whole chain",
+     w.eval("(function(){ data.log = []; const T = todayISO();" +
+            "logEntry('x','manual',T,'A',{ act:'move', subj:'Sam Aziz', from:'A', to:'B' });" +
+            "logEntry('x','manual',T,'A',{ act:'move', subj:'Sam Aziz', from:'B', to:'C' });" +
+            "logEntry('x','manual',T,'A',{ act:'move', subj:'Sam Aziz', from:'C', to:'A' });" +
+            "return data.log.length; })()") === 0);
+  ok("somebody else moving in between does not break the cancel",
+     w.eval("(function(){ data.log = []; const T = todayISO();" +
+            "logEntry('x','manual',T,'A',{ act:'move', subj:'Sam Aziz', from:'A', to:'B' });" +
+            "logEntry('x','manual',T,'A',{ act:'move', subj:'Jo Bloggs', from:'D', to:'E' });" +
+            "logEntry('x','manual',T,'A',{ act:'move', subj:'Sam Aziz', from:'B', to:'A' });" +
+            "return data.log.length === 1 && data.log[0].d.subj === 'Jo Bloggs'; })()") === true);
+  ok("a real move is still recorded",
+     w.eval("(function(){ data.log = []; const T = todayISO();" +
+            "logEntry('x','manual',T,'A',{ act:'move', subj:'Sam Aziz', from:'A', to:'B' });" +
+            "return data.log.length; })()") === 1);
+  ok("a sync's move is never erased by a person dragging back",
+     w.eval("(function(){ data.log = []; const T = todayISO();" +
+            "logEntry('x','auto',T,'allocate sync',{ act:'move', subj:'Sam Aziz', from:'A', to:'B' });" +
+            "logEntry('x','manual',T,'A',{ act:'move', subj:'Sam Aziz', from:'B', to:'A' });" +
+            "return data.log.length; })()") === 2);
+  ok("the same person on a DIFFERENT day is not treated as a return",
+     w.eval("(function(){ data.log = []; const T = todayISO(), U = addDays(T, 1);" +
+            "logEntry('x','manual',U,'A',{ act:'move', subj:'Sam Aziz', from:'A', to:'B' });" +
+            "logEntry('x','manual',T,'A',{ act:'move', subj:'Sam Aziz', from:'B', to:'A' });" +
+            "return data.log.length; })()") === 2);
+  ok("a night move now records where the person came from",
+     w.eval("typeof nightSpotOf === 'function' && NIGHT_LABEL.AB === 'A&B' && NIGHT_LABEL.CDE === 'C&D'") === true);
 
   ok("no errors across the whole run", errors.length === 0, errors.slice(0, 3).join(" | "));
 
