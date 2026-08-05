@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-05T10:05:06.274716+00:00",
- "build": "ae78b27",
- "liveBuild": "1191a14",
- "count": 64,
+ "generated": "2026-08-05T10:14:48.847388+00:00",
+ "build": "32a50f4",
+ "liveBuild": "f312da6",
+ "count": 66,
  "changes": [
+  {
+   "sha": "32a50f4",
+   "who": "alistaircranfield",
+   "when": "2026-08-05T11:14:32+01:00",
+   "msg": "The shift follows a supernumerary into the Super box, and shows there as a pill you can change"
+  },
+  {
+   "sha": "851a774",
+   "who": "github-actions[bot]",
+   "when": "2026-08-05T10:05:06Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "ae78b27",
    "who": "alistaircranfield",
