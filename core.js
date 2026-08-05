@@ -246,16 +246,32 @@ function logControls(redraw){
    says where the later one started. Walking the log oldest-first per person and rota day
    recovers the from-pod for every move except the first in each chain. Read-only — nothing is
    written back, so this is a lens over the stored log, not a migration of it. */
+/* Where somebody was before a move that never recorded it. Walks the day forwards and remembers
+   the last place each person was PUT, so the next entry about them starts from a known spot.
+
+   Widened 4 Aug (Ali: "why are there still so many not recorded, this isnt acceptable"): it used
+   to learn only from earlier MOVES, so the first move of the day was always unknowable even when
+   the entry directly above it said where the sync had just put them. `act:"on"` — the sync
+   putting somebody on the rota, which carries the pod it chose — now seeds the position too.
+
+   This is inference and is shown as such (fainter, with a tooltip saying so): it is what the log
+   implies, not what the log recorded, and the two should not look identical. */
 function inferFroms(list){
   const seen = {};
   const out = new Map();
   const chron = (list || []).slice().reverse();          // stored newest-first
   for (const e of chron) {
     const d = logDet(e);
-    if (!d || d.act !== "move" || !d.subj) continue;
+    if (!d || !d.subj) continue;
     const key = d.subj + "|" + logOn(e);
-    if (!d.from && !d.bench && seen[key]) out.set(e, seen[key]);
-    if (d.to) seen[key] = d.to;
+    if (d.act === "move") {
+      if (!d.from && !d.bench && seen[key]) out.set(e, seen[key]);
+      if (d.to) seen[key] = d.to; else delete seen[key];      // moved to the bench: nowhere now
+    } else if (d.act === "on" || d.act === "shift") {
+      if (d.to) seen[key] = d.to;
+    } else if (d.act === "off") {
+      delete seen[key];
+    }
   }
   return out;
 }
@@ -328,8 +344,14 @@ function logGroups(list, cap){
         : d.from ? pod(d.from)
         : d.bench ? __el("span", { style: "color:var(--muted);font-size:.72rem" , title: "Was unallocated" }, "bench")
         : d.fromInferred ? __el("span", { style: "color:var(--muted);opacity:.8", title: "Worked out from an earlier entry the same day" }, pod(d.fromInferred))
-        : d.fromUnknown ? __el("span", { style: "color:var(--muted);font-size:.7rem;font-style:italic",
-            title: "Older entries only recorded where the person went, never where they came from" }, "not recorded")
+        /* An empty cell, not the words. "not recorded" is true but it is the same eight
+           characters repeated down a whole column, and a column of identical apologies buries the
+           rows that DO say something (Ali, 4 Aug). Nothing new can land here — every place that
+           writes a move now records where the person came from — so this is only ever history,
+           and history that has nothing to add should take up no room. The title still answers it
+           for anyone who wonders why the cell is blank. */
+        : d.fromUnknown ? __el("span", { style: "color:var(--muted);opacity:.45",
+            title: "This entry is from before the log recorded where people came from" }, "")
         : __el("span", { style: "color:var(--muted)", title: "From the bench" }, "\u2014");
       /* Was written as fromCell() calling fromCell() — a blind string replace rewrote the body
          of the very helper it was defining, so every move row recursed until the stack blew. */

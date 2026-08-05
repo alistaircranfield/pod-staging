@@ -1503,7 +1503,45 @@ function recordOverride(dateISO, id, fromPod, toPod, shift){
    who is normally whoever is in edit mode. allocate_auto.py drives this page in a headless
    browser to allocate untouched days, and there is no person there — it passes "sync" so the
    log doesn't credit its work to whoever happened to be editing last. */
+/* A drag out and straight back is not a change, and two lines saying so are worse than none.
+   Ali, 4 Aug 2026, looking at his own log: "this recorded one where i dragged and changed back so
+   no actual change occurred - is there a way to stop this showing and clogging up change log?"
+
+   So a move that returns somebody to where their chain of moves began takes the whole chain out
+   with it instead of adding a third line. Deliberately narrow:
+     · the same person, on the same rota day — entries about anyone else are stepped over, not
+       treated as a break, because moving Y in between does not make X's return a real change;
+     · MANUAL moves only — a sync made its decision for a reason and a person's drag does not
+       erase the record of it;
+     · an unbroken chain, each move starting where the last one ended. Anything else about this
+       person on this day ends the chain rather than being skipped.
+
+   This does not weaken "everything is logged". What is logged is what CHANGED, and at the end of
+   a there-and-back nothing had. The board is still marked dirty and still saved: the data really
+   did move twice, it just finished where it started. */
+function cancelIfReturned(d, on){
+  if (!d || d.act !== "move" || d.from === undefined || d.to === undefined) return false;
+  const day = on || null;
+  const chain = [];
+  let began = d.from;
+  for (let i = 0; i < data.log.length; i++) {
+    const e = data.log[i], ed = e && e.d;
+    if (!ed || ed.subj !== d.subj) continue;                 // somebody else
+    if ((e.on || null) !== day) continue;                    // a different rota day
+    if (ed.act !== "move" || e.kind !== "manual") break;
+    if (ed.to !== began) break;                              // chain broken
+    chain.push(i);
+    if (ed.from === d.to) {                                  // back where it started
+      const drop = new Set(chain);
+      data.log = data.log.filter((_, k) => !drop.has(k));
+      return true;
+    }
+    began = ed.from;
+  }
+  return false;
+}
 function logEntry(msg, kind, on, who, d){
+  if (d && cancelIfReturned(d, on || null)) return;
   const e = { t: new Date().toISOString(), who: who || editorName(), msg,
               kind: kind === "auto" ? "auto" : "manual", on: on || null };
   /* d = the change as FIELDS rather than as a sentence: { act, subj, from, to, why, n, kids }.
@@ -2449,7 +2487,18 @@ function staffModal(s){
   cbs.fgh.onchange = () => { if (cbs.fgh.checked) cbs.fghSuper.checked = false; };
   cbs.fghNights.onchange = () => { if (cbs.fghNights.checked) cbs.fghSuper.checked = false; };
   // Picking a grade pre-ticks that grade's default skills — still adjustable before saving.
-  grade.onchange = () => { const d = gradeDefaults(grade.value); if (!d) return; for (const k of SKILL_KEYS) if (d[k] && cbs[k]) cbs[k].checked = true; };
+  /* ...except supernumerary for a neurology registrar, which is not a default but a rule. Shown
+     ticked and locked rather than hidden: the answer to "is this person counted?" should be
+     visible in the place people look for it, not only in the Key. */
+  const neuroLock = () => {
+    const on = grade.value === "Neurology";
+    if (!cbs.supernum) return;
+    if (on) cbs.supernum.checked = true;
+    cbs.supernum.disabled = on;
+    cbs.supernum.title = on ? "Neurology registrars are always supernumerary" : "";
+  };
+  grade.onchange = () => { const d = gradeDefaults(grade.value); if (d) for (const k of SKILL_KEYS) if (d[k] && cbs[k]) cbs[k].checked = true; neuroLock(); };
+  neuroLock();
   m.append(el("div", { class: "modalbtns" },
     el("button", { class: "btn sec", onclick: closeModal }, "Cancel"),
     el("button", { class: "btn", onclick: () => {
@@ -2546,7 +2595,7 @@ function toggleFghShift(day, id, curTag){ const next = curTag === "LD" ? "SD" : 
 function personLabel(s){
   let marks = "";
   if (s.airway) marks += " · A";
-  if (s.supernum) marks += " (super)";
+  if (isSupernumerary(s)) marks += " (super)";
   return s.name + (s.grade ? " · " + s.grade : "") + marks;
 }
 function personSelect(dateISO, value, onchange, filter){
@@ -2748,6 +2797,69 @@ function takeOffDay(day, di, id){
   logEntry((staffById(id) ? staffById(id).name : id) + " taken off " + dayShort(di), "manual", dateOfDi(di));
 }
 function putBackOnDay(day, id){ day.removed = (day.removed || []).filter(x => x !== id); }
+/* ── Neurology registrars ─────────────────────────────────────────────────────────────────────
+   Ali, 4 Aug 2026: "set a firm rule that neurology registrars are supernumerary and only ever
+   allocated to C & D". Firm, not a lean — he asked for a hard block, so a drag onto A, B or E is
+   REFUSED rather than allowed-and-flagged.
+
+   GRADE, not the Neuro tick. Those are two different things and putting this rule on the wrong
+   one would catch the wrong people: "Neurology" is what somebody IS, while the Neuro tick means
+   anyone of any grade currently on a neuro placement — they still count in the numbers and still
+   only get the soft `neuroTarget` aim (~70% of shifts on C/D). That aim is untouched.
+
+   Enforced in ONE place, the way normalizeNight is: every path that draws, checks, fills or
+   exports a day calls normalizeNeuro() first, so a day arriving from an import, an older save or
+   the allocator cannot hold a neurology registrar on Pod A however it got there. There are
+   eighteen places in this file that push somebody into a pod; guarding each one would mean the
+   nineteenth is wrong. The manual drop paths refuse UP FRONT as well, because silently relocating
+   somebody the instant you let go of them reads as a bug rather than a rule. */
+const NEURO_PODS = ["C", "D"];
+function isNeuroReg(s){ return !!s && s.grade === "Neurology"; }
+function neuroPodOK(s, p){ return !isNeuroReg(s) || NEURO_PODS.includes(p); }
+/* supernum comes from GRADE_DEFAULTS, which is a FLOOR — it can be unticked per person, and
+   data.gradeSkills lets the grade's own defaults be edited from the front end. Neither may switch
+   this off: a neurology registrar is never in the numbers, so the question is answered here and
+   not by a tick box somebody can reach. */
+function isSupernumerary(s){ return !!s && (s.supernum || isNeuroReg(s)); }
+/* Put every neurology registrar where the rule says, wherever this day came from. Supernumerary
+   means "not in the numbers", and `assign` IS the numbers — so they come out of assign entirely
+   and sit in the Super list under C or D, whichever is carrying fewer. */
+function normalizeNeuro(day){
+  if (!day || !day.pods) return;
+  const lighter = () => ((day.pods.C.super || []).length <= (day.pods.D.super || []).length) ? "C" : "D";
+  for (const p of PODS) {
+    const pod = day.pods[p]; if (!pod) continue;
+    pod.super = pod.super || [];
+    for (const a of [...(pod.assign || [])]) {
+      if (!isNeuroReg(staffById(a.id))) continue;
+      pod.assign = pod.assign.filter(x => x !== a);
+      const dest = NEURO_PODS.includes(p) ? p : lighter();
+      day.pods[dest].super = day.pods[dest].super || [];
+      if (!day.pods[dest].super.includes(a.id)) day.pods[dest].super.push(a.id);
+    }
+    if (NEURO_PODS.includes(p)) continue;
+    for (const id of [...pod.super]) {
+      if (!isNeuroReg(staffById(id))) continue;
+      pod.super = pod.super.filter(x => x !== id);
+      const dest = lighter();
+      day.pods[dest].super = day.pods[dest].super || [];
+      if (!day.pods[dest].super.includes(id)) day.pods[dest].super.push(id);
+    }
+  }
+  /* Nights run in two halves: A&B, and C,D&E (which narrows to C&D once somebody is in E). The
+     neuro half is CDE, so that is where a neurology registrar goes — never AB, never E alone. */
+  if (day.night) {
+    for (const k of ["AB", "E"]) {
+      for (const id of [...(day.night[k] || [])]) {
+        if (!isNeuroReg(staffById(id))) continue;
+        day.night[k] = day.night[k].filter(x => x !== id);
+        day.night.CDE = day.night.CDE || [];
+        if (!day.night.CDE.includes(id)) day.night.CDE.push(id);
+      }
+    }
+  }
+}
+
 /* Night Pod E used to be a drawing, not a place: with five on, the phone holder was stored in
    C,D&E and merely RENDERED under a Pod E heading, so nobody could ever be dragged into E
    (Nick Whitehouse, 31 Jul). It is now a real container, day.night.E. Migration is absent =
@@ -2764,6 +2876,16 @@ function normalizeNight(day){
     day.night.CDE = day.night.CDE.filter(id => id !== ph);
     day.night.E.push(ph);
   }
+}
+/* Which night half somebody is in, as the stable label the log uses. The DISPLAYED heading for
+   CDE changes with whether Pod E is occupied ("Pod C, D & E" vs "Pod C & D"); the container does
+   not, so the log must not borrow the heading or two entries about the same place would fail to
+   cancel each other out. */
+const NIGHT_LABEL = { AB: "A&B", CDE: "C&D", E: "E" };
+function nightSpotOf(day, id){
+  if (!day || !day.night) return "";
+  for (const k of ["AB", "CDE", "E"]) if ((day.night[k] || []).includes(id)) return NIGHT_LABEL[k];
+  return "";
 }
 function assignedIds(day){
   return new Set([day.phone, day.night.phone, ...day.shadow, ...day.night.AB, ...day.night.CDE,
@@ -2962,7 +3084,9 @@ function makeZone(cell, di, onDropId, onDropObs, onDropPhone){
     e.stopPropagation();
     const pick = tapPick; tapPick = null;
     if (pick.obs) { if (onDropObs) onDropObs(pick.obs); else { renderWeek(); return; } }
-    else onDropId(pick.id);
+    /* A handler that returns false has REFUSED the drop (a rule says no). Marking the board
+       dirty then would offer a Save for a change that never happened. */
+    else if (onDropId(pick.id) === false) { renderWeek(); return; }
     markDirty(); renderWeek();
   });
   if (canEdit()) {
@@ -2981,7 +3105,7 @@ function makeZone(cell, di, onDropId, onDropObs, onDropPhone){
     if (!payload || payload.di !== di) return;
     if (payload.phone) { if (!onDropPhone) return; onDropPhone(payload.phone); }
     else if (payload.obs) { if (!onDropObs) return; onDropObs(payload.obs); }
-    else if (payload.id && staffById(payload.id)) onDropId(payload.id);
+    else if (payload.id && staffById(payload.id)) { if (onDropId(payload.id) === false) { renderWeek(); return; } }
     else return;
     markDirty(); renderWeek();
   });
@@ -3034,6 +3158,7 @@ function cycleShift(day, id, pool){
   markDirty(); renderWeek();
 }
 function renderDayRow(day, di, dateISO, issues){
+  normalizeNeuro(day);
   const tr = el("tr");
   const pool = poolFor(day, dateISO);
   const assigned = assignedIds(day);
@@ -3061,7 +3186,15 @@ function renderDayRow(day, di, dateISO, issues){
   tr.append(dl);
   /* ---- tray: on duty, unassigned ---- */
   const tray = el("td", { class: "tray" });
-  makeZone(tray, di, id => { removeAssign(day, id); logEntry(staffById(id).name + " → bench (" + dayShort(di) + ")", "manual", dateOfDi(di)); }, oid => { const o = (day.obs || []).find(x => x.oid === oid); if (o) { o.pod = null; logEntry("Observer " + o.name + " → bench (" + dayShort(di) + ")", "manual", dateOfDi(di)); } }, type => {
+  makeZone(tray, di, id => {
+    const wasIn = (PODS.find(q => day.pods[q].assign.some(a => a.id === id)
+                                || (day.pods[q].super || []).includes(id)) || "") || nightSpotOf(day, id);
+    removeAssign(day, id);
+    logEntry(staffById(id).name + " → bench (" + dayShort(di) + ")", "manual", dateOfDi(di), null,
+      { act: "move", subj: staffById(id).name, from: wasIn, to: "" });
+  }, oid => { const o = (day.obs || []).find(x => x.oid === oid); if (o) { const was = o.pod || ""; o.pod = null;
+      logEntry("Observer " + o.name + " → bench (" + dayShort(di) + ")", "manual", dateOfDi(di), null,
+        { act: "move", subj: "Observer " + o.name, from: was, to: "" }); } }, type => {
     if (type === "day") { day.phone = null; logEntry("Phone cleared (" + dayShort(di) + ")", "manual", dateOfDi(di)); }
     else if (type === "night") { day.night.phone = null; logEntry("Night phone cleared (" + dayShort(di) + ")", "manual", dateOfDi(di)); }
   });
@@ -3144,11 +3277,19 @@ function renderDayRow(day, di, dateISO, issues){
        pod itself makes it look staffed when it isn't. They go in the Super box underneath instead. */
     makeZone(col, di, id => {
       const s = staffById(id);
-      if (s && s.supernum) {
+      if (!neuroPodOK(s, p)) { toast(s.name + " — neurology registrars go on Pods C and D only"); return false; }
+      if (s && isSupernumerary(s)) {
+        /* Where they were has to be read BEFORE removeAssign clears it. This drop wrote no From
+           at all, so every supernumerary move showed as "not recorded" — which said we didn't
+           know, when the truth is nobody asked (Ali, 4 Aug: "why are there still so many not
+           recorded, this isnt acceptable"). */
+        const wasIn = PODS.find(q => day.pods[q].assign.some(a => a.id === id)
+                                  || (day.pods[q].super || []).includes(id)) || "";
         removeAssign(day, id);
         pod.super = pod.super || [];
         if (!pod.super.includes(id)) pod.super.push(id);
-        logEntry(s.name + " → Pod " + p + " (supernumerary) (" + dayShort(di) + ")", "manual", dateOfDi(di));
+        logEntry(s.name + " → Pod " + p + " (supernumerary) (" + dayShort(di) + ")", "manual", dateOfDi(di), null,
+          { act: "move", subj: s.name, from: wasIn, to: p, super: true, bench: !wasIn });
         return;
       }
       const keepShift = currentAssignShift(day, id);
@@ -3161,7 +3302,9 @@ function renderDayRow(day, di, dateISO, issues){
       logEntry(s.name + " → Pod " + p + " (" + dayShort(di) + ")", "manual", dateOfDi(di), null,
         { act: "move", subj: s.name, from: fromPod || "", to: p, bench: !fromPod });
       recordOverride(dateISO, id, fromPod, p, keepShift);
-    }, oid => { const o = (day.obs || []).find(x => x.oid === oid); if (o) { o.pod = p; logEntry("Observer " + o.name + " → Pod " + p + " (" + dayShort(di) + ")", "manual", dateOfDi(di)); } });
+    }, oid => { const o = (day.obs || []).find(x => x.oid === oid); if (o) { const was = o.pod || ""; o.pod = p;
+      logEntry("Observer " + o.name + " → Pod " + p + " (" + dayShort(di) + ")", "manual", dateOfDi(di), null,
+        { act: "move", subj: "Observer " + o.name, from: was, to: p, bench: !was }); } });
     const consAll = data.staff.filter(s => s.grade === "CON" && isActiveOn(s, dateISO));
     if (consAll.length || pod.cons) {
       if (pod.cons && !staffById(pod.cons)) { const rid = matchConsInitials(pod.cons); if (rid) pod.cons = rid; }
@@ -3201,10 +3344,10 @@ function renderDayRow(day, di, dateISO, issues){
     if (!pod.assign.length) col.append(el("div", { class: "hint" }, "drop staff here"));
     // Only say "Super" when someone actually is one here. In edit mode the empty box still
     // shows so the rota team can drop somebody into it.
-    if (pod.super.length || (canEdit() && activeStaff(dateISO).some(s => s.supernum))) {
+    if (pod.super.length || (canEdit() && activeStaff(dateISO).some(s => isSupernumerary(s)))) {
       col.append(el("div", { class: "subhead" }, "Super"));
       const supBox = el("div"); col.append(supBox);
-      idListEditor(supBox, dateISO, pod.super, s => s.supernum, "super");
+      idListEditor(supBox, dateISO, pod.super, s => isSupernumerary(s) && neuroPodOK(s, p), "super");
     }
     for (const o of (day.obs || []).filter(x => x.pod === p)) col.append(obsChip(day, o, di));
     tr.append(col);
@@ -3215,11 +3358,16 @@ function renderDayRow(day, di, dateISO, issues){
   // The zones only cover a fraction of this column's height; the rest was dead. Anywhere in the
   // column now drops into the smaller of the two night halves, so aim roughly and it still lands.
   makeZone(night, di, id => {
+    const wasIn = nightSpotOf(day, id) || (PODS.find(q => day.pods[q].assign.some(a => a.id === id)) || "");
     removeAssign(day, id);
-    const k = (day.night.CDE || []).length < (day.night.AB || []).length ? "CDE" : "AB";
+    // C,D&E is the neuro half of the night, so a neurology registrar lands there whichever half
+    // is emptier — the "aim roughly" convenience must not quietly break the rule.
+    const k = isNeuroReg(staffById(id)) ? "CDE"
+            : (day.night.CDE || []).length < (day.night.AB || []).length ? "CDE" : "AB";
     day.night[k] = day.night[k] || [];
     day.night[k].push(id);
-    logEntry(staffById(id).name + " → nights (" + dayShort(di) + ")", "manual", dateOfDi(di));
+    logEntry(staffById(id).name + " → nights (" + dayShort(di) + ")", "manual", dateOfDi(di), null,
+      { act: "move", subj: staffById(id).name, from: wasIn, to: NIGHT_LABEL[k], night: true, bench: !wasIn });
   });
   {
     const consAllN = data.staff.filter(s => s.grade === "CON" && isActiveOn(s, dateISO));
@@ -3254,10 +3402,17 @@ function renderDayRow(day, di, dateISO, issues){
     night.append(el("div", { class: "subhead" }, label));
     const z = el("div", { class: "nzone" });
     makeZone(z, di, id => {
+      const ns = staffById(id);
+      if (isNeuroReg(ns) && key !== "CDE") { toast(ns.name + " — neurology registrars go on Pods C and D only"); return false; }
+      /* Read where they were BEFORE removeAssign wipes it. Night moves used to record only a
+         destination, so the log said "not recorded" in the From column for every one of them —
+         which claimed we didn't know, when really we just never asked. */
+      const wasIn = nightSpotOf(day, id) || (PODS.find(q => day.pods[q].assign.some(a => a.id === id)) || "");
       removeAssign(day, id);                       // may replace day.night[key]
       day.night[key] = day.night[key] || [];
       day.night[key].push(id);                     // ...so look it up again, here
-      logEntry(staffById(id).name + " → night " + label + " (" + dayShort(di) + ")", "manual", dateOfDi(di));
+      logEntry(staffById(id).name + " → night " + label + " (" + dayShort(di) + ")", "manual", dateOfDi(di), null,
+        { act: "move", subj: ns.name, from: wasIn, to: NIGHT_LABEL[key], night: true, bench: !wasIn });
     });
     const arr = day.night[key] || [];
     const shown = arr.filter(id => staffById(id) && (!filt || filt(id)));
@@ -3273,10 +3428,10 @@ function renderDayRow(day, di, dateISO, issues){
   const eOccupied = (day.night.E || []).filter(Boolean).length > 0;
   nightZone(eOccupied ? "Pod C & D" : "Pod C, D & E", "CDE");
   if (eOccupied || canEdit()) nightZone("Pod E", "E");
-  if (day.night.super.length || (canEdit() && activeStaff(dateISO).some(s => s.supernum))) {
+  if (day.night.super.length || (canEdit() && activeStaff(dateISO).some(s => isSupernumerary(s)))) {
     night.append(el("div", { class: "subhead" }, "Super"));
     const nsup = el("div"); night.append(nsup);
-    idListEditor(nsup, dateISO, day.night.super, s => s.supernum, "super");
+    idListEditor(nsup, dateISO, day.night.super, s => isSupernumerary(s), "super");
   }
   tr.append(night);
   /* ---- Fairfield: a proper column like the pods — drag people in/out, remove, and toggle shift ---- */
@@ -3305,7 +3460,7 @@ function renderDayRow(day, di, dateISO, issues){
   return tr;
 }
 /* ================= RULES ENGINE ================= */
-function countsInNumbers(id){ const s = staffById(id); return !!s && !s.supernum; }
+function countsInNumbers(id){ return !isSupernumerary(staffById(id)); }
 function dayCountables(day){
   const perPod = {}; let total = 0;
   for (const p of PODS) {
@@ -3324,6 +3479,7 @@ function dayAllAssigned(day){
 }
 function checkDay(day, dateISO, di, wk){
   normalizeNight(day);
+  normalizeNeuro(day);
   const issues = [];
   const H = msg => issues.push({ hard: true, msg });
   const S = msg => issues.push({ hard: false, msg });
@@ -3376,7 +3532,7 @@ function checkDay(day, dateISO, di, wk){
   const nCount = nightCountables(day).length;
   if (nCount < rule("nightMin")) H("Night team has " + nCount + " countable staff — minimum " + rule("nightMin") + " (one doubles up to cover Pod E).");
 
-  const transferDay = [...new Set(dayIds)].filter(id => { const s = staffById(id); return s && s.transfer && !s.supernum; }).length;
+  const transferDay = [...new Set(dayIds)].filter(id => { const s = staffById(id); return s && s.transfer && !isSupernumerary(s); }).length;
   // Depends on who's rostered — an aim rather than a block.
   if (dayIds.length && transferDay < rule("transferAim")) S("Only " + transferDay + " transfer-trained on the day shift — aim for " + rule("transferAim") + " (depends who's rostered).");
 
@@ -3929,6 +4085,7 @@ function staticSnapshotHtml(){
     wk.days.forEach((day, di) => {
       const iso = addDays(k, di);
       normalizeNight(day);
+      normalizeNeuro(day);
       const podCells = PODS.map(p => {
         const cons = day.pods[p].cons ? '<div style="color:#8a8f98;font-size:10px">' + esc(cl(day.pods[p].cons)) + '</div>' : "";
         const rows = day.pods[p].assign.filter(a => a.id).map(a =>
@@ -4158,6 +4315,7 @@ async function publishWeek(){
       podCells += `<td style="background:${bg}"><div class="ph" style="color:${fg}">POD ${p}</div>${consLine}${rows || '<div class="pr none">—</div>'}${sups}${obs}</td>`;
     }
     normalizeNight(day);
+    normalizeNeuro(day);
     const nAB = day.night.AB.filter(Boolean).map(id => esc(name(id))).join("<br>") || "—";
     const nCDE = day.night.CDE.filter(Boolean).map(id => esc(name(id))).join("<br>") || "—";
     const nE = (day.night.E || []).filter(Boolean).map(id => esc(name(id))).join("<br>");
@@ -4531,6 +4689,7 @@ function autoFillDay(wk, di, wkKey, opts){
       const p = stick[id];
       const s = staffById(id);
       if (!s || !p || !PODS.includes(p)) continue;
+      if (!neuroPodOK(s, p)) continue;             // held pod, but not one they may be on
       const counted = countsInNumbers(id);
       if (counted && counts[p] >= target[p]) continue;      // no room: let the scoring decide
       const wkSoFar = weekPodsSoFar[id];
@@ -4597,6 +4756,10 @@ function autoFillDay(wk, di, wkKey, opts){
       // Neuro-trained lean towards Pods C & D (the neuro pods) — a nudge, not a rule, so it still
       // yields to keeping the pods evenly sized. Aims for roughly two-thirds of their shifts on C/D.
       if (neuroOn(s) && (p === "C" || p === "D")) score += 5;
+      /* A neurology REGISTRAR is a different matter — C or D, always (Ali, 4 Aug). normalizeNeuro
+         would put them right afterwards either way; doing it here as well means the allocator's
+         own counts and continuity reasoning are never built on a placement that cannot stand. */
+      if (!neuroPodOK(s, p)) score -= 1e6;
       // Long days fill A–D before E: E is always the pod that misses out on a long day when they're
       // short, so never give E a long-day resident while any A–D pod still has none.
       // -4000, not -1000: it has to outrank the weekend Saturday-pod hold (-3000) or a Sunday long
@@ -4801,6 +4964,7 @@ function autoFillDay(wk, di, wkKey, opts){
   }
 
   normalizeNight(day);
+  normalizeNeuro(day);
   const nightAssigned = new Set([...day.night.AB, ...day.night.CDE, ...(day.night.E || [])]);
   const nightUnplaced = nightIds.filter(id => !nightAssigned.has(id) && !assignedIds(day).has(id) || (id === day.night.phone && !nightAssigned.has(id)));
   // phone holder covers a pod — with five on, somebody splits off to cover Pod E alone, and
@@ -4926,7 +5090,7 @@ function planDayFix(di){
   const day = JSON.parse(JSON.stringify(orig));
   const pool = poolFor(day, dateISO);
   const sn = id => { const s = staffById(id); if (!s) return id; const p = s.name.split(" "); return (p[0] || "") + (p.length > 1 ? " " + p[p.length-1] : ""); };
-  const countsIn = id => { const s = staffById(id); return !!s && !s.supernum; };
+  const countsIn = id => { const s = staffById(id); return !!s && !isSupernumerary(s); };
   const podOf = id => PODS.find(p => day.pods[p].assign.some(a => a.id === id));
   const podCount = p => day.pods[p].assign.filter(a => a.id && countsIn(a.id)).length;
   const podLDs = p => day.pods[p].assign.filter(a => a.id && a.shift === "LD").length;
