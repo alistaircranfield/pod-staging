@@ -313,7 +313,7 @@ td.col-A{background:var(--podA)} td.col-B{background:var(--podB)} td.col-C{backg
    (Ali, 6 Aug). This one is the site's, and it is only on the HEADER, which is the only place
    with something worth saying: what the column means. The cells say it already by being on
    or off, and a person's own row says who they are. */
-.wkpick{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.35rem;margin:.2rem 0 .5rem}
+.wkpick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.35rem;margin:.2rem 0 .5rem}
 .wkbtn{display:flex;flex-direction:column;align-items:center;gap:.15rem;padding:.5rem .2rem;border:1px solid var(--hair);
   border-radius:8px;background:var(--card);cursor:pointer;text-align:center;line-height:1.25;font:inherit}
 .wkbtn.on{border:2px solid var(--accent);background:var(--accent-bg)}
@@ -5775,11 +5775,20 @@ function trialSkillFrom(monISO, sId, sName, addMap, touchesPods, keep){
   if (!keep) { data.weeks = JSON.parse(snapWeeks); data.pendingSkills = JSON.parse(snapPend); }
   return moves;
 }
-/* The four written weeks, and only those. Nothing exists beyond them — the puller asks Allocate
-   for this week plus three, so week five is not hidden, it has not been fetched. */
+/* The written weeks that may still be rewritten: NEXT Monday and the two after it.
+
+   This week is deliberately not offered (Ali, 4 Aug: "just offer from next week"). Two reasons,
+   and the second is the real one:
+     · it would report a large number, because rewriting mid-week moves everyone; and
+     · reallocateFrom works in whole weeks, so starting from this Monday would rewrite days that
+       have already been worked. Moving somebody on a shift they finished on Tuesday is not a
+       change, it is a falsehood.
+
+   Nothing exists past the fourth week — the puller asks Allocate for this week plus three, so
+   week five is not hidden, it has simply not been fetched. */
 function writtenWeeks(){
   const first = mondayOf(todayISO());
-  return [0, 1, 2, 3].map(n => addDays(first, n * 7)).filter(k => data.weeks[k]);
+  return [1, 2, 3].map(n => addDays(first, n * 7)).filter(k => data.weeks[k]);
 }
 function countMoves(moves){
   const pods = moves.filter(m => /: Pod [A-E] → Pod [A-E]/.test(m)).length;
@@ -5804,7 +5813,7 @@ async function askWhenSkillStarts(name, added, sId, addMap){
   let pick = weeks.length ? weeks[weeks.length - 1] : null;
   const detail = el("div", { style: "margin:.7rem 0" });
   const row = el("div", { class: "wkpick" });
-  const LBL = ["This week", "Next week", "In 2 weeks", "In 3 weeks"];
+  const LBL = ["Next week", "In 2 weeks", "In 3 weeks"];
   weeks.forEach((k, i) => {
     const c = counts[k];
     const tone = c.total === 0 ? "none" : c.total <= 8 ? "low" : c.total <= 16 ? "mid" : "high";
