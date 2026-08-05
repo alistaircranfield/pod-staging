@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-05T19:58:26.501739+00:00",
- "build": "7de526c",
+ "generated": "2026-08-05T20:08:16.518253+00:00",
+ "build": "1b48e72",
  "liveBuild": "c5d20a1",
- "count": 72,
+ "count": 74,
  "changes": [
+  {
+   "sha": "1b48e72",
+   "who": "alistaircranfield",
+   "when": "2026-08-05T21:08:06+01:00",
+   "msg": "Pick the week a skill starts and see what it costs \u2014 counts run the real allocation. Feedback read now persists"
+  },
+  {
+   "sha": "d3c7907",
+   "who": "github-actions[bot]",
+   "when": "2026-08-05T19:58:26Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "7de526c",
    "who": "alistaircranfield",
