@@ -442,6 +442,65 @@ const SEED = `(function(){
             "const it = attentionItems().filter(function(x){ return /Locum Doctor/.test(x.title); })[0];" +
             "data.pendingSkills = []; return it ? it.title : ''; })()").indexOf("airway and phone") > 0);
 
+  /* ---- the skill start picker ------------------------------------------------------------
+     The counts on the buttons are produced by running the real reallocation and diffing it, so
+     these tests check the machinery rather than the arithmetic: that a trial leaves nothing
+     behind, that only written weeks are offered, and that the picker tells the truth about the
+     unwritten ones. */
+  console.log("\n-- picking when a skill starts --");
+  w.eval("(function(){ const K = mondayOf(todayISO());" +
+         "for (let n=0;n<4;n++){ const key = addDays(K, n*7); const wk = getWeek(key); wk.roster = {};" +
+         "  for (let d=0; d<7; d++) wk.roster[addDays(key,d)] = {" +
+         "    r1:{code:'LD',kind:'day',src:'a'}, r2:{code:'LD',kind:'day',src:'a'}," +
+         "    r3:{code:'SD',kind:'day',src:'a'}, a2:{code:'SD',kind:'day',src:'a'} };" +
+         "  wk.days.forEach(function(dd,di){ autoFillDay(wk, di, key); }); } })()");
+
+  ok("only the written weeks are offered — four of them",
+     w.eval("writtenWeeks().length") === 4);
+  ok("and they start at this Monday",
+     w.eval("writtenWeeks()[0] === mondayOf(todayISO())") === true);
+
+  ok("a trial puts the rota back exactly as it found it",
+     w.eval("(function(){ const before = JSON.stringify(data.weeks);" +
+            "trialSkillFrom(mondayOf(todayISO()), 'r3', 'Jo Bloggs', { phoneHolder:true }, true, false);" +
+            "return JSON.stringify(data.weeks) === before; })()") === true);
+  ok("and puts the pending skills back too",
+     w.eval("(function(){ const before = JSON.stringify(data.pendingSkills || []);" +
+            "trialSkillFrom(mondayOf(todayISO()), 'r3', 'Jo Bloggs', { phoneHolder:true }, true, false);" +
+            "return JSON.stringify(data.pendingSkills || []) === before; })()") === true);
+
+  /* Ali's hypothesis, 4 Aug: shadowing should cost nothing, holding the phone should cost real
+     moves. Asserted as a RELATIONSHIP, not as fixed numbers — the fixture is small and the exact
+     count is not the point. */
+  ok("phone shadow moves nobody",
+     w.eval("(function(){ const m = trialSkillFrom(mondayOf(todayISO()), 'r3', 'Jo Bloggs'," +
+            "{ phoneShadow:true }, false, false); return m.length; })()") === 0);
+  ok("phone holder costs more than phone shadow",
+     w.eval("(function(){ const hold = trialSkillFrom(mondayOf(todayISO()), 'r3', 'Jo Bloggs'," +
+            "{ phoneHolder:true }, true, false).length;" +
+            "const shade = trialSkillFrom(mondayOf(todayISO()), 'r3', 'Jo Bloggs'," +
+            "{ phoneShadow:true }, false, false).length; return hold >= shade; })()") === true);
+  ok("starting later never costs more than starting now",
+     w.eval("(function(){ const wks = writtenWeeks();" +
+            "const early = trialSkillFrom(wks[0], 'r3', 'Jo Bloggs', { phoneHolder:true }, true, false).length;" +
+            "const late  = trialSkillFrom(wks[3], 'r3', 'Jo Bloggs', { phoneHolder:true }, true, false).length;" +
+            "return late <= early; })()") === true);
+
+  ok("the moves are counted by kind, not lumped together",
+     w.eval("(function(){ const c = countMoves(['Ann: Pod A → Pod B on 1 Sep'," +
+            "'Phone: X → Y on 1 Sep', 'Night phone: X → Y on 1 Sep']);" +
+            "return c.pods === 1 && c.phone === 1 && c.nphone === 1 && c.total === 3; })()") === true);
+
+  ok("the dialog draws five boxes — four weeks and the unwritten one",
+     (function(){ w.eval("staffModal(staffById('r3'))");
+       w.eval("try{ closeModal(); }catch(e){}");
+       w.eval("askWhenSkillStarts('Jo Bloggs', ['Airway'], 'r3', { airway:true })");
+       const n = w.eval("document.querySelectorAll('#modal .wkbtn').length");
+       const fut = w.eval("document.querySelectorAll('#modal .wkbtn.future').length");
+       const txt = w.eval("document.getElementById('modal').textContent");
+       w.eval("try{ closeModal(); }catch(e){}");
+       return n === 5 && fut === 1 && /not written yet/.test(txt); })() === true);
+
   ok("no errors across the whole run", errors.length === 0, errors.slice(0, 3).join(" | "));
 
   console.log("\n=== " + pass + " passed, " + fail + " failed ===");
