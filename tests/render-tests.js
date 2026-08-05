@@ -455,10 +455,13 @@ const SEED = `(function(){
          "    r3:{code:'SD',kind:'day',src:'a'}, a2:{code:'SD',kind:'day',src:'a'} };" +
          "  wk.days.forEach(function(dd,di){ autoFillDay(wk, di, key); }); } })()");
 
-  ok("only the written weeks are offered — four of them",
-     w.eval("writtenWeeks().length") === 4);
-  ok("and they start at this Monday",
-     w.eval("writtenWeeks()[0] === mondayOf(todayISO())") === true);
+  ok("three weeks are offered, not four", w.eval("writtenWeeks().length") === 3);
+  /* This week is never offered: reallocateFrom works in whole weeks, so starting from this Monday
+     would rewrite days people have already worked. */
+  ok("and this week is not one of them",
+     w.eval("writtenWeeks().indexOf(mondayOf(todayISO()))") === -1);
+  ok("the first one offered is next Monday",
+     w.eval("writtenWeeks()[0] === addDays(mondayOf(todayISO()), 7)") === true);
 
   ok("a trial puts the rota back exactly as it found it",
      w.eval("(function(){ const before = JSON.stringify(data.weeks);" +
@@ -480,10 +483,10 @@ const SEED = `(function(){
             "{ phoneHolder:true }, true, false).length;" +
             "const shade = trialSkillFrom(mondayOf(todayISO()), 'r3', 'Jo Bloggs'," +
             "{ phoneShadow:true }, false, false).length; return hold >= shade; })()") === true);
-  ok("starting later never costs more than starting now",
+  ok("starting later never costs more than starting sooner",
      w.eval("(function(){ const wks = writtenWeeks();" +
             "const early = trialSkillFrom(wks[0], 'r3', 'Jo Bloggs', { phoneHolder:true }, true, false).length;" +
-            "const late  = trialSkillFrom(wks[3], 'r3', 'Jo Bloggs', { phoneHolder:true }, true, false).length;" +
+            "const late  = trialSkillFrom(wks[wks.length-1], 'r3', 'Jo Bloggs', { phoneHolder:true }, true, false).length;" +
             "return late <= early; })()") === true);
 
   ok("the moves are counted by kind, not lumped together",
@@ -491,7 +494,7 @@ const SEED = `(function(){
             "'Phone: X → Y on 1 Sep', 'Night phone: X → Y on 1 Sep']);" +
             "return c.pods === 1 && c.phone === 1 && c.nphone === 1 && c.total === 3; })()") === true);
 
-  ok("the dialog draws five boxes — four weeks and the unwritten one",
+  ok("the dialog draws four boxes — three weeks and the unwritten one",
      (function(){ w.eval("staffModal(staffById('r3'))");
        w.eval("try{ closeModal(); }catch(e){}");
        w.eval("askWhenSkillStarts('Jo Bloggs', ['Airway'], 'r3', { airway:true })");
@@ -499,7 +502,7 @@ const SEED = `(function(){
        const fut = w.eval("document.querySelectorAll('#modal .wkbtn.future').length");
        const txt = w.eval("document.getElementById('modal').textContent");
        w.eval("try{ closeModal(); }catch(e){}");
-       return n === 5 && fut === 1 && /not written yet/.test(txt); })() === true);
+       return n === 4 && fut === 1 && /not written yet/.test(txt); })() === true);
 
   ok("no errors across the whole run", errors.length === 0, errors.slice(0, 3).join(" | "));
 
