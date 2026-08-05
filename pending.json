@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-05T20:08:16.518253+00:00",
- "build": "1b48e72",
+ "generated": "2026-08-05T20:09:35.070145+00:00",
+ "build": "ec72676",
  "liveBuild": "c5d20a1",
- "count": 74,
+ "count": 76,
  "changes": [
+  {
+   "sha": "ec72676",
+   "who": "alistaircranfield",
+   "when": "2026-08-05T21:09:17+01:00",
+   "msg": "9 tests for the picker, including that shadow moves nobody and a trial leaves nothing behind"
+  },
+  {
+   "sha": "f24934b",
+   "who": "github-actions[bot]",
+   "when": "2026-08-05T20:08:16Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "1b48e72",
    "who": "alistaircranfield",
