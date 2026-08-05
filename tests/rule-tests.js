@@ -738,7 +738,11 @@ async function main() {
         for (const p of P) for (const a of day.pods[p].assign) { const s = api.staffById(a.id); if (s && s.neuro) { neuroTot++; if (p === "C" || p === "D") neuroCD++; } }
         // conservation: every on-duty day person (not Fairfield) is placed in a pod exactly once
         const onDuty = Object.entries(api.poolFor(day, iso)).filter(([id, v]) => v.kind === "day" && !api.inFairfield(day, iso, id)).map(([id]) => id);
-        const placed = P.flatMap(p => day.pods[p].assign.map(a => a.id)).filter(Boolean);
+        /* "Placed" includes the Super boxes. A supernumerary belongs there and not in the
+           numbers, so counting only `assign` would call a correctly-placed person unplaced —
+           the same blind spot that let auto-fill drag them back into the numbers (4 Aug). */
+        const placed = P.flatMap(p => day.pods[p].assign.map(a => a.id)
+          .concat(day.pods[p].super || [])).filter(Boolean);
         const placedSet = new Set(placed);
         const dup = placed.length !== placedSet.size;
         const allPlaced = onDuty.every(id => placedSet.has(id));

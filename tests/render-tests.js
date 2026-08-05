@@ -276,7 +276,7 @@ const SEED = `(function(){
      w.eval("(function(){ const wk = getWeek(currentWeekKey), di = " +
             "Math.round((new Date(todayISO()) - new Date(currentWeekKey))/86400000), d = wk.days[di];" +
             "d.pods.A.assign.push({ id:'n1', shift:'SD' });" +      // as an import or an old save might
-            "normalizeNeuro(d);" +
+            "normalizePods(d);" +
             "const onA = d.pods.A.assign.some(function(a){ return a.id === 'n1'; }) ||" +
             "            (d.pods.A.super||[]).indexOf('n1') >= 0;" +
             "const onCD = (d.pods.C.super||[]).concat(d.pods.D.super||[]).indexOf('n1') >= 0;" +
@@ -288,11 +288,32 @@ const SEED = `(function(){
             "return ['A','B','C','D','E'].every(function(p){" +
             "  return !(d.pods[p].assign||[]).some(function(a){ return a.id === 'n1'; }); }); })()") === true);
 
+  /* Ali, 4 Aug: "aron cook is supernumerary on the board. how has it allowed a drop into pod
+     numbers and not into supernumerary column". Auto-fill pushed everybody into assign and only
+     declined to COUNT the supernumeraries, so a pod drew five names and was counted as four. */
+  ok("ANY supernumerary the allocator places lands in Super, not in the numbers",
+     w.eval("(function(){ const wk = getWeek(currentWeekKey), di = " +
+            "Math.round((new Date(todayISO()) - new Date(currentWeekKey))/86400000), d = wk.days[di];" +
+            "d.pods.B.assign.push({ id:'a1', shift:'LD' });" +   // a1 is an ACCP marked supernum
+            "normalizePods(d);" +
+            "const inNumbers = d.pods.B.assign.some(function(a){ return a.id === 'a1'; });" +
+            "const inSuper = (d.pods.B.super||[]).indexOf('a1') >= 0;" +
+            "return !inNumbers && inSuper; })()") === true);
+  ok("and a supernumerary who is NOT a neurology registrar keeps their own pod",
+     w.eval("(function(){ const wk = getWeek(currentWeekKey), di = " +
+            "Math.round((new Date(todayISO()) - new Date(currentWeekKey))/86400000), d = wk.days[di];" +
+            "return (d.pods.B.super||[]).indexOf('a1') >= 0; })()") === true);
+  ok("somebody who counts is left in the numbers where they are",
+     w.eval("(function(){ const wk = getWeek(currentWeekKey), di = " +
+            "Math.round((new Date(todayISO()) - new Date(currentWeekKey))/86400000), d = wk.days[di];" +
+            "d.pods.B.assign.push({ id:'r2', shift:'LD' }); normalizePods(d);" +
+            "return d.pods.B.assign.some(function(a){ return a.id === 'r2'; }); })()") === true);
+
   ok("at night they end up in C,D&E, never A&B or E",
      w.eval("(function(){ const wk = getWeek(currentWeekKey), di = " +
             "Math.round((new Date(todayISO()) - new Date(currentWeekKey))/86400000), d = wk.days[di];" +
             "d.night.AB = ['n1']; d.night.CDE = []; d.night.E = [];" +
-            "normalizeNeuro(d);" +
+            "normalizePods(d);" +
             "return d.night.AB.indexOf('n1') < 0 && d.night.CDE.indexOf('n1') >= 0; })()") === true);
 
   ok("auto-fill will not score them onto a general pod",
