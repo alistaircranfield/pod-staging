@@ -309,6 +309,29 @@ const SEED = `(function(){
             "d.pods.B.assign.push({ id:'r2', shift:'LD' }); normalizePods(d);" +
             "return d.pods.B.assign.some(function(a){ return a.id === 'r2'; }); })()") === true);
 
+  /* Ali, 4 Aug: "dont drop the shift". A supernumerary on an 8-8 and one on an 8-4 are not the
+     same person to plan around, and until now becoming supernumerary erased the difference. */
+  console.log("\n-- the shift survives the Super box --");
+  const di0 = "Math.round((new Date(todayISO()) - new Date(currentWeekKey))/86400000)";
+  ok("a long day stays a long day on the way into Super",
+     w.eval("(function(){ const wk = getWeek(currentWeekKey), d = wk.days[" + di0 + "];" +
+            "d.pods.B.assign.push({ id:'a1', shift:'LD' }); normalizePods(d);" +
+            "return superShiftOf(d, 'a1'); })()") === "LD");
+  ok("and comes back with them when they leave it",
+     w.eval("(function(){ const wk = getWeek(currentWeekKey), d = wk.days[" + di0 + "];" +
+            "return currentAssignShift(d, 'a1'); })()") === "LD");
+  ok("moving between two Super boxes keeps it",
+     w.eval("(function(){ const wk = getWeek(currentWeekKey), d = wk.days[" + di0 + "];" +
+            "removeAssign(d, 'a1'); d.pods.D.super.push('a1'); pruneSuperShift(d);" +
+            "return superShiftOf(d, 'a1') === 'LD' && (d.pods.B.super||[]).indexOf('a1') < 0; })()") === true);
+  ok("removeAssign clears the Super boxes, so nobody is ever in two",
+     w.eval("(function(){ const wk = getWeek(currentWeekKey), d = wk.days[" + di0 + "];" +
+            "d.pods.C.super.push('a1'); removeAssign(d, 'a1');" +
+            "return ['A','B','C','D','E'].every(function(p){ return (d.pods[p].super||[]).indexOf('a1') < 0; }); })()") === true);
+  ok("and once they are really gone the shift is forgotten, not left lying about",
+     w.eval("(function(){ const wk = getWeek(currentWeekKey), d = wk.days[" + di0 + "];" +
+            "pruneSuperShift(d); return superShiftOf(d, 'a1'); })()") === null);
+
   ok("at night they end up in C,D&E, never A&B or E",
      w.eval("(function(){ const wk = getWeek(currentWeekKey), di = " +
             "Math.round((new Date(todayISO()) - new Date(currentWeekKey))/86400000), d = wk.days[di];" +
