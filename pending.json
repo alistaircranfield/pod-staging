@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-05T20:13:58.010626+00:00",
- "build": "4e0ce77",
+ "generated": "2026-08-05T20:14:56.361295+00:00",
+ "build": "b31c0e2",
  "liveBuild": "c5d20a1",
- "count": 78,
+ "count": 80,
  "changes": [
+  {
+   "sha": "b31c0e2",
+   "who": "alistaircranfield",
+   "when": "2026-08-05T21:14:48+01:00",
+   "msg": "Assert this week is never offered, and that the picker draws four boxes"
+  },
+  {
+   "sha": "2f24eb8",
+   "who": "github-actions[bot]",
+   "when": "2026-08-05T20:13:58Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "4e0ce77",
    "who": "alistaircranfield",
