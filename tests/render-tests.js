@@ -210,6 +210,19 @@ const SEED = `(function(){
   ok("a combination matching nobody says so rather than looking empty",
      /Nobody matches/.test(w.eval("document.getElementById('staffBody').textContent")));
   w.eval("stGrades = null; stSkills = new Set(); renderStaff();");
+  /* The funnel popup lives on document.body, so renderStaff() never touches it. Clear used to
+     change the filter and leave every tick box looking ticked. */
+  ok("Clear actually unticks the boxes, not just the list underneath",
+     (function(){ w.eval("stGrades = null; renderStaff();");
+       w.eval("(function(){ const f = document.querySelector('#staffHead .fun'); if (f) f.click(); })()");
+       const before = w.eval("document.querySelectorAll('.funpop input[type=checkbox]:checked').length");
+       w.eval("(function(){ const bs = [...document.querySelectorAll('.funpop .fbtn')];" +
+              "const clear = bs.find(function(x){ return /Clear/.test(x.textContent); });" +
+              "if (clear) clear.click(); })()");
+       const after = w.eval("document.querySelectorAll('.funpop input[type=checkbox]:checked').length");
+       w.eval("document.querySelectorAll('.funpop').forEach(function(x){ x.remove(); }); stGrades = null; stSkills = new Set(); renderStaff();");
+       return before > 0 && after === 0; })());
+
   ok("clearing the filters brings everyone back",
      w.eval("document.querySelectorAll('#staffBody tr td.namecell').length") === staffRows);
   ok("and the filter bar disappears when nothing is filtered",
@@ -620,6 +633,66 @@ const SEED = `(function(){
   ok("and somebody already on the list is left blank",
      w.eval("(function(){ const s = staffById('r1'); s.start = null; delete s.startAuto;" +
             "fillStartDates(); return s.start; })()") === null);
+
+  /* ---- two records, one person ------------------------------------------------------------
+     The real case, 5 Aug: Optima matches on name, did not recognise "Aaron Cook", and minted an
+     ad-hoc locum called "Arron Cook". The rota was written against the locum; Neurology and
+     supernumerary sat on the record nothing used. */
+  console.log("\n-- suspected duplicates --");
+  w.eval("(function(){ const K = mondayOf(todayISO());" +
+         "data.staff.push({ id:'real1', name:'Aaron Cook', grade:'Neurology', supernum:true," +
+         "  active:true, adhoc:false, aliases:[] });" +
+         "data.staff.push({ id:'loc1', name:'Arron Cook', grade:'', active:true, adhoc:true, aliases:[] });" +
+         "const wk = getWeek(K); wk.days[0].pods.D.assign.push({ id:'loc1', shift:'SD' });" +
+         "wk.roster[addDays(K,0)] = wk.roster[addDays(K,0)] || {};" +
+         "wk.roster[addDays(K,0)].loc1 = { code:'SD', kind:'day', src:'a' }; })()");
+
+  ok("one letter apart, one side ad-hoc — flagged",
+     w.eval("suspectedDuplicates().filter(function(d){ return d.dup.id === 'loc1' && d.keep.id === 'real1'; }).length") === 1);
+  ok("and it says why in words, not a score",
+     /one letter apart/.test(w.eval("suspectedDuplicates().filter(function(d){ return d.dup.id==='loc1'; })[0].why")));
+  ok("two real staff who merely look alike are NOT flagged",
+     w.eval("(function(){ data.staff.push({ id:'x1', name:'Jack Roddy', grade:'IMT', active:true, adhoc:false, aliases:[] });" +
+            "data.staff.push({ id:'x2', name:'Jack Hodd', grade:'CON', active:true, adhoc:false, aliases:[] });" +
+            "const hit = suspectedDuplicates().some(function(d){ return /Roddy|Hodd/.test(d.dup.name + d.keep.name); });" +
+            "data.staff = data.staff.filter(function(s){ return s.id !== 'x1' && s.id !== 'x2'; }); return hit; })()") === false);
+  ok("two placeholders that normalise the same are NOT flagged either",
+     w.eval("(function(){ data.staff.push({ id:'z1', name:'ICU zLocum1', active:true, adhoc:true, aliases:[] });" +
+            "data.staff.push({ id:'z2', name:'ICU zLocum2', active:true, adhoc:true, aliases:[] });" +
+            "const hit = suspectedDuplicates().some(function(d){ return /zLocum/.test(d.dup.name); });" +
+            "data.staff = data.staff.filter(function(s){ return s.id !== 'z1' && s.id !== 'z2'; }); return hit; })()") === false);
+
+  console.log("\n-- merging them --");
+  const merged = w.eval("(function(){ const r = mergeStaff('real1','loc1'); return r ? r.moved : -1; })()");
+  ok("the merge moves the allocations across", merged > 0, String(merged));
+  ok("the duplicate record is gone", w.eval("!staffById('loc1')") === true);
+  ok("their name is kept as an alias, so the next import matches",
+     w.eval("(staffById('real1').aliases || []).join(',')").indexOf("Arron Cook") >= 0);
+  ok("the shift now belongs to the real person, not a ghost id",
+     w.eval("(function(){ const K = mondayOf(todayISO()), d = getWeek(K).days[0];" +
+            "const inD = (d.pods.D.assign||[]).some(function(a){ return a.id === 'real1'; });" +
+            "const inSuper = (d.pods.D.super||[]).indexOf('real1') >= 0;" +
+            "return inD || inSuper; })()") === true);
+  ok("and the roster entry moved too — nothing still points at the old id",
+     w.eval("(function(){ const K = mondayOf(todayISO()), r = getWeek(K).roster[addDays(K,0)];" +
+            "return !!r.real1 && !r.loc1; })()") === true);
+
+  /* Being neurology and supernumerary now MEANS something, because the flags are finally on the
+     record the rota uses. */
+  ok("once merged they are supernumerary, so they leave the counted numbers",
+     w.eval("(function(){ const K = mondayOf(todayISO()), d = getWeek(K).days[0];" +
+            "sweepSupernumeraries();" +
+            "const counted = PODS.some(function(p){ return (d.pods[p].assign||[]).some(function(a){ return a.id === 'real1'; }); });" +
+            "const inSuper = PODS.some(function(p){ return (d.pods[p].super||[]).indexOf('real1') >= 0; });" +
+            "return !counted && inSuper; })()") === true);
+  ok("and a neurology registrar lands on C or D, nowhere else",
+     w.eval("(function(){ const K = mondayOf(todayISO()), d = getWeek(K).days[0];" +
+            "return ['C','D'].some(function(p){ return (d.pods[p].super||[]).indexOf('real1') >= 0; }); })()") === true);
+  ok("the sweep reaches weeks nobody has opened",
+     w.eval("typeof sweepSupernumeraries === 'function' && sweepSupernumeraries() >= 0") === true);
+  ok("merging is offered as an action on the attention row, not just described",
+     w.eval("(function(){ const its = attentionItems().filter(function(x){ return /look like the same person/.test(x.title); });" +
+            "return its.length === 0 || typeof its[0].act === 'function'; })()") === true);
 
   ok("no errors across the whole run", errors.length === 0, errors.slice(0, 3).join(" | "));
 
