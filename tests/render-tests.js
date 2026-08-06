@@ -88,7 +88,13 @@ const SEED = `(function(){
   mk("c1", "A Consultant", "CON", {});
   mk("n1", "Nia Reggie", "Neurology", { nights: true, supernum: true });
   wk.roster = wk.roster || {};
-  wk.roster[T] = { r1:{code:"LD",kind:"day",src:"a"}, r2:{code:"SD",kind:"day",src:"a"} };
+  /* Everybody gets a duty in the current week. Before the historic rule existed, rostering two
+     people was enough; now anybody with nothing in the four pulled weeks is correctly classed as
+     gone, so a fixture that rosters two would empty the Current list and take the staff-table
+     tests with it. A realistic fixture is a rostered one. */
+  wk.roster[T] = { r1:{code:"LD",kind:"day",src:"a"}, r2:{code:"SD",kind:"day",src:"a"},
+                   r3:{code:"SD",kind:"day",src:"a"}, a1:{code:"LD",kind:"day",src:"a"},
+                   a2:{code:"SD",kind:"day",src:"a"}, n1:{code:"SD",kind:"day",src:"a"} };
   const di = Math.round((new Date(T) - new Date(K)) / 86400000);
   wk.days[di] = blankDay();
   wk.days[di].pods.A.assign.push({ id:"r1", shift:"LD" });
@@ -129,6 +135,15 @@ const SEED = `(function(){
        const wired = src.search(/^\$\("#btnWhoCan"\)\.onclick/m);
        const testblk = src.search(/^if \(TESTMODE\) \{/m);
        return wired > -1 && testblk > -1 && wired < testblk; })());
+  /* The phone holder is also a name in a pod, so a list built from both used to show them twice
+     (Ali, 5 Aug). Nobody wears two hats in a list of people. */
+  ok("somebody who holds the phone AND sits in a pod is listed once, not twice",
+     w.eval("(function(){ const wk = getWeek(currentWeekKey), di = " +
+            "Math.round((new Date(todayISO()) - new Date(currentWeekKey))/86400000), d = wk.days[di];" +
+            "d.phone = 'r1'; d.shadow = ['r1'];" +
+            "const all = dayAllAssigned(d);" +
+            "return all.filter(function(x){ return x === 'r1'; }).length; })()") === 1);
+
   ok("and clicking it actually opens something",
      (function(){ try { w.eval("document.getElementById('btnWhoCan').onclick()");
        return w.eval("document.getElementById('modalBg').style.display") === "flex"; }
@@ -408,6 +423,25 @@ const SEED = `(function(){
   ok("a search matching nobody says so rather than looking broken",
      w.eval("(function(){ logQuery = 'zzzz'; renderLog();" +
             "return /Nothing matches that/.test(document.getElementById('logList').textContent); })()") === true);
+  /* The box must survive its own keystrokes. The first version redrew the whole panel on every
+     input, destroying the very element being typed into — one character at a time, focus lost
+     each time (Ali, 5 Aug). Assert the SAME node is still there and still focused after a
+     repaint, not merely that a box exists. */
+  ok("typing does not destroy the search box",
+     w.eval("(function(){ logQuery = ''; renderLog();" +
+            "const box = document.querySelector('#logList input[type=text]');" +
+            "box.focus(); box.value = 'amb';" +
+            "box.dispatchEvent(new window.Event('input', { bubbles: true }));" +
+            "const same = document.querySelector('#logList input[type=text]') === box;" +
+            "return same && document.activeElement === box; })()") === true);
+  ok("and the search repaints without a full redraw",
+     w.eval("(function(){ logQuery = 'ambrose';" +
+            "const box = document.querySelector('#logList input[type=text]');" +
+            "const groups = box.parentElement.parentElement.lastChild;" +
+            "groups.innerHTML = ''; groups.append(logGroups(data.log, 400));" +
+            "const t = groups.textContent;" +
+            "return t.indexOf('Ambrose') >= 0 && t.indexOf('Sam Aziz') < 0; })()") === true);
+
   ok("clearing the box brings everything back",
      w.eval("(function(){ logQuery = ''; renderLog();" +
             "const t = document.getElementById('logList').textContent;" +
@@ -523,8 +557,15 @@ const SEED = `(function(){
      w.eval("isActiveOn(staffById('r2'), todayISO())") === false);
   ok("but a week they actually worked still edits properly",
      w.eval("isActiveOn(staffById('r2'), addDays(todayISO(), -14))") === true);
-  ok("somebody never rostered at all is NOT historic — they are just new",
-     w.eval("isHistoric('a1')") === false);
+  /* The guard here used to be "was ever rostered", which quietly exempted everybody who left
+     before the Optima roster started arriving — they had no roster entry anywhere, so they were
+     skipped and stayed Current for good. New has to be a fact about the person. */
+  ok("somebody added and not yet rostered is NOT historic — they are just new",
+     w.eval("(function(){ const s = staffById('a1'); s.startAuto = true;" +
+            "recomputeHistoric(); const r = isHistoric('a1'); delete s.startAuto; return r; })()") === false);
+  ok("but somebody with no roster history and no grace IS historic — they left before we had rosters",
+     w.eval("(function(){ const s = staffById('a1'); delete s.startAuto;" +
+            "recomputeHistoric(); return isHistoric('a1'); })()") === true);
 
   /* An end date used to be decoration: isActiveOn took a date and ignored it, so somebody with an
      end date six months ago was still being rostered, still filling pods, and still counted in
