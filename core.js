@@ -235,7 +235,7 @@ function logMatches(e){
 
 /* Two segmented controls, no sentence explaining them (hard rule 2). The left one names the
    thing the groups below are keyed on, so the headings are the explanation. */
-function logControls(redraw){
+function logControls(redraw, onSearch){
   const wrap = __el("div", { style: "display:flex;gap:.9rem;flex-wrap:wrap;align-items:center;margin:0 0 .9rem" });
   const pick = (label, opts, get, set) => {
     const sel = __el("select", { style: "font-size:.82rem",
@@ -253,11 +253,20 @@ function logControls(redraw){
     "aria-label": "Search the change log",
     style: "flex:1;min-width:11rem;max-width:20rem" });
   box.value = logQuery;
+  /* Typing must NOT rebuild this input. The first version called the page's full redraw on every
+     keystroke, which wiped the whole log panel — including the box you were typing into — and
+     then hunted the new one down to restore focus. It dropped characters and felt broken (Ali,
+     5 Aug: "can only type one letter at a time, unusably slow").
+
+     Now the search repaints only the GROUPS, so the input is never destroyed and never loses
+     focus or its cursor position. The other two controls still do a full redraw, because
+     changing the grouping adds and removes a third control. */
+  let typing = null;
   box.addEventListener("input", () => {
     logQuery = box.value;
-    redraw();
-    const again = document.querySelector("#logBox input[type=text]");
-    if (again) { again.focus(); try { again.setSelectionRange(again.value.length, again.value.length); } catch(e){} }
+    clearTimeout(typing);
+    // A short pause, so holding a key down repaints once rather than once per character.
+    typing = setTimeout(() => { (onSearch || redraw)(); }, 120);
   });
   wrap.append(box);
   wrap.append(
@@ -301,6 +310,17 @@ function inferFroms(list){
     }
   }
   return out;
+}
+/* Controls + groups as one unit, with the groups in their own container so the search can
+   repaint them without touching the controls. Both boards call this instead of assembling the
+   two halves themselves, which is what let them drift apart in the first place. */
+function logPanel(list, cap, fullRedraw){
+  const wrap = __el("div");
+  const groups = __el("div");
+  const paint = () => { groups.innerHTML = ""; groups.append(logGroups(list, cap)); };
+  wrap.append(logControls(fullRedraw, paint), groups);
+  paint();
+  return wrap;
 }
 function logGroups(list, cap){
   const out = __el("div");

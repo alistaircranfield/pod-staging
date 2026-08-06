@@ -20,7 +20,6 @@ input,select,button{accent-color:var(--ink)}
 input[type=checkbox]{width:15px;height:15px;accent-color:var(--ink)}
 #layout{display:flex;min-height:100vh}
 aside{width:78px;background:rgba(255,255,255,.72);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-right:0.5px solid var(--line);display:flex;flex-direction:column;align-items:stretch;padding:.9rem 0;position:sticky;top:0;height:100vh;flex-shrink:0}
-aside .logo{margin:0 auto 1.1rem;width:42px;height:42px;border-radius:13px;background:var(--accent-bg);color:var(--accent);font-weight:800;font-size:.68rem;display:flex;align-items:center;justify-content:center;letter-spacing:.03em}
 aside button{background:none;border:0;color:var(--muted);font-family:inherit;cursor:pointer;padding:.45rem 0;display:flex;flex-direction:column;align-items:center;gap:.28rem;font-size:.58rem;font-weight:600;letter-spacing:.02em}
 aside button .ic{width:40px;height:40px;border-radius:13px;display:flex;align-items:center;justify-content:center;transition:background .12s}
 aside button .ic svg{width:19px;height:19px}
@@ -533,8 +532,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
   .navclose{display:inline-flex;align-items:center;justify-content:center;position:absolute;top:.7rem;right:.6rem;width:34px;height:34px;background:var(--hair)}
   aside{position:fixed;top:0;left:0;bottom:0;right:auto;width:238px;height:auto;flex-direction:column;justify-content:flex-start;align-items:stretch;padding:1rem .7rem calc(1rem + env(safe-area-inset-bottom));border-top:0;border-right:1px solid var(--line);transform:translateX(-104%);transition:transform .22s ease;z-index:120;background:var(--card);gap:.1rem;overflow-y:auto}
   body.navopen aside{transform:none;box-shadow:0 10px 50px rgba(0,0,0,.3)}
-  aside .logo{margin:.2rem 0 1rem .4rem}
-  aside .aside-spacer{display:none}
+    aside .aside-spacer{display:none}
   aside button{padding:.7rem .8rem;font-size:.98rem;gap:.7rem;flex-direction:row;justify-content:flex-start;border-radius:12px;width:100%}
   aside button .ic{width:32px;height:32px;border-radius:9px}
   aside button .ic svg{width:19px;height:19px}
@@ -635,7 +633,6 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
 <div id="layout" style="display:none">
 <aside>
   <button id="navclose" class="navclose" title="Close menu" aria-label="Close menu"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-  <div class="logo">CCU</div>
   <button data-tab="rota" class="active"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg></span>Pods</button>
   <button data-tab="help" class="smallb"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.2A2.5 2.5 0 0112 7.5c1.4 0 2.5 1 2.5 2.2 0 1.5-1.6 1.9-2.5 3v.6"/><circle cx="12" cy="16.6" r=".4" fill="currentColor"/></svg></span>Help</button>
   <div class="aside-spacer"></div>
@@ -1177,8 +1174,19 @@ function recomputeHistoric(){
   const out = new Set();
   for (const st of (data.staff || [])) {
     if (!st || st.keepCurrent) continue;
-    if (!ever.has(st.id)) continue;               // never rostered — not "gone", just new
-    if (!ahead.has(st.id)) out.add(st.id);
+    if (ahead.has(st.id)) continue;               // on the coming rota — plainly still here
+    /* "Never rostered" is NOT evidence of being new, and treating it that way was a real bug
+       (Ali, 5 Aug: "there are people in active staff i know have left, like ali legett... kieran
+       cave as another example"). The Optima roster only started arriving in late July and weeks
+       are pruned at 400 days, so anyone who left BEFORE that has no roster entry anywhere in the
+       file. They failed the "was ever rostered" guard and were skipped — the guard written to
+       protect new starters was shielding the very oldest leavers.
+
+       New is a fact about the PERSON, not about the absence of history: startAuto is set when
+       somebody is added and cleared the moment their first shift lands. So the grace applies to
+       people we are still waiting on, and to nobody else. */
+    if (st.startAuto && !ever.has(st.id)) continue;
+    out.add(st.id);
   }
   HISTORIC = out;
 }
@@ -4446,7 +4454,7 @@ function renderLog(){
   box.innerHTML = "";
   if (!data || !data.log.length) { box.append(el("div", { class: "empty" }, "No changes logged yet.")); return; }
 
-  box.append(logControls(renderLog), logGroups(data.log, 400));
+  box.append(logPanel(data.log, 400, renderLog));
 }
 
 /* A pod named in a log line is drawn in the same colour it has on the grid, so "Pod C → Pod D"
