@@ -504,6 +504,82 @@ const SEED = `(function(){
        w.eval("try{ closeModal(); }catch(e){}");
        return n === 4 && fut === 1 && /not written yet/.test(txt); })() === true);
 
+  /* ---- historic staff ---------------------------------------------------------------------
+     Ali's rule: no pod duty anywhere in the four weeks pulled from Allocate means gone. Absence
+     from a rota already written is evidence in a way absence in the past is not. */
+  console.log("\n-- historic staff --");
+  w.eval("(function(){ const K = mondayOf(todayISO());" +
+         "data.weeks = {};" +
+         "for (let n=0;n<4;n++){ const key = addDays(K, n*7); const wk = getWeek(key); wk.roster = {};" +
+         "  for (let d=0; d<7; d++) wk.roster[addDays(key,d)] = { r1:{code:'LD',kind:'day',src:'a'} }; }" +
+         // somebody who worked a fortnight ago and has nothing ahead
+         "const old = addDays(K, -14); const ow = getWeek(old); ow.roster = {};" +
+         "for (let d=0; d<7; d++) ow.roster[addDays(old,d)] = { r2:{code:'LD',kind:'day',src:'a'} };" +
+         "recomputeHistoric(); })()");
+
+  ok("somebody still on the coming rota is current", w.eval("isHistoric('r1')") === false);
+  ok("somebody with nothing in the four weeks is historic", w.eval("isHistoric('r2')") === true);
+  ok("and they drop out of the pick-lists from today",
+     w.eval("isActiveOn(staffById('r2'), todayISO())") === false);
+  ok("but a week they actually worked still edits properly",
+     w.eval("isActiveOn(staffById('r2'), addDays(todayISO(), -14))") === true);
+  ok("somebody never rostered at all is NOT historic — they are just new",
+     w.eval("isHistoric('a1')") === false);
+
+  /* An end date used to be decoration: isActiveOn took a date and ignored it, so somebody with an
+     end date six months ago was still being rostered, still filling pods, and still counted in
+     the phone fair-share denominators. The 12-month simulation had exactly such a leaver and
+     never noticed, which is why its neuro band was calibrated 3 points off. */
+  ok("an end date actually ends somebody",
+     w.eval("(function(){ const s = staffById('r1'); s.end = addDays(todayISO(), -30);" +
+            "const after = isActiveOn(s, todayISO());" +
+            "const before = isActiveOn(s, addDays(todayISO(), -60));" +
+            "delete s.end; return after === false && before === true; })()") === true);
+
+  ok("a fortnight's leave does not make somebody historic",
+     w.eval("(function(){ const K = mondayOf(todayISO());" +
+            // nothing for two weeks, then back in weeks three and four
+            "for (let n=2;n<4;n++){ const key = addDays(K, n*7); const wk = getWeek(key);" +
+            "  for (let d=0; d<7; d++) wk.roster[addDays(key,d)].r2 = {code:'LD',kind:'day',src:'a'}; }" +
+            "recomputeHistoric(); return isHistoric('r2'); })()") === false);
+
+  ok("a shift appearing brings them back on their own",
+     w.eval("(function(){ const K = mondayOf(todayISO());" +
+            "for (let n=2;n<4;n++){ const key = addDays(K, n*7); const wk = getWeek(key);" +
+            "  for (let d=0; d<7; d++) delete wk.roster[addDays(key,d)].r2; }" +
+            "recomputeHistoric(); const gone = isHistoric('r2');" +
+            "const wk = getWeek(addDays(K, 21)); wk.roster[addDays(K, 21)].r2 = {code:'LD',kind:'day',src:'a'};" +
+            "recomputeHistoric(); return gone === true && isHistoric('r2') === false; })()") === true);
+
+  ok("Bring back holds somebody on the list with no shift at all",
+     w.eval("(function(){ const K = mondayOf(todayISO());" +
+            "const wk = getWeek(addDays(K, 21)); delete wk.roster[addDays(K, 21)].r2;" +
+            "recomputeHistoric(); const gone = isHistoric('r2');" +
+            "staffById('r2').keepCurrent = true; recomputeHistoric();" +
+            "const back = isHistoric('r2'); delete staffById('r2').keepCurrent;" +
+            "return gone === true && back === false; })()") === true);
+
+  ok("the staff page grows a Historic tab when there is somebody in it",
+     (function(){ w.eval("recomputeHistoric(); staffTab = 'current'; switchTab('staff'); renderStaff();");
+       const t = w.eval("document.getElementById('staffTabs').textContent");
+       return /Current/.test(t) && /Historic/.test(t); })());
+  ok("and the tab lists them instead of the current staff",
+     (function(){ w.eval("staffTab = 'historic'; renderStaff();");
+       const t = w.eval("document.getElementById('staffBody').textContent");
+       const r = /Sam Aziz/.test(t) && !/Alice Ring/.test(t);
+       w.eval("staffTab = 'current'; renderStaff();"); return r; })());
+
+  /* Start dates fill themselves in for new people only. */
+  ok("a new person's start date comes from their first shift",
+     w.eval("(function(){ const K = mondayOf(todayISO());" +
+            "data.staff.push({ id:'new1', name:'New Person', grade:'FY1', active:true, adhoc:false," +
+            "aliases:[], start:null, startAuto:true });" +
+            "const wk = getWeek(K); wk.roster[addDays(K,2)].new1 = {code:'LD',kind:'day',src:'a'};" +
+            "fillStartDates(); return staffById('new1').start === addDays(K,2); })()") === true);
+  ok("and somebody already on the list is left blank",
+     w.eval("(function(){ const s = staffById('r1'); s.start = null; delete s.startAuto;" +
+            "fillStartDates(); return s.start; })()") === null);
+
   ok("no errors across the whole run", errors.length === 0, errors.slice(0, 3).join(" | "));
 
   console.log("\n=== " + pass + " passed, " + fail + " failed ===");
