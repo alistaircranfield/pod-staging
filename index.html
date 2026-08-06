@@ -326,6 +326,18 @@ td.col-A{background:var(--podA)} td.col-B{background:var(--podB)} td.col-C{backg
 .sttabn{background:var(--hair);color:var(--muted);border-radius:999px;font-size:.68rem;padding:.02rem .38rem}
 .sttab.on .sttabn{background:var(--accent-bg);color:var(--accent)}
 .attnact{margin-left:auto;align-self:center;flex-shrink:0;font-size:.76rem;padding:.25rem .7rem}
+.mgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.mhead{font-size:.68rem;color:var(--muted);text-align:center;padding-bottom:.15rem}
+.mcell{min-height:2.1rem}
+.mday{width:100%;height:100%;min-height:2.1rem;border:1px solid transparent;border-radius:7px;background:transparent;
+  font:inherit;font-size:.8rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:.15rem 0}
+.mday:hover{border-color:var(--hair);background:var(--card)}
+.mday.mon{background:var(--accent-bg);color:var(--accent);border-color:var(--accent-bg)}
+.mday.mnone{color:var(--muted);opacity:.45}
+.mcell.moth .mday{opacity:.4}
+.mcell.mtoday .mday{outline:1.5px solid var(--accent);outline-offset:-1px}
+.mwhat{font-size:.6rem;line-height:1;opacity:.9}
+.mnav{display:flex;align-items:center;gap:.4rem;margin:.2rem 0 .5rem}
 .wkpick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.35rem;margin:.2rem 0 .5rem}
 .wkbtn{display:flex;flex-direction:column;align-items:center;gap:.15rem;padding:.5rem .2rem;border:1px solid var(--hair);
   border-radius:8px;background:var(--card);cursor:pointer;text-align:center;line-height:1.25;font:inherit}
@@ -647,6 +659,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
   <button id="navclose" class="navclose" title="Close menu" aria-label="Close menu"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   <div class="logo">CCU</div>
   <button data-tab="rota" class="active"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg></span>Pods</button>
+  <button data-tab="mine"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/><path d="M7.5 14h2M14.5 14h2M7.5 17.5h2"/></svg></span>My shifts</button>
   <button data-tab="help" class="smallb"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.2A2.5 2.5 0 0112 7.5c1.4 0 2.5 1 2.5 2.2 0 1.5-1.6 1.9-2.5 3v.6"/><circle cx="12" cy="16.6" r=".4" fill="currentColor"/></svg></span>Help</button>
   <div class="aside-spacer"></div>
   <button class="smallb" id="btnTeam"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3.6v5c0 4.3-3 8.1-7.5 9.4-4.5-1.3-7.5-5.1-7.5-9.4v-5z"/></svg><span class="navbadge" id="teamBadge"></span></span>Rota team</button>
@@ -687,7 +700,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
   <section id="tab-rota">
     <div class="weekbar">
       <button class="navarrow" id="btnPrevWeek" title="Previous week"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
-      <b id="weekTitle"></b>
+      <b id="weekTitle" style="cursor:pointer" title="Go to a date"></b>
       <button class="navarrow" id="btnNextWeek" title="Next week"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
       <button class="btn sec" id="btnToday" style="font-size:.78rem;padding:.35rem .7rem">This week</button>
       <span class="spacer"></span>
@@ -879,6 +892,13 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
     </div>
   </section>
 
+  <section id="tab-mine" style="display:none">
+    <div class="card">
+      <h2 style="margin:0 0 .2rem">My shifts</h2>
+      <p style="font-size:.82rem;color:var(--muted);margin:0 0 .8rem;line-height:1.5">Pick yourself once and this browser remembers. Tap any day to open that week.</p>
+      <div id="mineBox"></div>
+    </div>
+  </section>
   <section id="tab-help" style="display:none">
     <div class="card hlp">
       <p class="lead">This is the pod allocation for the unit. It updates itself from Allocate roughly every two hours through the day, so short-notice changes appear on their own. Anyone can look; changing it needs the team password.</p>
@@ -2855,11 +2875,11 @@ function renderWeek(){
   if (isMobile()) {
     $("#weekTitle").innerHTML = "";
     $("#weekTitle").append(fmtDate(currentWeekKey) + " – " + fmtDate(addDays(currentWeekKey, 6)),
-      el("small", {}, isNow ? "this week" : "tap for this week"));
-    $("#weekTitle").onclick = () => { if (!isNow) { currentWeekKey = mondayOf(todayISO()); renderWeek(); } };
+      el("small", {}, isNow ? "this week · tap to pick a date" : "tap to pick a date"));
+    $("#weekTitle").onclick = jumpToDate;
   } else {
     $("#weekTitle").textContent = weekLabel(currentWeekKey) + (isNow ? " (this week)" : "");
-    $("#weekTitle").onclick = null;
+    $("#weekTitle").onclick = jumpToDate;
   }
   const grid = $("#weekGrid");
   grid.innerHTML = "";
@@ -6614,6 +6634,140 @@ function sweepSupernumeraries(){
     { act: "fix", n: days, label: days + " day" + (days === 1 ? "" : "s") });
   return days;
 }
+/* ── Finding a date, and finding yourself ─────────────────────────────────────────────────────
+   Trial feedback, 6 Aug: "Could we possibly get a week overview or a Calender view so we can
+   check allocation on a specific date more easily".
+
+   On a phone the grid is dropped and the days stack, so there is no week at a glance and no way
+   to reach a date except stepping through with the arrows. Two different wants sit inside that
+   one sentence, so both are built: a way to JUMP to a date, and a month of YOUR OWN shifts.
+
+   Neither invents data. Days outside the four weeks that exist are drawn but marked, because
+   "nothing is written yet" is a different answer from "you are not on". */
+function monthGrid(anchorISO, opts){
+  const o = opts || {};
+  const first = new Date(anchorISO + "T12:00:00");
+  first.setDate(1);
+  const iso = d => d.toISOString().slice(0, 10);
+  const lead = (first.getDay() + 6) % 7;            // Monday-first
+  const start = new Date(first); start.setDate(1 - lead);
+  const wrap = el("div", { class: "mgrid" });
+  for (const d of ["M", "T", "W", "T", "F", "S", "S"]) wrap.append(el("div", { class: "mhead" }, d));
+  for (let i = 0; i < 42; i++) {
+    const day = new Date(start); day.setDate(start.getDate() + i);
+    const dISO = iso(day);
+    const other = day.getMonth() !== first.getMonth();
+    const cell = o.cell ? o.cell(dISO, other) : el("div", {}, String(day.getDate()));
+    cell.classList.add("mcell");
+    if (other) cell.classList.add("moth");
+    if (dISO === todayISO()) cell.classList.add("mtoday");
+    wrap.append(cell);
+  }
+  return wrap;
+}
+function weekExists(dateISO){ return !!(data && data.weeks && data.weeks[mondayOf(dateISO)]); }
+
+function jumpToDate(){
+  let anchor = currentWeekKey || todayISO();
+  const m = $("#modal"); m.innerHTML = "";
+  m.append(el("h3", {}, "Go to a date"));
+  const head = el("div", { class: "mnav" });
+  const body = el("div");
+  const paint = () => {
+    head.innerHTML = ""; body.innerHTML = "";
+    const lbl = new Date(anchor + "T12:00:00").toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+    head.append(
+      el("button", { class: "btn sec", onclick: () => { anchor = addDays(anchor, -28); paint(); } }, "‹"),
+      el("b", { style: "flex:1;text-align:center;font-size:.9rem" }, lbl),
+      el("button", { class: "btn sec", onclick: () => { anchor = addDays(anchor, 28); paint(); } }, "›"));
+    body.append(monthGrid(anchor, { cell: (dISO, other) => {
+      const here = weekExists(dISO);
+      const b = el("button", { class: "mday" + (here ? "" : " mnone") + (mondayOf(dISO) === currentWeekKey ? " mon" : ""),
+        title: here ? "" : "Nothing written for this week yet",
+        onclick: () => { currentWeekKey = mondayOf(dISO); closeModal(); switchTab("rota"); renderWeek(); } },
+        String(new Date(dISO + "T12:00:00").getDate()));
+      return b;
+    } }));
+  };
+  paint();
+  m.append(head, body);
+  m.append(el("div", { style: "font-size:.74rem;color:var(--muted);margin-top:.6rem" },
+    "Faded days are in weeks that have not been written yet."));
+  m.append(el("div", { class: "modalbtns" },
+    el("button", { class: "btn sec", onclick: closeModal }, "Close"),
+    el("button", { class: "btn", onclick: () => { currentWeekKey = mondayOf(todayISO()); closeModal(); switchTab("rota"); renderWeek(); } }, "This week")));
+  $("#modalBg").style.display = "flex";
+}
+
+/* Where one person is, a month at a time. Reads only what is already allocated — it never runs the
+   allocator, so it can be opened by anybody without changing anything. */
+function whereIsPerson(id, dateISO){
+  const wk = data.weeks[mondayOf(dateISO)];
+  if (!wk) return null;
+  const di = Math.round((new Date(dateISO) - new Date(mondayOf(dateISO))) / 86400000);
+  const day = wk.days && wk.days[di];
+  if (!day) return null;
+  for (const p of PODS) {
+    if ((day.pods[p].assign || []).some(a => a.id === id))
+      return { kind: "day", pod: p, shift: currentAssignShift(day, id) || "" };
+    if ((day.pods[p].super || []).includes(id))
+      return { kind: "day", pod: p, shift: superShiftOf(day, id) || "", super: true };
+  }
+  if (day.night) {
+    for (const k of ["AB", "CDE", "E"]) if ((day.night[k] || []).includes(id)) return { kind: "night" };
+    if ((day.night.super || []).includes(id)) return { kind: "night", super: true };
+  }
+  if (inFairfield(day, dateISO, id)) return { kind: "fgh" };
+  return null;
+}
+/* Which month is being looked at lives here rather than in the page, so stepping back a month and
+   tapping into a week does not lose your place when you come back. */
+let mineAnchor = null;
+function renderMine(){
+  const box = $("#mineBox"); if (!box) return;
+  box.innerHTML = "";
+  if (!data) return;
+  let who = store.get("myId") || "";
+  if (!mineAnchor) mineAnchor = currentWeekKey || todayISO();
+  const pick = el("select", { style: "max-width:20rem;margin-bottom:.6rem" });
+  pick.append(el("option", { value: "" }, "— choose a person —"));
+  for (const st of activeStaff(todayISO()).filter(x => x.grade !== "CON"))
+    pick.append(el("option", { value: st.id, ...(st.id === who ? { selected: 1 } : {}) }, st.name));
+  const head = el("div", { class: "mnav" });
+  const body = el("div");
+  const paint = () => {
+    head.innerHTML = ""; body.innerHTML = "";
+    const lbl = new Date(mineAnchor + "T12:00:00").toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+    head.append(
+      el("button", { class: "btn sec", onclick: () => { mineAnchor = addDays(mineAnchor, -28); paint(); } }, "‹"),
+      el("b", { style: "flex:1;text-align:center;font-size:.9rem" }, lbl),
+      el("button", { class: "btn sec", onclick: () => { mineAnchor = addDays(mineAnchor, 28); paint(); } }, "›"));
+    let on = 0;
+    const grid = monthGrid(mineAnchor, { cell: (dISO) => {
+      const here = weekExists(dISO);
+      const w = who ? whereIsPerson(who, dISO) : null;
+      if (w) on++;
+      const c = el("button", { class: "mday" + (here ? "" : " mnone") + (w ? " mon" : ""),
+        onclick: () => { currentWeekKey = mondayOf(dISO); switchTab("rota"); renderWeek(); } },
+        el("span", {}, String(new Date(dISO + "T12:00:00").getDate())));
+      if (w) c.append(el("span", { class: "mwhat" },
+        w.kind === "night" ? "night" : w.kind === "fgh" ? "FGH"
+          : (w.pod || "") + (w.shift ? " " + w.shift : "") + (w.super ? " ·" : "")));
+      return c;
+    } });
+    body.append(grid);
+    body.append(el("div", { style: "font-size:.74rem;color:var(--muted);margin-top:.5rem" },
+      who ? (on + " day" + (on === 1 ? "" : "s") + " this month · a dot means supernumerary · faded weeks are not written yet")
+          : "Choose a person to see their month."));
+  };
+  /* Remembered in THIS browser only. Who you are is a personal preference, not rota data — in the
+     shared file it would be one field fought over by everyone, and a save every time somebody
+     picked themselves. The cost is a shared ward machine remembering whoever used it last, which
+     is one dropdown to put right. */
+  pick.onchange = () => { who = pick.value; store.set("myId", who); paint(); };
+  paint();
+  box.append(pick, head, body);
+}
 function srRemoveFromDay(day, sid){
   const hits = [];
   for (const [pname, p] of Object.entries(day.pods || {})){
@@ -6825,19 +6979,20 @@ function resolveSyncClash(i, how){
   toast(how === "take" ? "Changed to Optima's version: " + c.allocate : "Kept " + (c.app || "blank") + " — Optima won't override it");
 }
 function renderAll(){ fillStartDates(); recomputeHistoric(); renderWeek(); renderAutoNotice(); renderStaffGate(); renderFairGate(); renderImportGate(); renderLogGate(); renderOverridesGate(); renderTeamGate(); renderSyncReview(); updateTeamBadge(); }
-const PAGE_TITLES = { rota: "Pod Allocator", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", settings: "Settings", help: "How it works", team: "Needs attention", feedback: "Trial feedback" };
+const PAGE_TITLES = { rota: "Pod Allocator", mine: "My shifts", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", settings: "Settings", help: "How it works", team: "Needs attention", feedback: "Trial feedback" };
 const TEAM_TABS = ["team", "import", "staff", "fair", "log", "settings", "feedback"];
 function switchTab(tab){
   // Locked out? Ask once, here, then carry on to where they were going.
   if (TEAM_TABS.includes(tab) && data && !staffUnlocked()) { showLockScreen(() => switchTab(tab)); return; }
   document.body.classList.remove("teamlocked");
   document.querySelectorAll("aside button[data-tab]").forEach(x => x.classList.toggle("active", x.dataset.tab === tab));
-  for (const t of ["rota","import","staff","fair","log","settings","help","team","feedback","lock"]) $("#tab-" + t).style.display = (tab === t) ? "" : "none";
+  for (const t of ["rota","mine","import","staff","fair","log","settings","help","team","feedback","lock"]) $("#tab-" + t).style.display = (tab === t) ? "" : "none";
   $("#pageTitle").textContent = PAGE_TITLES[tab];
   // The rota-team pages stay folded away until you go in, so residents only ever see two items.
   document.body.classList.toggle("teamopen", TEAM_TABS.includes(tab));
   const bt = $("#btnTeam"); if (bt) bt.classList.toggle("active", TEAM_TABS.includes(tab));
   document.querySelectorAll("#teamPanel .tpi").forEach(x => x.classList.toggle("active", x.dataset.tab === tab));
+  if (tab === "mine") renderMine();
   if (tab === "team") renderTeamGate();
   if (tab === "staff") renderStaffGate();
   if (tab === "fair") renderFairGate();
