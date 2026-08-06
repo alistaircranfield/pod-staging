@@ -118,7 +118,7 @@ const SEED = `(function(){
   ok("the app booted", w.eval("typeof renderAll === 'function'"));
   try { w.eval(SEED); } catch (e) { ok("seed data applied", false, e.message); }
 
-  const TABS = ["rota", "team", "staff", "fair", "log", "settings", "import", "feedback", "help"];
+  const TABS = ["rota", "mine", "team", "staff", "fair", "log", "settings", "import", "feedback", "help"];
   for (const t of TABS) {
     const before = errors.length;
     let threw = "";
@@ -693,6 +693,32 @@ const SEED = `(function(){
   ok("merging is offered as an action on the attention row, not just described",
      w.eval("(function(){ const its = attentionItems().filter(function(x){ return /look like the same person/.test(x.title); });" +
             "return its.length === 0 || typeof its[0].act === 'function'; })()") === true);
+
+  /* ---- finding a date, and finding yourself ------------------------------------------------
+     Trial feedback, 6 Aug: "a week overview or a Calender view so we can check allocation on a
+     specific date more easily". The date jump reuses the week title, so it adds no furniture;
+     My shifts is its own rail page rather than a dialog, because people sit in it. */
+  console.log("\n-- my shifts, and the date jump --");
+  ok("the week title opens a date picker rather than only jumping to today",
+     w.eval("typeof jumpToDate === 'function' && typeof document.getElementById('weekTitle').onclick === 'function'") === true);
+  ok("My shifts is a rail item, not another toolbar icon",
+     w.eval("!!document.querySelector('aside button[data-tab=mine]') && !document.getElementById('btnMyMonth')") === true);
+  ok("and it draws a month grid for the person picked",
+     w.eval("(function(){ store.set('myId','r1'); switchTab('mine'); renderMine();" +
+            "const box = document.getElementById('mineBox');" +
+            "return box.querySelectorAll('.mday').length >= 28 && !!box.querySelector('select'); })()") === true);
+  ok("the choice is remembered in this browser, not written to the rota",
+     w.eval("(function(){ const before = JSON.stringify(data.staff);" +
+            "store.set('myId','r2'); renderMine();" +
+            "return store.get('myId') === 'r2' && JSON.stringify(data.staff) === before" +
+            "  && JSON.stringify(data).indexOf('\"myId\"') < 0; })()") === true);
+  ok("a day the person is on says where they are",
+     w.eval("(function(){ const T = todayISO(); const wk = getWeek(mondayOf(T));" +
+            "const di = Math.round((new Date(T) - new Date(mondayOf(T)))/86400000);" +
+            "const d = wk.days[di]; d.pods.A.assign = [{ id:'r1', shift:'LD' }];" +
+            "const w2 = whereIsPerson('r1', T); return w2 && w2.pod === 'A' && w2.shift === 'LD'; })()") === true);
+  ok("a week that has not been written is marked, not hidden",
+     w.eval("(function(){ return weekExists(addDays(todayISO(), 400)) === false; })()") === true);
 
   ok("no errors across the whole run", errors.length === 0, errors.slice(0, 3).join(" | "));
 
