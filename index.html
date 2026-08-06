@@ -3723,10 +3723,19 @@ function dayCountables(day){
 function nightCountables(day){
   return [...new Set([day.night.phone, ...day.night.AB, ...day.night.CDE, ...(day.night.E || [])].filter(id => id && countsInNumbers(id)))];
 }
+/* DE-DUPLICATED. Somebody appears here under every hat they wear — the phone holder is both
+   `day.phone` and a name in a pod, and a phone shadow is both `day.shadow` and a name in a pod —
+   so this returned them twice and "Who can…" listed them twice (Ali, 5 Aug: "why is thomas lewis
+   appearing twice?"). He is on Pod A and holds the phone.
+
+   The counting caller had already wrapped this in `new Set(...)` at its own call site, which is
+   the tell that somebody met this before and patched where it hurt rather than where it was.
+   assignedIds() next door has always returned a Set; this is the same idea and should always
+   have been one too. */
 function dayAllAssigned(day){
   const ids = [day.phone, ...day.shadow];
-  for (const p of PODS) ids.push(...day.pods[p].assign.map(a => a.id), ...day.pods[p].super);
-  return ids.filter(Boolean);
+  for (const p of PODS) ids.push(...day.pods[p].assign.map(a => a.id), ...(day.pods[p].super || []));
+  return [...new Set(ids.filter(Boolean))];
 }
 function checkDay(day, dateISO, di, wk){
   normalizeNight(day);
