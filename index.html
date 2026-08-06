@@ -313,6 +313,11 @@ td.col-A{background:var(--podA)} td.col-B{background:var(--podB)} td.col-C{backg
    (Ali, 6 Aug). This one is the site's, and it is only on the HEADER, which is the only place
    with something worth saying: what the column means. The cells say it already by being on
    or off, and a person's own row says who they are. */
+.sttab{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;padding:.35rem .7rem;
+  font-size:.82rem;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:.35rem}
+.sttab.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.sttabn{background:var(--hair);color:var(--muted);border-radius:999px;font-size:.68rem;padding:.02rem .38rem}
+.sttab.on .sttabn{background:var(--accent-bg);color:var(--accent)}
 .wkpick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.35rem;margin:.2rem 0 .5rem}
 .wkbtn{display:flex;flex-direction:column;align-items:center;gap:.15rem;padding:.5rem .2rem;border:1px solid var(--hair);
   border-radius:8px;background:var(--card);cursor:pointer;text-align:center;line-height:1.25;font:inherit}
@@ -751,7 +756,9 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
       </div>
       <!-- Only ever populated when a filter is on: a filtered table looks identical to a full
            one, and that is how somebody concludes a person has left the unit. -->
+      <div id="staffTabs" style="display:flex;gap:.25rem;border-bottom:1px solid var(--hair);margin:.4rem 0 .7rem"></div>
       <div id="staffFilters"></div>
+      <div id="histNote"></div>
       <div style="overflow-x:auto;max-height:70vh">
       <table id="staffTable">
         <thead id="staffHead"></thead>
@@ -1098,8 +1105,103 @@ function staffById(id){ return data.staff.find(s => s.id === id); }
 // Start/end dates were removed from the Staff page: they were guesswork against a rota written in
 // 3-month blocks, and a guessed end date turned every later day red. Who is on the unit now comes
 // from the Allocate roster instead. Any dates still sitting in old files are simply ignored.
+/* ── Historic staff ───────────────────────────────────────────────────────────────────────────
+   Nothing ever took anybody off this list. isActiveOn took a date and ignored it, `s.end` was
+   decoration read only by the profile panel, and no line anywhere set active = false. So a
+   resident whose last shift was in June stayed in every dropdown, every count and every
+   fair-share denominator — being counted as available, and as owed a turn on the phone.
+
+   Ali's rule, 4 Aug, and it is a better one than judging by the past: the puller fetches four
+   weeks AHEAD, so somebody with no pod duty anywhere in that window is not coming. Absence in
+   the past is ambiguous; absence from a rota that has already been written is evidence.
+
+   Leave does not trip it. A/L and sickness are dropped by transform.py before they reach the
+   board, so leave looks like absence — but the window is four weeks WIDE and always includes the
+   weeks after the leave, so a fortnight off still shows shifts in weeks three and four. It takes
+   four-plus consecutive empty weeks. And because the window runs ahead, somebody returning
+   resurfaces up to four weeks BEFORE their first shift back, not after.
+
+   Two guards worth knowing:
+     · somebody who has never had a pod duty at all is NOT historic — otherwise a person added by
+       hand vanishes before they are ever rostered;
+     · it is computed, never stored, so it can never go stale or need tidying. keepCurrent is the
+       one manual override, for pulling somebody back before a shift appears. */
+let HISTORIC = null;                 // Set of ids, or null meaning "not worked out yet"
+function pulledWeekKeys(){
+  const first = mondayOf(todayISO());
+  return [0, 1, 2, 3].map(n => addDays(first, n * 7));
+}
+/* A new person's start date is the first day they were ever down for something — asking somebody
+   to type a date the rota already knows is the sort of admin that never gets done, and then the
+   profile panel is blank forever. Only for people ADDED from now on: everybody already on the
+   list keeps a blank start, because their real first day predates Optima and inventing one from
+   the oldest week we happen to still hold would be a guess dressed as a fact (Ali, 4 Aug:
+   "leave current taff blank"). */
+function fillStartDates(){
+  if (!data || !data.staff) return 0;
+  let n = 0;
+  for (const st of data.staff) {
+    if (st.start || !st.startAuto) continue;
+    const first = firstRosteredDay(st.id);
+    if (first) { st.start = first; delete st.startAuto; n++; }
+  }
+  return n;
+}
+function firstRosteredDay(id){
+  let first = null;
+  for (const wk of Object.values((data && data.weeks) || {})) {
+    for (const [date, day] of Object.entries((wk && wk.roster) || {})) {
+      const v = day && day[id];
+      if (!v || (v.kind !== "day" && v.kind !== "night")) continue;
+      if (!first || date < first) first = date;
+    }
+  }
+  return first;
+}
+function recomputeHistoric(){
+  HISTORIC = null;
+  if (!data || !data.weeks) return;
+  const ahead = new Set(), ever = new Set();
+  const pulled = new Set(pulledWeekKeys());
+  for (const [key, wk] of Object.entries(data.weeks)) {
+    const roster = (wk && wk.roster) || {};
+    const inWindow = pulled.has(key);
+    for (const day of Object.values(roster)) {
+      for (const [id, v] of Object.entries(day || {})) {
+        if (!v || (v.kind !== "day" && v.kind !== "night")) continue;
+        ever.add(id);
+        if (inWindow) ahead.add(id);
+      }
+    }
+  }
+  const out = new Set();
+  for (const st of (data.staff || [])) {
+    if (!st || st.keepCurrent) continue;
+    if (!ever.has(st.id)) continue;               // never rostered — not "gone", just new
+    if (!ahead.has(st.id)) out.add(st.id);
+  }
+  HISTORIC = out;
+}
+function isHistoric(id){ return !!(HISTORIC && HISTORIC.has(id)); }
+/* The date matters now. Somebody historic is gone from today onwards, but a week they actually
+   worked must still edit properly, so they stay active for dates in the past. */
 function isActiveOn(s, iso){
-  return s.active !== false;
+  if (!s || s.active === false) return false;
+  if (s.end && iso && iso > s.end) return false;
+  if (isHistoric(s.id) && (!iso || iso >= todayISO())) return false;
+  return true;
+}
+// The last day this person was actually down for something, for the Historic list.
+function lastRosteredDay(id){
+  let last = null;
+  for (const wk of Object.values((data && data.weeks) || {})) {
+    for (const [date, day] of Object.entries((wk && wk.roster) || {})) {
+      const v = day && day[id];
+      if (!v || (v.kind !== "day" && v.kind !== "night")) continue;
+      if (!last || date > last) last = date;
+    }
+  }
+  return last;
 }
 function activeStaff(iso){ return data.staff.filter(s => isActiveOn(s, iso)).sort((a,b) => a.name.localeCompare(b.name)); }
 
@@ -2155,17 +2257,40 @@ function stFunnel(anchor, title, items, isOn, toggle, onAll, onNone){
   }), 0);
 }
 
+let staffTab = "current";
 function renderStaff(){
   const body = $("#staffBody");
   const head = $("#staffHead");
   body.innerHTML = ""; if (head) head.innerHTML = "";
   if (!data) return;
+  recomputeHistoric();
   const showInactive = $("#showInactive").checked;
   const today = todayISO();
+
+  /* Two tabs rather than a filter chip: Historic is a different question from "show me people
+     matching X", and a chip would put leavers one careless click from the working list. */
+  const tabs = $("#staffTabs"); const note = $("#histNote");
+  if (tabs) {
+    tabs.innerHTML = ""; if (note) note.innerHTML = "";
+    const nHist = (data.staff || []).filter(x => x.grade !== "CON" && !x.adhoc && isHistoric(x.id)).length;
+    const mk = (key, label, n) => {
+      const b = el("button", { class: "sttab" + (staffTab === key ? " on" : ""),
+        onclick: () => { staffTab = key; renderStaff(); } }, label);
+      if (n != null) b.append(el("span", { class: "sttabn" }, String(n)));
+      return b;
+    };
+    const nCur = (data.staff || []).filter(x => x.grade !== "CON" && !x.adhoc && isActiveOn(x, today)).length;
+    tabs.append(mk("current", "Current ", nCur));
+    if (nHist || staffTab === "historic") tabs.append(mk("historic", "Historic ", nHist));
+    if (staffTab === "historic" && note)
+      note.append(el("div", { style: "font-size:.78rem;color:var(--muted);margin:0 0 .7rem;line-height:1.5" },
+        "Nothing down for them anywhere in the four weeks pulled from Allocate. They keep their record and their history, and come back on their own the moment a shift appears."));
+  }
   // Consultants only feed the cover dropdowns, and one-off locums are per-day — keep both off the
   // list. Consultants' skills are the Consultant Rota's business, not this board's.
   const everyone = [...data.staff].filter(s => s.grade !== "CON" && !s.adhoc)
-    .filter(s => isActiveOn(s, today) || showInactive);
+    .filter(s => staffTab === "historic" ? isHistoric(s.id)
+                                         : (isActiveOn(s, today) || showInactive));
   const list = stFiltered(everyone).sort(stCmp);
 
   /* ---- the header ------------------------------------------------------------------------ */
@@ -2274,14 +2399,28 @@ function renderStaff(){
     } else vcell.append(el("span", { class: "muted-sm" }, "✓"));
     for (const x of pend) vcell.append(el("span", { class: "pendpill", title: Object.keys(x.add || {}).map(k => SKILL_SHORT[k] || k).join(", ") + " — ticked and live now; auto-fill starts using it " + niceDate(x.from) }, "auto-fill " + niceDate(x.from)));
     tr.append(vcell);
-    tr.append(el("td", { class: "rowacts" },
+    const acts = el("td", { class: "rowacts" });
+    /* Bring back is the ONE manual override on a rule that is otherwise entirely computed. It is
+       for wanting somebody in the pick-lists before a shift appears for them — bank cover, say —
+       not for correcting the classification, which corrects itself. */
+    if (staffTab === "historic") {
+      const last = lastRosteredDay(s.id);
+      if (last) acts.append(el("span", { class: "muted-sm", style: "margin-right:.5rem" }, "last " + niceDate(last)));
+      acts.append(el("button", { class: "rowbtn", title: "Put them back in the pick-lists now, without waiting for a shift to appear",
+        onclick: () => { s.keepCurrent = true;
+          logEntry(s.name + " brought back to the current staff list", "manual");
+          markDirty(); recomputeHistoric(); renderStaff(); renderWeek(); updateTeamBadge();
+          toast(s.name + " is back on the current list"); } }, "Bring back"));
+    }
+    acts.append(
       el("button", { class: "rowbtn edit", title: "Edit this person's details", onclick: () => staffModal(s) }, "Edit"),
       el("button", { class: "rowbtn del", title: "Remove from the pick-lists", onclick: async () => {
         if (!(await uiConfirm("This removes " + s.name + " from the staff list and future pick-lists. Rotas already saved keep their name. This can't be undone from here.", { title: "Delete " + s.name + "?", okLabel: "Delete", cancelLabel: "Keep", danger: true }))) return;
         data.staff = data.staff.filter(x => x.id !== s.id);
         logEntry("Deleted staff: " + s.name); markDirty(); renderStaff(); renderWeek();
       }}, "Delete")
-    ));
+    );
+    tr.append(acts);
     body.append(tr);
     /* Profiles live HERE, on the resident board, because this is the page that can write them.
        The consultant page only reads them. Kept collapsed so the staff list keeps its shape. */
@@ -2454,7 +2593,7 @@ function profileEditor(box, s){
 }
 function staffModal(s){
   const isNew = !s;
-  s = s || { id: uid(), name:"", grade:"", airway:false, phoneHolder:false, phoneSupervisor:false, phoneShadow:false, nights:false, fgh:false, transfer:false, supernum:false, start:null, end:null, active:true, aliases:[] };
+  s = s || { id: uid(), name:"", grade:"", airway:false, phoneHolder:false, phoneSupervisor:false, phoneShadow:false, nights:false, fgh:false, transfer:false, supernum:false, start:null, end:null, active:true, startAuto:true, aliases:[] };
   const m = $("#modal");
   m.innerHTML = "";
   m.append(el("h3", {}, isNew ? "Add person" : "Edit " + s.name));
@@ -4142,7 +4281,7 @@ function showImportPreview(parsed, box){
       const key = normName(u.p.forenames + " " + u.p.surname);
       if (!u.choice) continue;   // undecided — left alone, raised again on Needs attention
       if (u.choice === "__new__") {
-        const s = { id: uid(), name: u.p.forenames.split(" ")[0] + " " + u.p.surname, grade: gradeFromText(u.p.gradeText), airway: /(-|–) ?A/i.test(Object.values(u.p.duties).join(" ")) || Object.values(u.p.duties).some(c => /airway/i.test(c)), phoneHolder: false, phoneSupervisor: false, phoneShadow: false, nights: false, fgh: false, transfer: false, supernum: false, start: null, end: null, active: true, verified: false, aliases: [key] };
+        const s = { id: uid(), name: u.p.forenames.split(" ")[0] + " " + u.p.surname, grade: gradeFromText(u.p.gradeText), airway: /(-|–) ?A/i.test(Object.values(u.p.duties).join(" ")) || Object.values(u.p.duties).some(c => /airway/i.test(c)), phoneHolder: false, phoneSupervisor: false, phoneShadow: false, nights: false, fgh: false, transfer: false, supernum: false, start: null, end: null, active: true, verified: false, startAuto: true, aliases: [key] };
         applyGradeSkills(s); // default skills for their grade (e.g. ST → airway+transfer, ACCP → transfer)
         data.staff.push(s); put(s.id, u.p); added++;
       } else {
@@ -6490,7 +6629,7 @@ function resolveSyncClash(i, how){
   markDirty(); renderAll();
   toast(how === "take" ? "Changed to Optima's version: " + c.allocate : "Kept " + (c.app || "blank") + " — Optima won't override it");
 }
-function renderAll(){ renderWeek(); renderAutoNotice(); renderStaffGate(); renderFairGate(); renderImportGate(); renderLogGate(); renderOverridesGate(); renderTeamGate(); renderSyncReview(); updateTeamBadge(); }
+function renderAll(){ fillStartDates(); recomputeHistoric(); renderWeek(); renderAutoNotice(); renderStaffGate(); renderFairGate(); renderImportGate(); renderLogGate(); renderOverridesGate(); renderTeamGate(); renderSyncReview(); updateTeamBadge(); }
 const PAGE_TITLES = { rota: "Pod Allocator", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", settings: "Settings", help: "How it works", team: "Needs attention", feedback: "Trial feedback" };
 const TEAM_TABS = ["team", "import", "staff", "fair", "log", "settings", "feedback"];
 function switchTab(tab){
