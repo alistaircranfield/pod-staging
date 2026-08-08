@@ -201,9 +201,14 @@ function deriveDet(msg){
   const m = String(msg || "");
   let x;
   if ((x = m.match(/^Off the Optima rota\s*[—-]\s*(.+?) removed from the day(?:\s*\(Pod ([A-E])[^)]*\))?/)))
-    return { act: "off", subj: x[1].trim(), from: x[2] || "", why: "rota" };
+    return { act: "off", subj: x[1].trim(), from: x[2] || "" };
+  /* The old "Sickness fix …" message shape. Nothing writes it any more, and this no longer
+     reconstructs a reason from it — reading a health fact back out of a historic string is the
+     same disclosure as having stored it. Matched only so the row still finds its person and pod. */
   if ((x = m.match(/^Sickness fix [^:]*:\s*removed (.+?)(?: from (?:Pod ([A-E])|(.+)))?$/)))
-    return { act: "off", subj: x[1].trim(), from: x[2] || "", why: "sick" };
+    return { act: "off", subj: x[1].trim(), from: x[2] || "" };
+  if ((x = m.match(/^(.+?) taken off \d{4}-\d{2}-\d{2}(?: — was (?:Pod ([A-E])|(.+)))?$/)))
+    return { act: "off", subj: x[1].trim(), from: x[2] || "" };
   /* These shapes only ever recorded a DESTINATION. A dash in the From column claimed the person
      came from nowhere, which is not what happened — the old message simply never carried it. */
   if ((x = m.match(/^(.+?)\s*(?:→|->)\s*night Pod ([A-E])(?:\s*&\s*([A-E]))?/)))
@@ -363,9 +368,14 @@ function logGroups(list, cap){
     (outline ? "border:1px solid " + ink + ";color:" + ink + ";background:transparent"
              : "background:" + tint + ";color:" + ink) }, txt);
   const pod = p => chip(p, podTint[p] || "var(--hair)", podInk[p] || "var(--muted)");
-  const reason = w => w === "sick" ? chip("sick", "#fdf8ef", "var(--podCb)")
-                    : w === "rota" ? chip("off rota", "#fdf4f6", "var(--podEb)")
-                    : chip(w || "off", "var(--hair)", "var(--muted)");
+  /* ONE CHIP FOR EVERY REMOVAL — hard rule 6, sharpened 8 Aug after the DPIA.
+     This drew three: amber "sick", pink "off rota", grey for the rest. Two problems with that.
+     The obvious one is that "sick" is a health record rendered on screen. The less obvious one is
+     that the OTHERS gave it away too: once a roster change has its own chip, a removal without one
+     means "not a roster change", which narrows it to something about the person. A distinction
+     anywhere in the set is an inference channel for the whole set, so the set has to be one.
+     What the row still says is WHO did it and WHEN, which is accountability rather than reason. */
+  const reason = () => chip("not on", "var(--hair)", "var(--muted)");
 
   const cell = (kids, style) => __el("td", { style: "padding:.42rem .3rem;vertical-align:top;" + (style || "") }, ...kids);
 
