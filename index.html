@@ -2897,6 +2897,23 @@ function personSelect(dateISO, value, onchange, filter){
    stored where nobody can read it is no more use than one that was thrown away. */
 function idListEditor(container, dateISO, arr, filter, addLabel, day){
   container.innerHTML = "";
+  /* READING vs EDITING are different jobs and this box was only ever built for one of them.
+     Out of edit mode it still drew a disabled <select> per person, so a supernumerary rendered as
+     flat grey text — "Aaron Cook · Neurology (super)" with a bare SD button beside it — while
+     everybody else on the same pod was a proper chip. Ali, 8 Aug: "what the F is this rendering
+     about". Nothing was broken; it simply looked like a different application two inches lower.
+
+     So when you cannot edit, the Super box draws CHIPS, exactly like the pod above it: same shape,
+     same shift pill, same drag handle. The dropdown comes back the moment you are editing, because
+     that is when you need to change who is in it. */
+  if (!canEdit()) {
+    for (const id of arr) {
+      const st = id && staffById(id);
+      if (!st) continue;
+      container.append(chip(st, { day, tag: (day && superShiftOf(day, id)) || null }));
+    }
+    return;
+  }
   arr.forEach((id, i) => {
     const row = el("div", { class: "slotrow" });
     row.append(personSelect(dateISO, id, v => {
