@@ -763,8 +763,13 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
     </div>
     <div id="importTop" class="card" style="margin-bottom:.8rem"></div>
     <div class="imp-grid" id="importCard">
-      <details class="card" id="manualRosterCard">
-        <summary style="cursor:pointer;font-size:.78rem;color:var(--muted);font-weight:600">Manual roster import — only needed if the automatic sync has stopped</summary>
+      <!-- This was a <details> that opened onto the importer, with a summary line saying it was
+           "only needed if the automatic sync has stopped". Both were doing the same job as the
+           page they now sit on: this page is reached from Settings, is called "Import by hand",
+           and says "if the sync has stopped" on the tile that opens it. A collapse inside a
+           hidden subpage is one lid too many, and the summary was explainer text (rule 2) saying
+           what the route in already said. -->
+      <div class="card" id="manualRosterCard">
         <h2>Staff rota — from Optima</h2>
         <p class="impdesc">Fills each day's bench with who's working and their shifts.</p>
         <div class="dropzone dz-sm" id="dropRota">
@@ -779,7 +784,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
           <li><b>Run Report</b> → Reports icon (top right) → click the report → <b>View Report</b> — it downloads</li>
           <li>Drop the downloaded file above</li>
         </ol>
-      </details>
+      </div>
       <div class="card">
         <h2>Consultant cover</h2>
         <p class="impdesc">Fills the consultant line on each pod — every week in the file, in one go.</p>
