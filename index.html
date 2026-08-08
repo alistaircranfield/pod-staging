@@ -2028,6 +2028,11 @@ function loadData(d){
   const released = sweepInvalidPhones();
   if (released) logEntry("Released " + released + " phone allocation" + (released === 1 ? "" : "s") + " held by someone not phone-trained", "auto");
   try { applyDuePendingSkills(true); } catch(e){}
+  try { migrateConsultants(); } catch(e){}
+  /* Cover is asked for the names AFTER the board is on screen, never before it. A slow or dead
+     Cover must not hold up the rota — the cached names are already good enough to draw with, and
+     the redraw when Cover answers is invisible unless something actually changed. */
+  refreshCover();
   dirty = false;
   loadedSavedAt = d.savedAt || null;
   undoStack = []; redoStack = []; lastState = JSON.stringify(data);
@@ -2038,6 +2043,27 @@ function loadData(d){
   updateSaveState("saved");
   updateWhoBtn();
   applyEnvClasses();
+}
+/* One read, once per load. On success the cache in this store is brought up to date — but only
+   when somebody is editing, because a viewer has no business writing to the shared file just by
+   opening it. In practice the rota team edits most days, so the cache stays days fresh, and the
+   seed from the old staff records means it is never empty even on day one. */
+async function refreshCover(){
+  const c = await readCover();
+  if (!c) { renderWeek(); return; }
+  coverLive = c;
+  const names = consNames();
+  if (data && canEdit() && Object.keys(names).length) {
+    data.cons = data.cons || {};
+    const was = JSON.stringify(data.cons.names || {});
+    if (was !== JSON.stringify(names)) {
+      data.cons.names = names;
+      data.cons.at = new Date().toISOString();
+      data.cons.from = "cover";
+      markDirty();
+    }
+  }
+  renderWeek();
 }
 function pruneOldWeeks(){
   const cutoff = addDays(todayISO(), -rule("retentionDays"));
@@ -3639,14 +3665,22 @@ function renderDayRow(day, di, dateISO, issues){
     }, oid => { const o = (day.obs || []).find(x => x.oid === oid); if (o) { const was = o.pod || ""; o.pod = p;
       logEntry("Observer " + o.name + " → Pod " + p + " (" + dayShort(di) + ")", "manual", dateOfDi(di), null,
         { act: "move", subj: "Observer " + o.name, from: was, to: p, bench: !was }); } });
-    const consAll = data.staff.filter(s => s.grade === "CON" && isActiveOn(s, dateISO));
-    if (consAll.length || pod.cons) {
-      if (pod.cons && !staffById(pod.cons)) { const rid = matchConsInitials(pod.cons); if (rid) pod.cons = rid; }
-      const consSel = el("select", { class: "conssel" + (pod.cons ? " has" : ""), title: "Consultant covering this pod" });
+    /* The list is now Cover's, keyed by initials. `cur` is normalised through consKey so a day
+       saved when this board kept its own register still selects the right person. */
+    const consInis = consList();
+    const cur = consKey(pod.cons);
+    if (consInis.length || cur) {
+      const consSel = el("select", { class: "conssel" + (cur ? " has" : ""),
+        title: consStale() !== null ? consFreshness() : "Consultant covering this pod" });
       consSel.append(el("option", { value: "" }, "cons…"));
-      if (pod.cons && !staffById(pod.cons)) consSel.append(el("option", { value: pod.cons, selected: "1" }, pod.cons));
-      for (const s of consAll.sort((a,b) => consLabel(a).localeCompare(consLabel(b)))) consSel.append(el("option", { value: s.id, title: s.name, ...(pod.cons === s.id ? { selected: 1 } : {}) }, consLabel(s)));
-      consSel.onchange = () => { pod.cons = consSel.value || null; logEntry("Pod " + p + " consultant: " + (consSel.value ? (staffById(consSel.value) ? consLabel(staffById(consSel.value)) : consSel.value) : "cleared") + " (" + dayShort(di) + ")", "manual", dateOfDi(di)); markDirty(); renderWeek(); };
+      if (cur && !consInis.includes(cur)) consSel.append(el("option", { value: cur, selected: "1" }, consSurname(cur)));
+      for (const ini of consInis)
+        consSel.append(el("option", { value: ini, title: consName(ini), ...(cur === ini ? { selected: 1 } : {}) }, consSurname(ini)));
+      consSel.onchange = () => { const was = cur; pod.cons = consSel.value || null;
+        logEntry("Pod " + p + " consultant: " + (consSel.value ? consSurname(consSel.value) : "cleared") + " (" + dayShort(di) + ")",
+                 "manual", dateOfDi(di), null,
+                 { act: "cons", subj: "Pod " + p, from: was ? consSurname(was) : "", to: consSel.value ? consSurname(consSel.value) : "" });
+        markDirty(); renderWeek(); };
       consSel.disabled = !canEdit();
       col.append(el("div", { class: "conswrap" }, consSel));
     }
@@ -3656,10 +3690,13 @@ function renderDayRow(day, di, dateISO, issues){
        allocator's unapproved output — it must never appear on the live board as if it were
        real. Live shows only what the rota team picks by hand until that allocator ships. */
     if (TESTMODE) {
-      const crec = data.consRota && data.consRota.days && data.consRota.days[dateISO];
+      /* These five reads have been dead since the store was carved in two — nothing has written
+         `data.consRota` since. They were shaped for exactly what Cover holds (`days` keyed by date,
+         `cur` keyed by pod), which is why repointing them is a reconnection and not a rewrite. */
+      const crec = coverDays()[dateISO];
       const cini = crec && crec.cur && crec.cur[p];
       if (cini && !pod.cons) {
-        const lbl = el("span", { class: "consauto", title: ((data.consRota.map || {})[cini] || cini) + " — from the consultant rota" }, consSurname(cini));
+        const lbl = el("span", { class: "consauto", title: consName(cini) + " — from Cover" }, consSurname(cini));
         if (crec.cur.cod && crec.cur.cod === cini) lbl.append(el("span", { class: "codpill" }, "COD"));
         col.append(el("div", { class: "conswrap" }, lbl));
       }
@@ -3704,23 +3741,29 @@ function renderDayRow(day, di, dateISO, issues){
       { act: "move", subj: staffById(id).name, from: wasIn, to: NIGHT_LABEL[k], night: true, bench: !wasIn });
   });
   {
-    const consAllN = data.staff.filter(s => s.grade === "CON" && isActiveOn(s, dateISO));
-    if (consAllN.length || day.nightCons) {
-      if (day.nightCons && !staffById(day.nightCons)) { const rid = matchConsInitials(day.nightCons); if (rid) day.nightCons = rid; }
-      const ncSel = el("select", { class: "conssel" + (day.nightCons ? " has" : ""), title: "On-call consultant overnight" });
+    const consInisN = consList();
+    const curN = consKey(day.nightCons);
+    if (consInisN.length || curN) {
+      const ncSel = el("select", { class: "conssel" + (curN ? " has" : ""),
+        title: consStale() !== null ? consFreshness() : "On-call consultant overnight" });
       ncSel.append(el("option", { value: "" }, "on call…"));
-      if (day.nightCons && !staffById(day.nightCons)) ncSel.append(el("option", { value: day.nightCons, selected: "1" }, day.nightCons));
-      for (const s of consAllN.sort((a,b) => consLabel(a).localeCompare(consLabel(b)))) ncSel.append(el("option", { value: s.id, title: s.name, ...(day.nightCons === s.id ? { selected: 1 } : {}) }, consLabel(s)));
-      ncSel.onchange = () => { day.nightCons = ncSel.value || null; logEntry("On call: " + (ncSel.value ? (staffById(ncSel.value) ? consLabel(staffById(ncSel.value)) : ncSel.value) : "cleared") + " (" + dayShort(di) + ")", "manual", dateOfDi(di)); markDirty(); renderWeek(); };
+      if (curN && !consInisN.includes(curN)) ncSel.append(el("option", { value: curN, selected: "1" }, consSurname(curN)));
+      for (const ini of consInisN)
+        ncSel.append(el("option", { value: ini, title: consName(ini), ...(curN === ini ? { selected: 1 } : {}) }, consSurname(ini)));
+      ncSel.onchange = () => { const was = curN; day.nightCons = ncSel.value || null;
+        logEntry("On call: " + (ncSel.value ? consSurname(ncSel.value) : "cleared") + " (" + dayShort(di) + ")",
+                 "manual", dateOfDi(di), null,
+                 { act: "cons", subj: "On call", from: was ? consSurname(was) : "", to: ncSel.value ? consSurname(ncSel.value) : "" });
+        markDirty(); renderWeek(); };
       ncSel.disabled = !canEdit();
       night.append(el("div", { class: "conswrap" }, ncSel));
     }
     /* Consultant rota crosstalk: overnight on-call consultant from the consultant rota.
        TEST SITE ONLY — same rule as the pod corners above. */
-    const crecN = TESTMODE && data.consRota && data.consRota.days && data.consRota.days[dateISO];
+    const crecN = TESTMODE && coverDays()[dateISO];
     if (crecN && crecN.cur && crecN.cur.oncall && !day.nightCons) {
       night.append(el("div", { class: "conswrap" },
-        el("span", { class: "consauto", title: ((data.consRota.map || {})[crecN.cur.oncall] || crecN.cur.oncall) + " — consultant on call overnight (16:00–09:00), from the consultant rota" },
+        el("span", { class: "consauto", title: consName(crecN.cur.oncall) + " — on call overnight (16:00–09:00), from Cover" },
           consSurname(crecN.cur.oncall))));
     }
   }
@@ -4235,10 +4278,99 @@ function consLabel(s){
   return dup ? sur + " (" + parts[0][0] + ")" : sur;
 }
 /* Consultant-rota initials → surname, for the resident board. Initials mean nothing to a resident. */
+/* ── CONSULTANTS COME FROM COVER ──────────────────────────────────────────────────
+   Ali, 8 Aug: "at the moment it comes from the importer. Instead I want them to come from the
+   live consultant cover site." And on the register itself: "not needed in staff… all you need is
+   a name - theyre all consultants."
+
+   Until now this board kept its OWN register of consultants — 34 staff records with grade CON,
+   filled in by hand through the in-page importer — alongside the one Cover already builds from
+   the workbook every night. Two registers of the same people is what caused the outage this
+   morning: a rule about residents leaving swept all 34 into Historic and emptied every dropdown,
+   because nothing here knew consultants were not this board's business.
+
+   So Cover is the register and this board is a reader. Three things follow, and all three are
+   about not trusting the network with something people need at 8am:
+
+   1. COVER KEYS PEOPLE BY INITIALS; days saved before today hold a staff ID. `consKey` resolves
+      either, using a map built once from the old records. Without it every consultant already
+      chosen on a saved day would render as a dangling id.
+   2. THE BOARD MUST DEGRADE, NEVER BLANK. The last good set of names is kept in this store, so a
+      Cover that is unreachable costs you freshness and nothing else. Today showed what an empty
+      dropdown feels like.
+   3. THE IMPORTER STAYS as a manual fallback (Ali: "worth keeping as a backup"). It is no longer
+      the source, and it no longer needs staff records to match against.                          */
+const COVER_READ = (window.__POD_KEYS && window.__POD_KEYS.cr) || localStorage.getItem("podCR") || "";
+let coverLive = null;            // the Cover store when it answered this session; null when it did not
+async function readCover(){
+  if (!COVER_READ) return null;
+  try {
+    const r = await fetch(COVER_READ, { method: "POST", headers: { "Content-Type": "application/json" },
+                                        body: "{}", cache: "no-store" });
+    if (!r.ok) return null;
+    const d = JSON.parse(await r.text());
+    return (d && typeof d === "object" && (d.map || d.names || d.days)) ? d : null;
+  } catch(e){ return null; }
+}
+/* Built ONCE, from the register this board is giving up. Every consultant staff record maps to the
+   initials Cover knows them by — from their `aliases` first, because those were typed in by a
+   person and beat anything inferred, then from the initials of their name. Kept afterwards so that
+   a day saved in July still draws a name and not a stray id. Nothing is deleted: the old records
+   stay exactly where they are, unread. There is no undo for a staff list. */
+function migrateConsultants(){
+  if (!data) return;
+  data.cons = data.cons || {};
+  const c = data.cons;
+  c.names = c.names || {};
+  if (c.byId) return;                       // already done
+  c.byId = {};
+  for (const st of (data.staff || [])) {
+    if (!st || st.grade !== "CON" || !st.name) continue;
+    const ini = ((st.aliases || [])[0] || st.name.split(/\s+/).map(w => w[0]).join("")).toUpperCase();
+    c.byId[st.id] = ini;
+    if (!c.names[ini]) c.names[ini] = st.name;      // seeds the fallback so it is never empty
+  }
+  c.from = c.from || "seed";
+}
+/* Cover first, this store second. `names` (typed on Cover's Setup) outranks `map` (written by the
+   sync from the workbook) for the same reason it does on Cover itself: a correction a person made
+   beats a name the code inferred. */
+function consNames(){
+  if (coverLive) return Object.assign({}, coverLive.map || {}, coverLive.names || {});
+  return ((data && data.cons && data.cons.names) || {});
+}
+function consKey(v){
+  if (!v) return "";
+  const byId = (data && data.cons && data.cons.byId) || {};
+  return byId[v] || v;                      // a legacy staff id, or already a set of initials
+}
+function consName(ini){ return consNames()[consKey(ini)] || consKey(ini); }
+/* Cover's allocation, when Cover answered. Never the cache: a name is still true a week later,
+   but who was covering Pod C last Tuesday is not, and a stale allocation shown as today's is
+   worse than showing nothing. */
+function coverDays(){ return (coverLive && coverLive.days) || {}; }
+/* Everyone Cover knows, in surname order. No grade, no filtering: Ali, 8 Aug — "all you need is a
+   name - theyre all consultants." */
+function consList(){
+  return Object.keys(consNames()).sort((a, b) => consSurname(a).localeCompare(consSurname(b)));
+}
+/* Said on demand, on the control itself, never as a sentence on the screen (project rule 2). */
+function consFreshness(){
+  const at = consStale();
+  if (at === null) return "Consultant covering this pod";
+  if (!at) return "Cover could not be reached — this list has never been refreshed from it";
+  const days = Math.max(0, Math.round((Date.parse(todayISO()) - Date.parse(String(at).slice(0, 10))) / 86400000));
+  return "Cover could not be reached — names as they were "
+    + (days <= 0 ? "earlier today" : days === 1 ? "yesterday" : days + " days ago");
+}
+function consStale(){
+  if (coverLive) return null;               // fresh
+  return (data && data.cons && data.cons.at) || "";
+}
 function consSurname(ini){
-  const map = (data.consRota && data.consRota.map) || {};
-  const full = map[ini];
-  if (!full) return ini;
+  const map = consNames();
+  const full = map[consKey(ini)];
+  if (!full) return consKey(ini);
   const parts = String(full).trim().split(/\s+/);
   const sur = parts[parts.length-1];
   // The same consultant sits in the initials map under more than one code (NET and NEK are both
