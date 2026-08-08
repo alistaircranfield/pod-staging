@@ -69,6 +69,12 @@ main{padding:.6rem 1.6rem 4rem;max-width:1550px}
 h2{font-size:.72rem;margin:.1rem 0 .8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
 button.btn{background:var(--ink);color:#fff;border:0;border-radius:12px;padding:.5rem 1rem;font-weight:600;font-size:.84rem;cursor:pointer;font-family:inherit}
 button.btn.sec{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+/* "This week" doubles as the where-am-I indicator. It used to be a plain button beside a title
+   reading "(this week)", which said the same thing twice and read badly (Ali, 8 Aug: "The (this
+   week) looks clunky"). Now the button fills in when you are already on this week and empties
+   when you have navigated away, so one control both tells you and takes you back. */
+button.btn.sec[aria-current="true"]{background:var(--ink);color:#fff;border-color:var(--ink);cursor:default}
+button.btn.sec[aria-current="true"]:hover{filter:none}
 button.btn.big{font-size:.95rem;padding:.85rem 1.3rem;border-radius:13px}
 button.btn:hover{filter:brightness(.96)}
 select,input[type=text],input[type=date],input[type=password]{border:1px solid #dcdcd8;border-radius:9px;padding:.4rem .5rem;font-size:.83rem;font-family:inherit;background:#fff;max-width:100%;color:var(--ink)}
@@ -1205,6 +1211,7 @@ function recomputeHistoric(){
   const out = new Set();
   for (const st of (data.staff || [])) {
     if (!st || st.keepCurrent) continue;
+    if (!rosterDecides(st)) continue;             // the roster cannot answer for this person
     if (ahead.has(st.id)) continue;               // on the coming rota — plainly still here
     /* "Never rostered" is NOT evidence of being new, and treating it that way was a real bug
        (Ali, 5 Aug: "there are people in active staff i know have left, like ali legett... kieran
@@ -1220,6 +1227,21 @@ function recomputeHistoric(){
     out.add(st.id);
   }
   HISTORIC = out;
+}
+/* Whether the OPTIMA ROSTER is authoritative about whether this person is still here.
+
+   The historic rule reads "no pod duty in the four pulled weeks" as evidence somebody has gone.
+   That inference only holds for people the roster would list at all. Consultants are never in
+   it — they come from the consultant rota workbook, and this board only holds their names to
+   fill the pod dropdowns. So their absence says nothing, and treating it as evidence classed
+   all 34 of them as historic, made them inactive, and emptied every consultant dropdown on the
+   live board (Ali, 8 Aug: "the consultant names no longer showing").
+
+   Named rather than written inline as `grade !== "CON"` because consultants are not the only
+   case: anyone arriving by a different route has the same problem. For those, keepCurrent is
+   the per-person answer. */
+function rosterDecides(s){
+  return !!s && s.grade !== "CON";
 }
 function isHistoric(id){ return !!(HISTORIC && HISTORIC.has(id)); }
 /* The date matters now. Somebody historic is gone from today onwards, but a week they actually
@@ -2875,11 +2897,16 @@ function renderWeek(){
   if (isMobile()) {
     $("#weekTitle").innerHTML = "";
     $("#weekTitle").append(fmtDate(currentWeekKey) + " – " + fmtDate(addDays(currentWeekKey, 6)),
-      el("small", {}, isNow ? "this week · tap to pick a date" : "tap to pick a date"));
+      el("small", {}, "tap to pick a date"));
     $("#weekTitle").onclick = jumpToDate;
   } else {
-    $("#weekTitle").textContent = weekLabel(currentWeekKey) + (isNow ? " (this week)" : "");
+    $("#weekTitle").textContent = weekLabel(currentWeekKey);
     $("#weekTitle").onclick = jumpToDate;
+  }
+  const today = $("#btnToday");
+  if (today) {
+    today.setAttribute("aria-current", isNow ? "true" : "false");
+    today.title = isNow ? "You are on this week" : "Jump back to this week";
   }
   const grid = $("#weekGrid");
   grid.innerHTML = "";
