@@ -573,6 +573,156 @@ const SEED = `(function(){
   /* The guard here used to be "was ever rostered", which quietly exempted everybody who left
      before the Optima roster started arriving — they had no roster entry anywhere, so they were
      skipped and stayed Current for good. New has to be a fact about the person. */
+  /* Consultants never appear in the Optima roster at all, so absence from it is not evidence of
+     anything. Treating it as evidence made every consultant inactive and emptied the pod
+     dropdowns on the live board (Ali, 6 Aug). */
+  /* Ali, 8 Aug: "The (this week) looks clunky." The title said it and the button said it. */
+  ok("the week title no longer repeats what the This week button already says",
+     /this week/i.test(w.eval("(function(){ currentWeekKey = mondayOf(todayISO()); renderWeek();" +
+            "return document.querySelector('#weekTitle').textContent; })()")) === false);
+  ok("the button marks itself current instead",
+     w.eval("document.querySelector('#btnToday').getAttribute('aria-current')") === "true");
+  ok("and lets go of that mark once you navigate away",
+     w.eval("(function(){ currentWeekKey = addDays(mondayOf(todayISO()), 7); renderWeek();" +
+            "return document.querySelector('#btnToday').getAttribute('aria-current'); })()") === "false");
+
+  /* Ali, 8 Aug: "what the F is this rendering about". The Super box drew disabled dropdowns when
+     you were not editing, so a supernumerary looked nothing like the chips on the same pod. */
+  ok("out of edit mode the Super box draws chips, not dropdowns",
+     w.eval("(function(){ const box = document.createElement('div');" +
+            "data.staff.push({ id:'sup9', name:'Sup Person', grade:'Neurology', active:true });" +
+            "const d = blankDay(); setSuperShift(d,'sup9','SD');" +
+            "idListEditor(box, todayISO(), ['sup9'], null, 'add', d);" +
+            "return box.querySelectorAll('select').length === 0 && box.querySelectorAll('.chip').length === 1; })()") === true);
+  ok("and the chip still carries the shift, so nothing is lost by looking better",
+     w.eval("(function(){ const box = document.createElement('div'); const d = blankDay();" +
+            "setSuperShift(d,'sup9','SD'); idListEditor(box, todayISO(), ['sup9'], null, 'add', d);" +
+            "return (box.querySelector('.tagx')||{}).textContent; })()") === "SD");
+
+  /* ---- SETTINGS, SOURCE PANEL AND THE RESET (Ali, 8 Aug) --------------------------------- */
+
+  ok("the source panel gives times to the minute, never a bare date",
+     w.eval("whenMin('2026-08-08T12:43:07Z')").indexOf(":") > 0);
+  ok("and says so rather than inventing one when there is no timestamp",
+     w.eval("whenMin(null)") === "\u2014");
+
+  /* A backup job that has silently stopped looks exactly like one with nothing to do. */
+  ok("a backup less than a day old is not flagged",
+     w.eval("(function(){ data.lastBackup = new Date(Date.now()-2*3600000).toISOString();" +
+            "return hoursSince(data.lastBackup) < 26; })()") === true);
+  ok("past 26 hours it is",
+     w.eval("(function(){ data.lastBackup = new Date(Date.now()-30*3600000).toISOString();" +
+            "return hoursSince(data.lastBackup) > 26; })()") === true);
+  ok("and a backup that has never run reads as missing, not as fine",
+     w.eval("hoursSince(null)") === null);
+
+  ok("the roster's reach is read from the data, so 'why can't I see September' is answerable here",
+     typeof w.eval("rosterReach()") === "string");
+
+  /* Sync now cannot run anything — it asks. Claiming otherwise would be a lie the page cannot
+     back up. */
+  ok("Sync now writes a request for the next run rather than claiming it ran",
+     w.eval("(function(){ delete data.syncRequest; syncNow(); return !!(data.syncRequest && data.syncRequest.t); })()") === true);
+
+  /* Addresses are shown on the lock screen, which anybody with the link reaches. */
+  ok("an admin address is masked before it reaches the lock screen",
+     w.eval("maskEmail('alistair.cranfield@nhs.net')") === "ali\u2022\u2022\u2022@nhs.net");
+  ok("a short local part is not turned into a hint about itself",
+     w.eval("maskEmail('ac@nhs.net')") === "a\u2022\u2022\u2022@nhs.net");
+  ok("and something that is not an address survives being masked",
+     w.eval("maskEmail('nonsense')") === "nonsense");
+
+  /* THE HOLE THIS CLOSES. Anyone who could reach the board could clear the password by typing
+     RESET at it. The word must not survive anywhere as a fallback — a fallback that reopens the
+     hole is not a fallback. */
+  ok("nothing on the board still resets a password by typing a word at it",
+     w.eval("document.documentElement.outerHTML").indexOf("Type RESET") === -1);
+  ok("the reset asks a named admin instead, and there is a dialog to do it",
+     w.eval("typeof resetDialog === 'function'") === true);
+  ok("with no admins set up it says so rather than offering a button that goes nowhere",
+     w.eval("(function(){ data.admins = []; resetDialog();" +
+            "const t = document.querySelector('#modal').textContent; closeModal();" +
+            "return /No address/.test(t); })()") === true);
+
+  /* Removing the last address recreates the lockout the mechanism exists to prevent. */
+  ok("settings keeps at least one reset address",
+     w.eval("(function(){ data.admins = ['a@nhs.net']; settingsPage = null; renderSettings();" +
+            "const b = [...document.querySelectorAll('#setList button')].find(x => x.textContent === 'Remove');" +
+            "if (b) b.click(); return (data.admins || []).length; })()") === 1);
+  ok("but a second one can be removed",
+     w.eval("(function(){ data.admins = ['a@nhs.net','b@nhs.net']; renderSettings();" +
+            "const b = [...document.querySelectorAll('#setList button')].find(x => x.textContent === 'Remove');" +
+            "if (b) b.click(); return (data.admins || []).length; })()") === 1);
+  ok("and something that is not an address is refused rather than stored",
+     w.eval("(function(){ data.admins = ['a@nhs.net']; return isEmail('not an address'); })()") === false);
+
+  /* The importers are a fallback now, not part of the routine. */
+  ok("Import is off the rail",
+     w.eval("(function(){ const b = document.querySelector('button[data-tab=\\'import\\']');" +
+            "return b ? b.style.display : 'missing'; })()") === "none");
+  ok("but still reachable, as a subpage of Settings",
+     w.eval("(function(){ settingsPage = null; renderSettings();" +
+            "return [...document.querySelectorAll('#setList .subtile')].some(t => /Import by hand/.test(t.textContent)); })()") === true);
+  ok("the grade defaults moved to a subpage too, so the numbers people change are not buried",
+     w.eval("(function(){ settingsPage = 'grades'; renderSettings();" +
+            "const t = document.querySelector('#setList').textContent; settingsPage = null; renderSettings();" +
+            "return /SKILLS A GRADE STARTS WITH/.test(t); })()") === true);
+
+  /* A collapse inside a hidden subpage is one lid too many (Ali, 8 Aug). */
+  ok("the manual importer is not folded away a second time",
+     w.eval("(function(){ const c = document.querySelector('#manualRosterCard');" +
+            "return c ? c.tagName : 'missing'; })()") === "DIV");
+
+  /* The night gap (Ali, 8 Aug). allocate_auto now places a newly-rostered night person using these
+     two rules and then hands over to normalizeNight — so this test guards the rule the sync leans
+     on, in the one place it is written. Five on nights means the phone holder splits off to Pod E,
+     which is the move Nicholas Coffin had to make by hand on 14 Aug. */
+  ok("a fifth arriving on nights sends the phone holder to Pod E on their own",
+     w.eval("(function(){ const d = blankDay(); d.night.AB=['a','b']; d.night.CDE=['c','d'];" +
+            "d.night.phone='c'; const nd=d.night;" +
+            "const half = nd.CDE.length < nd.AB.length ? 'CDE' : 'AB'; nd[half].push('e');" +
+            "normalizeNight(d); return JSON.stringify({E:nd.E, ab:nd.AB, cde:nd.CDE}); })()")
+     === JSON.stringify({ E: ["c"], ab: ["a", "b", "e"], cde: ["d"] }));
+  ok("with only four on, nobody splits off — the phone rotates and the pods hold still",
+     w.eval("(function(){ const d = blankDay(); d.night.AB=['a','b']; d.night.CDE=['c'];" +
+            "d.night.phone='c'; d.night.CDE.push('e'); normalizeNight(d);" +
+            "return (d.night.E||[]).length; })()") === 0);
+  ok("a neurology registrar goes to the C/D side of nights and never A&B",
+     w.eval("(function(){ data.staff.push({ id:'nr9', name:'N Reg', grade:'Neurology', active:true });" +
+            "const d = blankDay(); d.night.AB=['nr9']; normalizePods(d);" +
+            "return d.night.AB.length === 0 && d.night.CDE.includes('nr9'); })()") === true);
+
+  /* Consultants come from Cover now (Ali, 8 Aug). The three things that had to hold: old days keep
+     rendering, the board never blanks, and the list needs nothing from the staff register. */
+  ok("the migration maps every old consultant record to the initials Cover knows them by",
+     w.eval("(function(){ data.cons = null; data.staff.push({ id:'conX', name:'Jane Smith', grade:'CON'," +
+            "active:true, aliases:['JQS'] }); migrateConsultants();" +
+            "return data.cons.byId['conX'] === 'JQS' && data.cons.names['JQS'] === 'Jane Smith'; })()") === true);
+  ok("an alias the rota team typed beats initials taken from the name",
+     w.eval("data.cons.byId['conX']") === "JQS");
+  ok("a day saved with the old staff id still resolves to a person",
+     w.eval("consKey('conX') === 'JQS' && consSurname('conX') === 'Smith'") === true);
+  ok("with Cover unreachable the names still come, from the cache",
+     w.eval("(function(){ coverLive = null; return consList().includes('JQS') && consName('JQS') === 'Jane Smith'; })()") === true);
+  ok("and the control says so rather than a sentence on the screen",
+     w.eval("(function(){ coverLive = null; data.cons.at = '2026-08-06T09:00:00.000Z';" +
+            "return /Cover could not be reached/.test(consFreshness()); })()") === true);
+  ok("when Cover answers it wins over the cache",
+     w.eval("(function(){ coverLive = { names: { JQS: 'Jane Q Smith' } }; const n = consName('JQS');" +
+            "coverLive = null; return n; })()") === "Jane Q Smith");
+  ok("the allocation is never drawn from the cache — only a live Cover",
+     w.eval("(function(){ coverLive = null; return Object.keys(coverDays()).length; })()") === 0);
+
+  ok("a consultant is never historic, however long they are absent from the roster",
+     w.eval("(function(){ data.staff.push({ id:'con9', name:'A Consultant Two', grade:'CON'," +
+            "active:true, adhoc:false, aliases:[] }); recomputeHistoric();" +
+            "return isHistoric('con9'); })()") === false);
+  ok("and so stays selectable for the pod dropdowns",
+     w.eval("isActiveOn(staffById('con9'), todayISO())") === true);
+  ok("the rule says WHY, so the next odd route is easy to add",
+     w.eval("typeof rosterDecides === 'function' && rosterDecides(staffById('con9')) === false" +
+            " && rosterDecides(staffById('r1')) === true") === true);
+
   ok("somebody added and not yet rostered is NOT historic — they are just new",
      w.eval("(function(){ const s = staffById('a1'); s.startAuto = true;" +
             "recomputeHistoric(); const r = isHistoric('a1'); delete s.startAuto; return r; })()") === false);
@@ -701,6 +851,14 @@ const SEED = `(function(){
   console.log("\n-- my shifts, and the date jump --");
   ok("the week title opens a date picker rather than only jumping to today",
      w.eval("typeof jumpToDate === 'function' && typeof document.getElementById('weekTitle').onclick === 'function'") === true);
+  /* Project rule 2: no explainer text in the UI. A legend under the grid is the rule's own example
+     of a screen that is not clear enough (Ali, 8 Aug). This test is here so it cannot come back. */
+  ok("the month carries no explainer line",
+     w.eval("(function(){ switchTab('mine'); const t = document.querySelector('#tab-mine').textContent;" +
+            "return /a dot means|not written yet|Pick yourself once|Choose a person to see/.test(t); })()") === false);
+  ok("and says what supernumerary means by writing it, not by a legend",
+     w.eval("typeof renderMine === 'function' && !/\\u00b7\"\\)\\)/.test(renderMine.toString())") === true);
+
   ok("My shifts is a rail item, not another toolbar icon",
      w.eval("!!document.querySelector('aside button[data-tab=mine]') && !document.getElementById('btnMyMonth')") === true);
   ok("and it draws a month grid for the person picked",
@@ -719,6 +877,35 @@ const SEED = `(function(){
             "const w2 = whereIsPerson('r1', T); return w2 && w2.pod === 'A' && w2.shift === 'LD'; })()") === true);
   ok("a week that has not been written is marked, not hidden",
      w.eval("(function(){ return weekExists(addDays(todayISO(), 400)) === false; })()") === true);
+
+  /* ---- NOT ON, NEVER WHY (hard rule 6, sharpened 8 Aug after the DPIA) --------------------
+     The only special-category data this project ever held was a log line saying a named person
+     was off sick. It is gone, and these assert it stays gone — including the WORDS, because
+     health data is defined by what it reveals and a neutral field reached from a control
+     labelled "off sick" is still an Article 9 record. Asserted against the source rather than a
+     rendered screen: the fault would come back as somebody typing a helpful label. */
+  {
+    const src = require("fs").readFileSync(PAGE, "utf8");
+    /* The comment explaining WHY this was removed legitimately quotes the old wording, so the
+       check is on live code: no writer may set a reason, and no control may name one. */
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    ok("nothing writes a reason for an absence", !/why:\s*["']sick["']/.test(code));
+    ok("...and no log message names one", !/Sickness fix/.test(code));
+    ok("...and no control, label or help text says off sick", !/off sick/i.test(code));
+    ok("...and no code path is named after it", !/SickFix|sickFix/.test(code));
+    /* Taking somebody off is still possible and still logged — the point is that it is one
+       action with one meaning, not that it disappeared. */
+    ok("taking someone off a day is still there, unqualified",
+       /removeTitle: "Take off this day"/.test(code));
+    ok("...and still writes who and when", /act: "off", subj: g\.name/.test(code));
+
+    const core = require("fs").readFileSync(require("path").join(__dirname, "..", "core.js"), "utf8");
+    const coreCode = core.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    ok("the shared renderer draws one chip for every removal",
+       !/chip\("sick"/.test(coreCode) && !/chip\("off rota"/.test(coreCode));
+    ok("...and never reconstructs a reason out of an old message",
+       !/why:\s*["'](sick|rota)["']/.test(coreCode));
+  }
 
   ok("no errors across the whole run", errors.length === 0, errors.slice(0, 3).join(" | "));
 
