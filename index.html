@@ -340,10 +340,19 @@ td.col-A{background:var(--podA)} td.col-B{background:var(--podB)} td.col-C{backg
 .mday:hover{border-color:var(--hair);background:var(--card)}
 .mday.mon{background:var(--accent-bg);color:var(--accent);border-color:var(--accent-bg)}
 .mday.mnone{color:var(--muted);opacity:.45}
+/* Days already gone recede, exactly as unwritten days do. Before this the month read backwards:
+   the past was solid and bold while the weeks you actually care about were faded, so a week that
+   is history looked more real than next week (Ali, 8 Aug: "Why showing a historic week on my
+   shifts?"). Still clickable — looking back at what you worked is fair — but it no longer competes
+   for the eye with what is coming. */
+.mday.mpast{opacity:.4}
+.mday.mpast.mon{background:var(--hair);color:var(--muted);border-color:transparent}
 .mcell.moth .mday{opacity:.4}
 .mcell.mtoday .mday{outline:1.5px solid var(--accent);outline-offset:-1px}
 .mwhat{font-size:.6rem;line-height:1;opacity:.9}
 .mnav{display:flex;align-items:center;gap:.4rem;margin:.2rem 0 .5rem}
+.mcount{font-size:.72rem;font-weight:600;color:var(--accent);background:var(--accent-bg);
+  border-radius:999px;padding:.15rem .5rem;white-space:nowrap}
 .wkpick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.35rem;margin:.2rem 0 .5rem}
 .wkbtn{display:flex;flex-direction:column;align-items:center;gap:.15rem;padding:.5rem .2rem;border:1px solid var(--hair);
   border-radius:8px;background:var(--card);cursor:pointer;text-align:center;line-height:1.25;font:inherit}
@@ -900,8 +909,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
 
   <section id="tab-mine" style="display:none">
     <div class="card">
-      <h2 style="margin:0 0 .2rem">My shifts</h2>
-      <p style="font-size:.82rem;color:var(--muted);margin:0 0 .8rem;line-height:1.5">Pick yourself once and this browser remembers. Tap any day to open that week.</p>
+      <h2 style="margin:0 0 .8rem">My shifts</h2>
       <div id="mineBox"></div>
     </div>
   </section>
@@ -6772,20 +6780,29 @@ function renderMine(){
     let on = 0;
     const grid = monthGrid(mineAnchor, { cell: (dISO) => {
       const here = weekExists(dISO);
+      const past = dISO < todayISO();
       const w = who ? whereIsPerson(who, dISO) : null;
-      if (w) on++;
-      const c = el("button", { class: "mday" + (here ? "" : " mnone") + (w ? " mon" : ""),
+      if (w && !past) on++;                       // "days ahead" is the number anybody is counting
+      /* Rule 2: no explainer text in the UI. This panel used to carry a grey line under the grid
+         saying what a dot meant and why some weeks were faded — a legend, which is the rule's own
+         example of the UI not being clear enough (Ali, 8 Aug: "stop these grey explainers, how
+         many times do i have to tell you"). Both facts are now carried by the thing itself: the
+         word "super" instead of a dot nobody can decode, and a title on the days that hold
+         nothing. On-demand help is allowed; a sentence sitting on the screen is not. */
+      const c = el("button", { class: "mday" + (here ? "" : " mnone") + (past ? " mpast" : "") + (w ? " mon" : ""),
+        title: here ? "" : "Nothing written for this week yet",
         onclick: () => { currentWeekKey = mondayOf(dISO); switchTab("rota"); renderWeek(); } },
         el("span", {}, String(new Date(dISO + "T12:00:00").getDate())));
       if (w) c.append(el("span", { class: "mwhat" },
         w.kind === "night" ? "night" : w.kind === "fgh" ? "FGH"
-          : (w.pod || "") + (w.shift ? " " + w.shift : "") + (w.super ? " ·" : "")));
+          : (w.pod || "") + (w.shift ? " " + w.shift : "") + (w.super ? " super" : "")));
       return c;
     } });
     body.append(grid);
-    body.append(el("div", { style: "font-size:.74rem;color:var(--muted);margin-top:.5rem" },
-      who ? (on + " day" + (on === 1 ? "" : "s") + " this month · a dot means supernumerary · faded weeks are not written yet")
-          : "Choose a person to see their month."));
+    /* The count is a FACT, so it stays — beside the month it belongs to, not underneath in grey
+       with a legend attached to it. The empty state needs no sentence either: the dropdown above
+       already says "choose a person". */
+    if (who) head.append(el("span", { class: "mcount" }, on + " ahead"));
   };
   /* Remembered in THIS browser only. Who you are is a personal preference, not rota data — in the
      shared file it would be one field fought over by everyone, and a save every time somebody
