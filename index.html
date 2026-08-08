@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CCU Pod Allocator — TEST</title>
-<link rel="stylesheet" href="core.css?v=20260731-02">
+<link rel="stylesheet" href="core.css?v=20260808-03">
 <style>
 :root{
   /* Everything shared lives in core.css. Only the role accent is this page's. */
@@ -971,7 +971,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
         </div>
       </details>
 
-      <details><summary>Someone’s off sick — what do I do?</summary>
+      <details><summary>Someone can’t work their shift — what do I do?</summary>
         <div class="in">
           <p>You can sort it on the board there and then. You’ll need the team password.</p>
           <ol>
@@ -988,7 +988,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
       <details><summary>Who’s got the referral phone?</summary>
         <div class="in">
           <p>The phone icon shows the holder, and they are always on a long day — the board won’t leave it with someone on a short day.</p>
-          <p>An eye icon on someone else means they’re shadowing to learn it, with a supervisor on the same shift — they aren’t holding the phone themselves. Overnight the holder’s icon is marked with a small <b>N</b>. If the holder goes off sick, <b>Fix this day</b> hands the phone on for you.</p>
+          <p>An eye icon on someone else means they’re shadowing to learn it, with a supervisor on the same shift — they aren’t holding the phone themselves. Overnight the holder’s icon is marked with a small <b>N</b>. If the holder comes off the day, <b>Fix this day</b> hands the phone on for you.</p>
         </div>
       </details>
 
@@ -1048,7 +1048,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
   <button class="hbtn ghost" id="btnTestReset" title="Throw away the rota changes made here and re-read the live rota data">Reload live rota data</button>
 </div>
 
-<script src="core.js?v=20260731-02"></script>
+<script src="core.js?v=20260808-03"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -3129,11 +3129,11 @@ function poolFor(day, dateISO){
   const map = {};
   for (const [id, v] of Object.entries(r)) if ((v.kind === "day" || v.kind === "night") && staffById(id)) map[id] = { kind: v.kind, code: v.code, extra: false };
   for (const e of (day.extras || [])) if (staffById(e.id)) map[e.id] = { kind: e.kind, code: e.code || null, extra: true };
-  // People taken off this day (off sick, or added in error) drop out of the bench and every count.
+  // People taken off this day drop out of the bench and every count. No reason is held for it.
   for (const id of (day.removed || [])) delete map[id];
   return map;
 }
-// Take someone off a single day (sickness / wrong entry). Rostered people go on a per-day "off" list
+// Take someone off a single day. Rostered people go on a per-day "off" list
 // so they vanish from the bench and the checks; manually-added extras are simply dropped.
 function takeOffDay(day, di, id){
   const p = poolFor(day, addDays(currentWeekKey, di))[id];
@@ -3609,7 +3609,7 @@ function renderDayRow(day, di, dateISO, issues){
     const p = pool[id];
     tray.append(chip(staffById(id), { di, day, tag: poolState(p),
       tagClick: () => cycleShift(day, id, pool),
-      removeTitle: "Take off this day (off sick / added by mistake)",
+      removeTitle: "Take off this day",
       onRemove: () => { takeOffDay(day, di, id); markDirty(); renderWeek(); } }));
   }
   if (nightIds.length) tray.append(el("div", { class: "tray-sec" }, "Night"));
@@ -3617,7 +3617,7 @@ function renderDayRow(day, di, dateISO, issues){
     const p = pool[id];
     tray.append(chip(staffById(id), { di, day, tag: "N",
       tagClick: () => cycleShift(day, id, pool),
-      removeTitle: "Take off this day (off sick / added by mistake)",
+      removeTitle: "Take off this day",
       onRemove: () => { takeOffDay(day, di, id); markDirty(); renderWeek(); } }));
   }
   tray.append(el("div", { class: "hint trayhint" }, "Drop here to un-assign"));
@@ -5600,7 +5600,7 @@ async function autoFillWeek(){
   else toast("Week filled — check the dots, then adjust anything you disagree with");
 }
 
-/* ================= FIX A DAY (minimal-change repair after sickness / swaps) =================
+/* ================= FIX A DAY (minimal-change repair after somebody comes off) =================
    Works on a clone, makes the fewest moves needed to clear the day's rule breaks (and any aim that
    costs no extra move), and returns the proposed changes for a preview. Nothing is applied until the
    user hits Apply, and Undo reverses it. */
@@ -7222,7 +7222,7 @@ function srRemoveFromDay(day, sid){
 }
 function srDetectGhosts(){
   // People still allocated on a day (today onwards, viewed week) who are no longer on the
-  // Optima roster for that day — e.g. taken off sick and auto-removed by the sync.
+  // Optima roster for that day — e.g. no longer listed, and auto-removed by the sync.
   const out = [];
   try {
     const wk = (data && data.weeks || {})[currentWeekKey];
@@ -7317,13 +7317,23 @@ function srTriageNewPeople(){
     } }, "Done")));
   $("#modalBg").style.display = "flex";
 }
-function srApplySickFix(g, reallocate){
+function srApplyComeOff(g, reallocate){
   if (!EDIT_MODE){ toast("Press Edit first, then apply the fix."); return; }
   const day = getWeek(currentWeekKey).days[g.di];
   const hits = srRemoveFromDay(day, g.sid);
   const fromPod = (hits.find(h => /^Pod ([A-E])$/.test(h)) || "").replace("Pod ", "");
-  logEntry("Sickness fix " + g.date + ": removed " + g.name + (hits.length ? " from " + hits.join(", ") : ""),
-    "auto", g.date, null, { act: "off", subj: g.name, from: fromPod, why: "sick" });
+  /* NOT ON, NEVER WHY — hard rule 6, sharpened 8 Aug after the DPIA. This line used to write
+     "Sickness fix <date>: removed <name>" together with `why: "sick"`, which is a record that a
+     named person was off sick: data concerning health, and the only special-category data in the
+     whole project. Nothing here needed it — the board needs to know somebody is not on, and
+     never needs to know why.
+     Renaming the field would not have been enough and was considered and rejected: health data is
+     defined by what it reveals, not by what the field is called, so a neutral value reached only
+     from a control labelled "off sick" is still an Article 9 record. The reason has to be
+     genuinely unrecoverable, which is why the labels went with it and why every removal — a
+     swap, a family emergency, a rota error, being surplus — now writes this identical row. */
+  logEntry(g.name + " taken off " + g.date + (hits.length ? " — was " + hits.join(", ") : ""),
+    "auto", g.date, null, { act: "off", subj: g.name, from: fromPod });
   let moved = 0;
   if (reallocate){
     const plan = planDayFix(g.di);
@@ -7393,7 +7403,7 @@ function renderSyncReview(){
   el.querySelectorAll("button[data-gi]").forEach(b => b.onclick = () => {
     const g = ghosts[+b.dataset.gi];
     const cb = el.querySelector("#srRe" + b.dataset.gi);
-    srApplySickFix(g, !cb || cb.checked);
+    srApplyComeOff(g, !cb || cb.checked);
   });
 }
 function resolveSyncClash(i, how){
