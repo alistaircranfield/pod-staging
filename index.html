@@ -351,6 +351,29 @@ td.col-A{background:var(--podA)} td.col-B{background:var(--podB)} td.col-C{backg
 .mcell.mtoday .mday{outline:1.5px solid var(--accent);outline-offset:-1px}
 .mwhat{font-size:.6rem;line-height:1;opacity:.9}
 .mnav{display:flex;align-items:center;gap:.4rem;margin:.2rem 0 .5rem}
+/* SETTINGS. These four classes are Cover's, copied rather than reinvented — the two boards had
+   started to look like different applications, and the fix for that is shared vocabulary, not
+   two people's taste. .sectlab is a section label, .cnt a count chip, .srcgrid the source panel,
+   .subtile a link to a subpage. */
+.sectlab{font-size:.68rem;font-weight:700;letter-spacing:.07em;color:var(--muted)}
+.stafftop{display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem}
+.cnt{background:var(--hair);color:var(--muted);font-size:.7rem;padding:.1rem .5rem;border-radius:999px}
+.cnt.ok{background:#eaf3de;color:#3B6D11}
+.cnt.warn{background:#faeeda;color:#854F0B}
+.cnt.bad{background:#fcebeb;color:#A32D2D}
+.srcgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:.6rem}
+.srcgrid span{display:block;font-size:.7rem;color:var(--muted)}
+.srcgrid b{font-size:.83rem;font-weight:600}
+.srcgrid b.warn{color:#854F0B}
+.srcgrid b.bad{color:#A32D2D}
+.subtile{display:flex;align-items:center;gap:.7rem;width:100%;text-align:left;background:var(--card);
+  border:1px solid var(--line);border-radius:12px;padding:.8rem .9rem;cursor:pointer;font-family:inherit}
+.subtile:hover{border-color:var(--hair);background:var(--hair)}
+.subtile .st-t{font-size:.9rem;font-weight:600}
+.subtile .st-s{font-size:.76rem;color:var(--muted)}
+.nmrow{display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem;flex-wrap:wrap}
+.nmin{flex:1;min-width:190px;font-family:inherit;font-size:.85rem;padding:.4rem .55rem;
+  border:1px solid var(--line);border-radius:9px;background:var(--card)}
 .mcount{font-size:.72rem;font-weight:600;color:var(--accent);background:var(--accent-bg);
   border-radius:999px;padding:.15rem .5rem;white-space:nowrap}
 .wkpick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.35rem;margin:.2rem 0 .5rem}
@@ -688,7 +711,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
   <button data-tab="fair" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l3-8 4 14 3-8h4"/></svg>Fairness</button>
   <button data-tab="log" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Change log<span class="tpc" id="tabLogCount"></span></button>
   <button data-tab="settings" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M4 12h2M18 12h2M12 4v2M12 18v2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M17.7 6.3l-1.4 1.4M7.7 16.3l-1.4 1.4"/></svg>Settings</button>
-  <button data-tab="import" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M4 20h16"/></svg>Import</button>
+  <button data-tab="import" class="tpi" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M4 20h16"/></svg>Import</button>
 </nav>
 <div id="navbackdrop"></div>
 <div id="content">
@@ -735,9 +758,10 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
         <input type="password" id="gatePwI" placeholder="Password">
         <button class="btn" id="gateBtnI" style="width:100%">Unlock</button>
         <div id="gateMsgI" style="font-size:.78rem;color:var(--red);min-height:1em;margin-top:.3rem"></div>
-        <a href="#" id="gateResetI" style="font-size:.72rem;color:var(--muted)">Forgotten? Reset it</a>
+        <a href="#" id="gateResetI" style="font-size:.72rem;color:var(--muted)">Reset password</a>
       </div>
     </div>
+    <div id="importTop" class="card" style="margin-bottom:.8rem"></div>
     <div class="imp-grid" id="importCard">
       <details class="card" id="manualRosterCard">
         <summary style="cursor:pointer;font-size:.78rem;color:var(--muted);font-weight:600">Manual roster import — only needed if the automatic sync has stopped</summary>
@@ -782,7 +806,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
         <input type="password" id="gatePwS" placeholder="Password">
         <button class="btn" id="gateBtnS" style="width:100%">Unlock</button>
         <div id="gateMsgS" style="font-size:.78rem;color:var(--red);min-height:1em;margin-top:.3rem"></div>
-        <a href="#" id="gateResetS" style="font-size:.72rem;color:var(--muted)">Forgotten? Reset it</a>
+        <a href="#" id="gateResetS" style="font-size:.72rem;color:var(--muted)">Reset password</a>
       </div>
     </div>
     <div class="card" id="staffCard">
@@ -815,7 +839,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
         <input type="password" id="lockPw" placeholder="Password" autocomplete="current-password">
         <div id="lockMsg"></div>
         <button class="btn" id="lockBtn">Unlock</button>
-        <a href="#" id="lockReset">Forgotten? Reset it</a>
+        <a href="#" id="lockReset">Reset password</a>
       </div>
     </div>
   </section>
@@ -828,7 +852,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
         <input type="password" id="gatePwT" placeholder="Password">
         <button class="btn" id="gateBtnT" style="width:100%">Unlock</button>
         <div id="gateMsgT" style="font-size:.78rem;color:var(--red);min-height:1em;margin-top:.3rem"></div>
-        <a href="#" id="gateResetT" style="font-size:.72rem;color:var(--muted)">Forgotten? Reset it</a>
+        <a href="#" id="gateResetT" style="font-size:.72rem;color:var(--muted)">Reset password</a>
       </div>
     </div>
     <div class="card" id="teamCard">
@@ -845,7 +869,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
         <input type="password" id="gatePwG" placeholder="Password">
         <button class="btn" id="gateBtnG" style="width:100%">Unlock</button>
         <div id="gateMsgG" style="font-size:.78rem;color:var(--red);min-height:1em;margin-top:.3rem"></div>
-        <a href="#" id="gateResetG" style="font-size:.72rem;color:var(--muted)">Forgotten? Reset it</a>
+        <a href="#" id="gateResetG" style="font-size:.72rem;color:var(--muted)">Reset password</a>
       </div>
     </div>
     <div class="card" id="setCard"><div id="setList"></div></div>
@@ -865,7 +889,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
         <input type="password" id="gatePwF" placeholder="Password">
         <button class="btn" id="gateBtnF" style="width:100%">Unlock</button>
         <div id="gateMsgF" style="font-size:.78rem;color:var(--red);min-height:1em;margin-top:.3rem"></div>
-        <a href="#" id="gateResetF" style="font-size:.72rem;color:var(--muted)">Forgotten? Reset it</a>
+        <a href="#" id="gateResetF" style="font-size:.72rem;color:var(--muted)">Reset password</a>
       </div>
     </div>
     <div class="card" id="fairCard">
@@ -882,7 +906,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
         <input type="password" id="gatePwL" placeholder="Password">
         <button class="btn" id="gateBtnL" style="width:100%">Unlock</button>
         <div id="gateMsgL" style="font-size:.78rem;color:var(--red);min-height:1em;margin-top:.3rem"></div>
-        <a href="#" id="gateResetL" style="font-size:.72rem;color:var(--muted)">Forgotten? Reset it</a>
+        <a href="#" id="gateResetL" style="font-size:.72rem;color:var(--muted)">Reset password</a>
       </div>
     </div>
     <div class="card" id="logCard">
@@ -898,7 +922,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
         <input type="password" id="gatePwO" placeholder="Password">
         <button class="btn" id="gateBtnO" style="width:100%">Unlock</button>
         <div id="gateMsgO" style="font-size:.78rem;color:var(--red);min-height:1em;margin-top:.3rem"></div>
-        <a href="#" id="gateResetO" style="font-size:.72rem;color:var(--muted)">Forgotten? Reset it</a>
+        <a href="#" id="gateResetO" style="font-size:.72rem;color:var(--muted)">Reset password</a>
       </div>
     </div>
     <div class="card" id="ovrCard">
@@ -5921,15 +5945,7 @@ function renderGate(sfx, cardSel, onShow){
       else r.msg.textContent = "Wrong password.";
     };
     r.pw.onkeydown = e => { if (e.key === "Enter") r.btn.click(); };
-    r.reset.onclick = async e => {
-      e.preventDefault();
-      const typed = await uiPrompt("Resetting clears the password for everyone and is recorded in the change log with your name. Type RESET to confirm.", { title: "Reset the staff password?", okLabel: "Reset", placeholder: "Type RESET", danger: true });
-      if (typed !== "RESET") { if (typed) toast("Not reset — you must type RESET exactly"); return; }
-      data.staffPw = null;
-      store.sdel("staffUnlocked");
-      logEntry("Staff-list password reset");
-      markDirty(); renderAll();
-    };
+    r.reset.onclick = e => { e.preventDefault(); resetDialog(); };
   } else {
     r.gate.style.display = "none"; card.style.display = "";
     onShow();
@@ -6005,13 +6021,8 @@ function teamUnlockDialog(then){
     el("button", { class: "btn", onclick: go }, setting ? "Set password" : "Unlock"));
   m.append(btns);
   if (!setting) m.append(el("div", { style: "text-align:center;margin-top:.6rem" },
-    el("a", { href: "#", style: "font-size:.72rem;color:var(--muted)", onclick: async e => {
-      e.preventDefault();
-      const typed = await uiPrompt("Resetting clears the password for everyone and is recorded in the change log with your name. Type RESET to confirm.", { title: "Reset the rota team password?", okLabel: "Reset", placeholder: "Type RESET", danger: true });
-      if (typed !== "RESET") { if (typed) toast("Not reset — you must type RESET exactly"); return; }
-      data.staffPw = null; store.sdel("staffUnlocked");
-      logEntry("Staff-list password reset"); markDirty(); closeModal(); renderAll();
-    }}, "Forgotten? Reset it")));
+    el("a", { href: "#", style: "font-size:.72rem;color:var(--muted)",
+      onclick: e => { e.preventDefault(); closeModal(); resetDialog(); } }, "Reset password")));
   $("#modalBg").style.display = "flex";
   setTimeout(() => pw.focus(), 40);
 }
@@ -6524,15 +6535,185 @@ function renderAttention(){
   }
 }
 function renderFairGate(){ renderGate("F", "#fairCard", renderFairness); }
-function renderImportGate(){ renderGate("I", "#importCard", () => {}); }
+function renderImportGate(){ renderGate("I", "#importCard", renderImportTop); }
+/* The importers are a fallback now: the roster comes from the Allocate sync and the consultants
+   from Cover. Ali, 8 Aug: "both imports are (or should be) now redundant and only required in
+   backup." So this page is reached from Settings rather than the rail, and it opens by saying
+   whether the sync is actually in trouble — otherwise a drop zone is an invitation to do by hand
+   something that is already being done. */
+function renderImportTop(){
+  const box = $("#importTop"); if (!box || !data) return;
+  box.innerHTML = "";
+  const back = el("button", { class: "btn sec", style: "font-size:.78rem;padding:.25rem .7rem",
+    onclick: () => { settingsPage = null; switchTab("settings"); } }, "\u2039 Settings");
+  const h = hoursSince(data.lastSync);
+  const ok = h !== null && h < 26;
+  box.append(el("div", { class: "stafftop" }, back,
+    el("span", { class: "cnt " + (ok ? "ok" : "warn"), style: "margin-left:auto" },
+      ok ? "sync is running" : (data.lastSync ? "sync is behind" : "never synced"))));
+  const g = el("div", { class: "srcgrid" });
+  g.append(el("div", {}, el("span", {}, "roster pulled"), el("b", {}, whenMin(data.lastSync))));
+  const cons = data.cons || {};
+  g.append(el("div", {}, el("span", {}, "consultants from"),
+    el("b", { class: cons.from === "cover" ? "" : "warn" },
+      cons.from === "cover" ? ("Cover \u00b7 " + whenMin(cons.at)) : "cached names")));
+  g.append(el("div", {}, el("span", {}, "roster reaches"), el("b", {}, rosterReach() ? fmtDate(rosterReach()) : "\u2014")));
+  box.append(g);
+}
 function renderSettingsGate(){ renderGate("G", "#setCard", renderSettings); }
 /* Hard rule 1: every functional value is editable here by an authorised person — no code change,
    no repo access, no me. */
+/* SETTINGS HAS SUBPAGES NOW. Everything used to sit on one scroll: the six numbers people change,
+   then fifteen grades nobody changes from one month to the next. Rarely-touched things next to
+   frequently-touched ones make both harder to find. `settingsPage` is which one you are looking
+   at; null is the main screen. */
+let settingsPage = null;
+
+/* One way in for every setting, so each is saved, logged and re-rendered identically rather than
+   each control growing its own copy of that. Cover's setSetting, same shape. */
+function setSetting(key, value, msg){
+  if (!data) return;
+  data[key] = value;
+  logEntry(msg, "manual");
+  markDirty(); saveFile(true);
+  renderSettings();
+}
+
+/* TIMES TO THE MINUTE, NEVER A BARE DATE. The board has always held these to the second; only the
+   display was throwing them away, so two different clocks measuring two different things both
+   showed as "8 Aug" and neither said which was which (Ali, 8 Aug, on the Cover version: "I want
+   to know what date and time last synced file exactly"). */
+function whenMin(t){
+  if (!t) return "\u2014";
+  const d = new Date(t);
+  if (isNaN(d)) return String(t).slice(0, 10);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + ", " +
+         d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+}
+/* Deliberately loose. A stricter pattern rejects real NHS addresses more often than it catches
+   typos, and the address is checked again by the flow before anything is posted to it. */
+/* THE PASSWORD RESET, AND WHY IT CHANGED.
+
+   It used to be: click "Forgotten? Reset it", type RESET, and the password was cleared for
+   everyone. Ali, 8 Aug: "this means anyone accessing the board can just set a new password
+   without telling anyone right?" It did. The board is behind a link, not a login, so "whoever is
+   standing at the screen" is not an authorisation.
+
+   Now the clear is authorised by a named person out of band: pick one of the admin addresses,
+   they get an email, and clicking the link in it is what clears the password. The addresses live
+   in the store and are managed on Settings behind the shield; here they are MASKED, because
+   anybody with the link reaches this dialog and there is no reason to publish colleagues'
+   addresses to them.
+
+   The board cannot do the mailing itself, so RESET_URL is a Power Automate flow (see
+   RESET-FLOWS.md). Until it exists this says so plainly rather than offering a button that goes
+   nowhere — and the old type-RESET route is NOT kept as a fallback, because a fallback that
+   reopens the hole is not a fallback. */
+const RESET_URL = (window.__POD_KEYS && window.__POD_KEYS.rr) || "";
+function resetDialog(){
+  const m = $("#modal"); m.innerHTML = "";
+  m.append(el("h3", {}, "Reset the rota team password"));
+  const admins = (data && data.admins) || [];
+  const msg = el("div", { style: "font-size:.8rem;color:var(--muted);min-height:1.2em;margin-top:.5rem" });
+  if (!admins.length || !RESET_URL) {
+    msg.textContent = !admins.length
+      ? "No address is set up to allow a reset yet \u2014 add one on Settings."
+      : "The reset flow isn't connected yet.";
+    m.append(msg, el("div", { class: "modalbtns" }, el("button", { class: "btn", onclick: closeModal }, "Close")));
+    $("#modalBg").style.display = "flex";
+    return;
+  }
+  const sel = el("select", { style: "width:100%;margin-top:.6rem" });
+  admins.forEach((a, n) => sel.append(el("option", { value: String(n) }, maskEmail(a))));
+  const send = el("button", { class: "btn" }, "Send link");
+  send.onclick = async () => {
+    const who = admins[+sel.value];
+    if (!who) return;
+    send.disabled = true; msg.textContent = "Sending\u2026";
+    try {
+      await fetch(RESET_URL, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: who, at: location.href }) });
+      msg.textContent = "Link sent to " + maskEmail(who);
+    } catch(e){ msg.textContent = "Couldn't send \u2014 try again."; send.disabled = false; }
+  };
+  m.append(sel, msg, el("div", { class: "modalbtns" },
+    el("button", { class: "btn sec", onclick: closeModal }, "Close"), send));
+  $("#modalBg").style.display = "flex";
+}
+function isEmail(v){ return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(v || "").trim()); }
+/* a.cranfield@nhs.net -> a.c\u2022\u2022\u2022@nhs.net. Anybody with the link reaches the lock screen,
+   so the addresses are shown but not published. */
+function maskEmail(a){
+  const [u, d] = String(a || "").split("@");
+  if (!d) return String(a || "");
+  return (u.length <= 3 ? u[0] || "" : u.slice(0, 3)) + "\u2022\u2022\u2022@" + d;
+}
+function hoursSince(t){ const d = t ? new Date(t) : null; return (d && !isNaN(d)) ? (Date.now() - d) / 3600000 : null; }
+/* How far the roster actually reaches. "Why can I not see September?" is answerable from the page
+   instead of from the puller's source. */
+function rosterReach(){
+  let last = "";
+  for (const wk of Object.values((data && data.weeks) || {}))
+    for (const d of Object.keys((wk && wk.roster) || {})) if (d > last) last = d;
+  return last;
+}
+/* Sync now cannot run anything — there is no server here to ask. It writes a request into the
+   store and the GitHub Action picks it up on its next pass, and the toast says exactly that
+   rather than claiming a success it cannot verify. */
+function syncNow(){
+  if (!data) return;
+  data.syncRequest = { t: new Date().toISOString(), who: editorName() };
+  logEntry("Sync requested", "manual");
+  markDirty(); saveFile(true);
+  toast("Asked for \u2014 the next run will pick it up");
+}
+
 function renderSettings(){
   const box = $("#setList"); if (!box) return;
   box.innerHTML = "";
-  const h = t => el("div", { style: "font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:1.2rem 0 .5rem" }, t);
+  const h = t => el("div", { class: "sectlab", style: "margin:1.2rem 0 .5rem" }, t);
   const save = msg => { logEntry(msg, "manual"); markDirty(); saveFile(true); };
+
+  if (settingsPage === "grades") { renderGradeDefaults(box); return; }
+
+  /* ---- WHERE THE BOARD'S DATA COMES FROM -------------------------------------------------
+     Two sources now, and they must both be named. The roster comes from Allocate through the
+     nightly sync; the consultants come from Cover, since 8 Aug. Ali asked whether Cover should
+     appear here — it must, because when Cover cannot be reached this board falls back to cached
+     names, and a fallback nobody can see is indistinguishable from fresh data. */
+  const stamp = (label, t, cls) => el("div", {}, el("span", {}, label),
+    el("b", cls ? { class: cls } : {}, whenMin(t)));
+  const src = el("div", { class: "card" });
+  const lastSync = data && data.lastSync;
+  const inStep = hoursSince(lastSync) !== null && hoursSince(lastSync) < 26;
+  const top = el("div", { class: "stafftop" }, el("span", { class: "sectlab" }, "SOURCE"),
+    el("span", { class: "cnt " + (inStep ? "ok" : "warn") }, inStep ? "in step" : (lastSync ? "behind" : "never synced")));
+  const syncBtn = el("button", { class: "btn sec", style: "margin-left:auto;font-size:.78rem;padding:.3rem .7rem", onclick: syncNow }, "Sync now");
+  syncBtn.disabled = !canEdit();
+  top.append(syncBtn);
+  src.append(top);
+  src.append(el("div", { style: "font-size:.85rem;margin-bottom:.7rem" }, "Allocate \u2014 CCU resident rota"));
+  const sgrid = el("div", { class: "srcgrid" });
+  sgrid.append(stamp("allocate scraped", data && data.lastScrape || lastSync));
+  sgrid.append(stamp("roster pulled", lastSync));
+  const savedBit = el("div", {}, el("span", {}, "last worked out"),
+    el("b", {}, whenMin(data && data.savedAt) + ((data && data.savedBy) ? " \u00b7 " + data.savedBy : "")));
+  sgrid.append(savedBit);
+  sgrid.append(el("div", {}, el("span", {}, "roster reaches"), el("b", {}, rosterReach() ? fmtDate(rosterReach()) : "\u2014")));
+  /* CONSULTANTS. `cons.from` is "cover" once a live read has succeeded and "seed" while the board
+     is still on the names carried over from its own old staff records. */
+  const cons = (data && data.cons) || {};
+  sgrid.append(el("div", {}, el("span", {}, "consultants from"),
+    el("b", { class: cons.from === "cover" ? "" : "warn" },
+      cons.from === "cover" ? ("Cover \u00b7 " + whenMin(cons.at)) : "cached names")));
+  /* THE BACKUP STAMP. A backup job that has silently stopped looks exactly like one with nothing
+     to do, which is the whole reason this line exists. */
+  const bh = hoursSince(data && data.lastBackup);
+  sgrid.append(el("div", {}, el("span", {}, "last backup"),
+    el("b", { class: bh === null || bh > 48 ? "bad" : (bh > 26 ? "warn" : "") },
+      whenMin(data && data.lastBackup) + (bh === null ? "" : " \u00b7 " + Math.round(bh) + "h ago"))));
+  src.append(sgrid);
+  box.append(src);
 
   box.append(h("Pod rules"));
   const nums = [["podMin","staff per pod, minimum",""],["podEMin","Pod E minimum",""],
@@ -6556,7 +6737,60 @@ function renderSettings(){
   }
   box.append(grid);
 
-  box.append(h("Skills a grade starts with"));
+  /* ---- WHO CAN ALLOW A PASSWORD RESET ------------------------------------------------------
+     Full addresses only here, behind the shield. The lock screen shows them masked, because
+     anybody with the link reaches the lock screen and there is no reason to publish colleagues'
+     addresses to them. */
+  box.append(h("Who can allow a password reset"));
+  const admins = (data.admins || []);
+  const alist = el("div");
+  admins.forEach((a, n) => {
+    const inp = el("input", { class: "nmin", value: a });
+    inp.onchange = () => {
+      const v = (inp.value || "").trim();
+      if (!isEmail(v)) { toast("That isn't an email address"); renderSettings(); return; }
+      const list = admins.slice(); list[n] = v;
+      setSetting("admins", list, "Reset admin changed to " + v);
+    };
+    const rm = el("button", { class: "btn sec", onclick: () => {
+      /* Removing the last one leaves nobody able to allow a reset, which is the lockout this
+         whole mechanism exists to prevent. */
+      if (admins.length <= 1) { toast("Keep at least one address, or nobody can allow a reset"); return; }
+      const list = admins.slice(); const [gone] = list.splice(n, 1);
+      setSetting("admins", list, "Reset admin removed: " + gone);
+    } }, "Remove");
+    alist.append(el("div", { class: "nmrow" }, inp, rm));
+  });
+  const nw = el("input", { class: "nmin", placeholder: "name@nhs.net", autocomplete: "off" });
+  alist.append(el("div", { class: "nmrow" }, nw, el("button", { class: "btn sec", onclick: () => {
+    const v = (nw.value || "").trim();
+    if (!isEmail(v)) { toast("That isn't an email address"); return; }
+    setSetting("admins", admins.concat([v]), "Reset admin added: " + v);
+  } }, "Add")));
+  box.append(alist);
+
+  /* ---- THE TWO SUBPAGES --------------------------------------------------------------------
+     Grade defaults are fifteen rows nobody edits monthly; the importers are a fallback for when
+     the sync has stopped, not part of the routine. Both were making this page long and neither
+     belongs beside the numbers people actually change. */
+  const tiles = el("div", { style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(13rem,1fr));gap:.6rem;margin-top:1.2rem" });
+  const tile = (title, sub2, go) => el("button", { class: "subtile", onclick: go },
+    el("span", { style: "flex:1" }, el("span", { class: "st-t", style: "display:block" }, title),
+      el("span", { class: "st-s" }, sub2)),
+    el("span", { style: "color:var(--muted)" }, "\u203a"));
+  tiles.append(tile("Skills a grade starts with", GRADES.filter(g => g !== "CON").length + " grades",
+    () => { settingsPage = "grades"; renderSettings(); }));
+  tiles.append(tile("Import by hand", "if the sync has stopped", () => switchTab("import")));
+  box.append(tiles);
+}
+
+/* The grade defaults, unchanged in behaviour — only moved off the main settings screen. */
+function renderGradeDefaults(box){
+  const save = msg => { logEntry(msg, "manual"); markDirty(); saveFile(true); };
+  const back = el("button", { class: "btn sec", style: "font-size:.78rem;padding:.25rem .7rem;margin-bottom:.9rem",
+    onclick: () => { settingsPage = null; renderSettings(); } }, "\u2039 Settings");
+  box.append(back);
+  box.append(el("div", { class: "sectlab", style: "margin:0 0 .5rem" }, "SKILLS A GRADE STARTS WITH"));
   /* A 16 x 8 checkbox grid was almost entirely empty boxes. The data is sparse and reads far
      better as a sentence than a matrix: one row per grade, its skills as chips you can take off,
      and a picker for the rest. */
@@ -7229,14 +7463,7 @@ $("#hamburger").onclick = () => { document.body.classList.remove("railback"); do
 $("#tpBack").onclick = () => document.body.classList.add("railback");
 $("#lockBtn").onclick = lockSubmit;
 $("#lockPw").onkeydown = e => { if (e.key === "Enter") lockSubmit(); };
-$("#lockReset").onclick = async e => {
-  e.preventDefault();
-  const typed = await uiPrompt("Resetting clears the password for everyone and is recorded in the change log with your name. Type RESET to confirm.", { title: "Reset the rota team password?", okLabel: "Reset", placeholder: "Type RESET", danger: true });
-  if (typed !== "RESET") { if (typed) toast("Not reset — you must type RESET exactly"); return; }
-  data.staffPw = null; store.sdel("staffUnlocked");
-  logEntry("Staff-list password reset"); markDirty();
-  showLockScreen(LOCK_THEN);
-};
+$("#lockReset").onclick = e => { e.preventDefault(); resetDialog(); };
 $("#navbackdrop").onclick = () => document.body.classList.remove("navopen");
 $("#navclose").onclick = () => document.body.classList.remove("navopen");
 document.querySelectorAll("aside button[data-tab], #teamPanel .tpi").forEach(b => b.addEventListener("click", () => document.body.classList.remove("navopen")));
