@@ -464,6 +464,54 @@ const SEED = `(function(){
             "const t = document.getElementById('logList').textContent;" +
             "const r = t.indexOf('Sam Aziz') >= 0 && t.indexOf('Ambrose') < 0; logQuery=''; renderLog(); return r; })()") === true);
 
+  /* ---- reading the log by PERSON (9 Aug) ---------------------------------------------------
+     Ali, looking at twelve rows under TODAY that were one person's problem being fixed:
+     "nothing ties the rows together". Both date modes answer "what happened then"; this one
+     answers "what has happened to HIM", which is the question somebody actually arrives with. */
+  console.log("\n-- the change log read by person --");
+  w.eval("logQuery = ''; logFilter = 'all'; data.log = [" +
+    "{ t:'2026-08-07T15:12:00Z', who:'allocate sync', kind:'auto', on:'2026-08-12', msg:'a'," +
+    "  d:{ act:'shift', subj:'Antony Taylor Gutierrez', from:'N', to:'LD' } }," +
+    "{ t:'2026-08-09T18:15:00Z', who:'Nicholas Coffin', kind:'manual', on:'2026-08-12', msg:'b'," +
+    "  d:{ act:'move', subj:'Antony Taylor Gutierrez', from:'C&D', to:'C' } }," +
+    "{ t:'2026-08-09T18:16:00Z', who:'Nicholas Coffin', kind:'manual', on:'2026-08-13', msg:'c'," +
+    "  d:{ act:'move', subj:'Philip Meeson', from:'C&D', to:'A&B', night:true } }," +
+    "{ t:'2026-08-06T09:00:00Z', who:'Alistair', kind:'manual', on:null, msg:'Password changed' }" +
+    "]; logBy = 'person'; renderLog();");
+  const headsOf = "[...document.querySelectorAll('#logList .loghead')].map(h => h.textContent)";
+  ok("Group by offers a third way of reading it",
+     w.eval("[...document.querySelectorAll('#logList select')][0].options.length") === 3);
+  ok("every row about one person sits under their name",
+     w.eval("(function(){ const h = " + headsOf + ";" +
+            "return h.some(x => x.indexOf('Antony Taylor Gutierrez') === 0 && /2$/.test(x)); })()") === true);
+  /* The question is nearly always about somebody who has JUST been moved, so alphabetical would
+     bury them under whoever happens to start with an A. */
+  ok("the person touched most recently comes first, not the one first alphabetically",
+     w.eval("(function(){ const h = " + headsOf + ";" +
+            "return h[0].indexOf('Philip Meeson') === 0; })()") === true);
+  /* A series reads forwards. Newest-first is right for "what just happened" and wrong for
+     "how did we get here" — which is the whole reason for this mode. */
+  ok("and inside a person the entries run oldest first, so the story reads forwards",
+     w.eval("(function(){ const g = [...document.querySelectorAll('#logList .loghead')]" +
+            ".find(h => h.textContent.indexOf('Antony') === 0); if (!g) return false;" +
+            "const rows = [...g.nextSibling.querySelectorAll('tr.logrow')]; if (rows.length < 2) return false;" +
+            "return /15:12|16:12/.test(rows[0].textContent) && /18:15|19:15/.test(rows[1].textContent); })()") === true);
+  ok("the rota day is on every row, because that is what a person's series is a series of",
+     w.eval("document.querySelectorAll('#logList tr.logrow td:first-child span').length") ===
+     w.eval("document.querySelectorAll('#logList tr.logrow').length"));
+  /* Dropping them would be tidier and would also hide them. An entry the reader cannot see is
+     worse than one they can see is not about anybody. */
+  ok("entries that are not about one person are still shown, under a heading that says so",
+     w.eval("(function(){ const h = " + headsOf + ";" +
+            "return h[h.length - 1].indexOf('Not about one person') === 0; })()") === true);
+  ok("...and that bucket sorts last however recent it is",
+     w.eval("(function(){ const h = " + headsOf + ";" +
+            "return h.filter(x => x.indexOf('Not about one person') === 0).length === 1; })()") === true);
+  ok("searching still narrows it, and the groups go with it",
+     w.eval("(function(){ logQuery = 'meeson'; renderLog();" +
+            "const h = " + headsOf + "; logQuery = ''; logBy = 'made'; renderLog();" +
+            "return h.length === 1 && h[0].indexOf('Philip Meeson') === 0; })()") === true);
+
   ok("the log mark lives on the board, not in this browser",
      w.eval("(function(){ data.logSeen = ''; store.set('logSeen','');" +
             "renderLogGate(); return (data.logSeen || '').length > 0; })()") === true);
