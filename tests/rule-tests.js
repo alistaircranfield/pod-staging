@@ -864,6 +864,133 @@ async function main() {
     console.log("    totals report written to tests/last-run-totals.md");
   }
 
+  /* ---- STANDING IN THE WRONG SHIFT (9 Aug) ---------------------------------------------------
+     Optima moved Antony Taylor Gutierrez off Wed/Thu nights onto LD on Friday afternoon. The
+     roster row changed within two hours and the allocation never did, because every check on
+     this board looks at what is THERE and a night team of four looks like a night team of four
+     whoever is standing in it. Two days and ~24 sync runs later a person spotted it by eye.
+     allocate_auto now moves these people itself; this is the backstop that makes the state
+     SAYABLE in the window before it does, and the regression test for the day somebody
+     "simplifies" the check away again. */
+  console.log("Standing in the wrong shift");
+  {
+    const wkKey = api.mondayOf(api.todayISO());
+    api.setWeek(wkKey);
+    const wk = api.getWeek(wkKey);
+    const di = 2, dateISO = api.addDays(wkKey, di);
+    wk.days[di] = api.blankDay();
+    const day = wk.days[di];
+    const nightStaff = [0, 1, 2, 3].map(() => mkStaff(api, { nights: true, airway: true, phoneHolder: true }));
+    const dayStaff = [0, 1, 2].map(() => mkStaff(api, { airway: true, phoneHolder: true }));
+    wk.roster = wk.roster || {};
+    const r = {};
+    for (const s of nightStaff) r[s.id] = { code: "N", kind: "night" };
+    for (const s of dayStaff) r[s.id] = { code: "LD", kind: "day" };
+    wk.roster[dateISO] = r;
+    day.night.AB = [nightStaff[0].id, nightStaff[1].id];
+    day.night.CDE = [nightStaff[2].id, nightStaff[3].id];
+    day.night.phone = nightStaff[0].id;
+    day.pods.A.assign = [{ id: dayStaff[0].id, shift: "LD" }];
+    day.pods.B.assign = [{ id: dayStaff[1].id, shift: "LD" }];
+    day.pods.C.assign = [{ id: dayStaff[2].id, shift: "LD" }];
+    day.phone = dayStaff[0].id;
+    const hits = re => api.checkDay(day, dateISO, di, wk).filter(x => re.test(x.msg));
+
+    ok("board and Optima agree — the check says nothing",
+       hits(/Optima has them/).length === 0,
+       hits(/Optima has them/).map(x => x.msg).join(" | "));
+
+    // Beth's change: off nights, onto a long day. Nobody has moved the card yet.
+    r[nightStaff[3].id] = { code: "LD", kind: "day" };
+    const onNights = hits(/night team but Optima has them on a day shift/);
+    ok("on nights but rostered a day shift is called out", onNights.length === 1,
+       "got " + onNights.length);
+    ok("...naming the person and the code they are actually on",
+       onNights.length === 1 && onNights[0].msg.includes(nightStaff[3].name) &&
+       onNights[0].msg.includes("LD"), onNights.map(x => x.msg).join(" | "));
+    ok("...as a note, not a red — the day is out of date, not broken",
+       onNights.length === 1 && !onNights[0].hard);
+
+    // The mirror image: Optima puts a pod person onto nights.
+    r[nightStaff[3].id] = { code: "N", kind: "night" };
+    r[dayStaff[2].id] = { code: "N", kind: "night" };
+    const inPod = hits(/in a pod but Optima has them on nights/);
+    ok("in a pod but rostered nights is called out too", inPod.length === 1,
+       "got " + inPod.length);
+    ok("...and the day-side wording is not fired by the night-side case",
+       hits(/night team but Optima has them on a day shift/).length === 0);
+  }
+
+  /* ---- ...and the sync moving them itself -----------------------------------------------------
+     The backstop above only says so. This is the fix: allocate_auto's third pass now lifts anyone
+     standing on the wrong side and drops them back through its ordinary placement code. The
+     allocator's page-side logic lives as a JS string inside allocate_auto.py and had no test at
+     all, which is exactly how a whole missing transition survived: `already.has(sid) -> skip`
+     reads as obviously correct until you ask what "already" means for somebody in the wrong place.
+     Run against the real string, in the real page, so the two cannot drift.
+     Skipped (not failed) in a clone of a deployed repo, which has the page but not the sync. */
+  const AUTO = path.join(__dirname, "..", "..", "allocate-pull", "allocate_auto.py");
+  if (!fs.existsSync(AUTO)) {
+    console.log("The sync moves them itself\n  – skipped: allocate_auto.py not in this checkout");
+  } else {
+    console.log("The sync moves them itself");
+    const blob = /JS = """([\s\S]*?)"""/.exec(fs.readFileSync(AUTO, "utf8"));
+    const { api: a2, win } = await loadApp();
+    win.saveFile = async () => {};                    // no network, and nothing to save to
+    const wkKey = a2.mondayOf(a2.todayISO());
+    a2.setWeek(wkKey);
+    const wk = a2.getWeek(wkKey);
+    const di = Math.max(0, Math.min(6, Math.round(
+      (Date.parse(a2.todayISO()) - Date.parse(wkKey)) / 86400000) + 1));   // tomorrow-ish, never past
+    const dateISO = a2.addDays(wkKey, di);
+    wk.days[di] = a2.blankDay();
+    const day = wk.days[di];
+    const N = [0, 1, 2, 3].map(() => mkStaff(a2, { nights: true, airway: true, phoneHolder: true }));
+    const D = [0, 1, 2].map(() => mkStaff(a2, { airway: true, phoneHolder: true, transfer: true }));
+    wk.roster = wk.roster || {};
+    wk.roster[dateISO] = {};
+    for (const s of N) wk.roster[dateISO][s.id] = { code: "N", kind: "night" };
+    for (const s of D) wk.roster[dateISO][s.id] = { code: "LD", kind: "day" };
+    day.night.AB = [N[0].id, N[1].id];
+    day.night.CDE = [N[2].id, N[3].id];
+    day.night.phone = N[0].id;
+    day.pods.A.assign = [{ id: D[0].id, shift: "LD" }];
+    day.pods.B.assign = [{ id: D[1].id, shift: "LD" }];
+    day.pods.C.assign = [{ id: D[2].id, shift: "LD" }];
+    day.phone = D[0].id;
+    const moved = N[3];
+    // Optima's Friday-afternoon change, exactly as merge.py would have written it.
+    wk.roster[dateISO][moved.id] = { code: "LD", kind: "day" };
+    a2.data.log = [];
+
+    await win.eval("(" + blob[1] + ")")();
+
+    const d2 = a2.getWeek(wkKey).days[di];
+    const stillNight = [].concat(d2.night.AB || [], d2.night.CDE || [], d2.night.E || [],
+                                 d2.night.super || []).includes(moved.id) ||
+                       d2.night.phone === moved.id;
+    const pod = a2.PODS.find(p => d2.pods[p].assign.some(x => x.id === moved.id));
+    ok("moved off nights by Optima: the sync takes them off the night team", !stillNight);
+    ok("...and puts them in a pod rather than leaving them on the bench", !!pod, "pod=" + pod);
+    ok("...and nobody else is left standing on the wrong side",
+       [...N.slice(0, 3), ...D].every(s => {
+         const onN = [].concat(d2.night.AB || [], d2.night.CDE || [], d2.night.E || [])
+           .includes(s.id) || d2.night.phone === s.id;
+         const onD = a2.PODS.some(p => d2.pods[p].assign.some(x => x.id === s.id));
+         return wk.roster[dateISO][s.id].kind === "night" ? (onN && !onD) : (onD && !onN);
+       }));
+    const said = (a2.data.log || []).filter(e => e && e.msg && e.msg.includes(moved.name));
+    ok("...and says so in the change log", said.length > 0);
+    ok("...naming where they came FROM, not 'bench'",
+       said.some(e => e.d && /night/i.test(String(e.d.from || ""))),
+       said.map(e => JSON.stringify(e.d)).join(" | "));
+    ok("...credited to the sync, not to whoever last pressed Edit",
+       said.every(e => e.who === "allocate sync" && e.kind === "auto"));
+    ok("...and the board raises the recheck bar, because the day was already read",
+       !!(a2.data.autoNotice && (a2.data.autoNotice.days || []).includes(dateISO)),
+       JSON.stringify(a2.data.autoNotice));
+  }
+
   // ---- summary --------------------------------------------------------------------------
   console.log("\n=== " + pass + " passed, " + fail + " failed ===");
   if (errs.length) console.log("(page errors during load: " + errs.length + ")");
