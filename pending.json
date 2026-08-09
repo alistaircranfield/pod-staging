@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-09T19:42:22.081745+00:00",
- "build": "da87b3c",
+ "generated": "2026-08-09T19:43:34.657540+00:00",
+ "build": "0fb7dde",
  "liveBuild": "a1075c5",
- "count": 125,
+ "count": 127,
  "changes": [
+  {
+   "sha": "0fb7dde",
+   "who": "alistaircranfield",
+   "when": "2026-08-09T20:43:25+01:00",
+   "msg": "Catch staging up to live: eight tests for Group by Person"
+  },
+  {
+   "sha": "baab679",
+   "who": "github-actions[bot]",
+   "when": "2026-08-09T19:42:22Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "da87b3c",
    "who": "alistaircranfield",
