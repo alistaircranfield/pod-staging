@@ -53,21 +53,55 @@ function logKind(e){ return (e && e.kind === "auto") ? "auto" : "manual"; }
 function logMade(e){ return (e && e.t) ? String(e.t).slice(0, 10) : ""; }
 function logOn(e){ return (e && e.on) ? String(e.on).slice(0, 10) : logMade(e); }
 
-/* Filter, then bucket by date. by = "made" | "affects"; filter = "all" | "manual" | "auto".
+/* Who an entry is ABOUT, which is not the same as who made it. Empty for the entries that are
+   genuinely not about one person: an import, a password, a whole day reworked. */
+function logSubject(e){
+  var d = logDet(e);
+  return (d && d.subj) ? String(d.subj) : "";
+}
+
+/* Filter, then bucket. by = "made" | "affects" | "person"; filter = "all" | "manual" | "auto".
    Returns [{ date, entries }], newest date first, newest entry first inside each date —
    the log arrives newest-first and bucketing preserves that order.
+
+   PERSON is the third way of reading it, and it is a different question from the other two.
+   Both date modes answer "what happened then"; twelve rows under TODAY are twelve facts with no
+   thread between them, and the thread is what somebody actually wants — Ali, 8 Aug: "nothing ties
+   the rows together", looking at five rows that were one Optima change. Bucketing by subject ties
+   them, and then two things flip:
+     - the groups run by MOST RECENTLY TOUCHED, not alphabetically, so whoever has just been moved
+       is at the top where the question usually starts;
+     - inside a group the entries run OLDEST FIRST, because a series reads forwards. Newest-first
+       is right for "what just happened" and wrong for "how did we get here".
+   The unnamed bucket sorts last under its own heading rather than being dropped: an entry the
+   reader cannot see is worse than one they can see is not about anybody.
    Pure: list in, list out, so it can be held still by a test. */
 function groupLog(list, by, filter){
-  var buckets = {}, order = [];
+  var buckets = {}, order = [], last = {};
   (list || []).forEach(function(e){
     if (!e) return;
     var k = logKind(e);
     if (filter === "manual" && k !== "manual") return;
     if (filter === "auto" && k !== "auto") return;
-    var d = (by === "affects") ? logOn(e) : logMade(e);
+    var d = (by === "person") ? logSubject(e)
+          : (by === "affects") ? logOn(e) : logMade(e);
     if (!buckets[d]) { buckets[d] = []; order.push(d); }
     buckets[d].push(e);
+    var t = (e && e.t) ? String(e.t) : "";
+    if (!last[d] || t > last[d]) last[d] = t;
   });
+  if (by === "person") {
+    return order.sort(function(a, b){
+      if (!a !== !b) return a ? -1 : 1;                        // the unnamed bucket last
+      if (last[a] !== last[b]) return last[a] < last[b] ? 1 : -1;
+      return a < b ? -1 : 1;                                   // same instant: alphabetical
+    }).map(function(d){
+      return { date: d, person: true, entries: buckets[d].slice().sort(function(x, y){
+        var a = String((x && x.t) || ""), b = String((y && y.t) || "");
+        return a < b ? -1 : a > b ? 1 : 0;
+      }) };
+    });
+  }
   return order.sort(function(a, b){ return a < b ? 1 : a > b ? -1 : 0; })
               .map(function(d){ return { date: d, entries: buckets[d] }; });
 }
@@ -275,7 +309,7 @@ function logControls(redraw, onSearch){
   });
   wrap.append(box);
   wrap.append(
-    pick("Group by", [["made", "When changed"], ["affects", "Rota day"]], () => logBy, v => logBy = v),
+    pick("Group by", [["made", "When changed"], ["affects", "Rota day"], ["person", "Person"]], () => logBy, v => logBy = v),
     pick("Show", [["all", "All changes"], ["manual", "Manual only"], ["auto", "Automatic only"]], () => logFilter, v => logFilter = v)
   );
   if (logBy === "affects")
@@ -380,21 +414,27 @@ function logGroups(list, cap){
   const cell = (kids, style) => __el("td", { style: "padding:.42rem .3rem;vertical-align:top;" + (style || "") }, ...kids);
 
   for (const g of groups) {
-    const head = __el("div", { class: "loghead" }, logDayLabel(g.date, today), __el("span", {}, String(g.entries.length)));
-    if (g.date === today) head.dataset.today = "1";
+    /* A person's name IS the heading in person mode — there is no date to label, and the bucket
+       with no subject says what it is rather than appearing as a blank bar. */
+    const headTxt = g.person ? (g.date || "Not about one person") : logDayLabel(g.date, today);
+    const head = __el("div", { class: "loghead" }, headTxt, __el("span", {}, String(g.entries.length)));
+    if (!g.person && g.date === today) head.dataset.today = "1";
     out.append(head);
     const tbl = __el("table", { style: "width:100%;table-layout:fixed;border-collapse:collapse;font-size:.85rem;margin-bottom:.4rem" });
     /* Without this you cannot tell which chip is where they came FROM and which is where they
        went TO — the columns were carrying meaning nothing declared. */
     const th = t => __el("th", { style: "text-align:left;font-weight:500;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:0 .3rem .25rem" }, t);
     const thC = t => __el("th", { style: "text-align:center;font-weight:500;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:0 .3rem .25rem" }, t);
-    tbl.append(__el("tr", {}, th(logBy === "made" ? "Rota day" : ""), th("Person"), thC("From"), thC("To"),
+    tbl.append(__el("tr", {}, th(logBy === "affects" ? "" : "Rota day"), th("Person"), thC("From"), thC("To"),
       __el("th", { style: "text-align:right;font-weight:500;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:0 .3rem .25rem" }, "By")));
     for (const e of g.entries) {
       const d0 = logDet(e);
       const inferred = d0 && !d0.from && !d0.bench ? inferredFrom.get(e) : null;
       const d = inferred ? Object.assign({}, d0, { fromInferred: inferred }) : d0;
-      const other = (logBy === "made") ? logOn(e) : logMade(e);
+      /* The lead pill carries whichever date the heading is NOT already saying. Grouped by rota
+         day it is when the change was made; grouped by when, or by person, it is the rota day —
+         which is what a person's series is a series OF. */
+      const other = (logBy === "affects") ? logMade(e) : logOn(e);
       const stamp = new Date(e.t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
       const by = __el("td", { style: "padding:.42rem .3rem;text-align:right;color:var(--muted);font-size:.78rem;white-space:nowrap;vertical-align:top;width:26%" },
         stamp + " · " + (e.who || "?"));
