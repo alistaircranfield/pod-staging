@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-08T14:23:36.081599+00:00",
- "build": "19ea2a4",
- "liveBuild": "a1dc6af",
- "count": 119,
+ "generated": "2026-08-09T19:39:14.544134+00:00",
+ "build": "7105b25",
+ "liveBuild": "a1075c5",
+ "count": 121,
  "changes": [
+  {
+   "sha": "7105b25",
+   "who": "alistaircranfield",
+   "when": "2026-08-09T20:39:06+01:00",
+   "msg": "Catch staging up to live: group the change log by person"
+  },
+  {
+   "sha": "c1e8e6a",
+   "who": "github-actions[bot]",
+   "when": "2026-08-08T14:23:36Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "19ea2a4",
    "who": "alistaircranfield",
