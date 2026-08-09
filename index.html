@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CCU Pod Allocator — TEST</title>
-<link rel="stylesheet" href="core.css?v=20260808-03">
+<link rel="stylesheet" href="core.css?v=20260809-01">
 <style>
 :root{
   /* Everything shared lives in core.css. Only the role accent is this page's. */
@@ -1048,7 +1048,7 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
   <button class="hbtn ghost" id="btnTestReset" title="Throw away the rota changes made here and re-read the live rota data">Reload live rota data</button>
 </div>
 
-<script src="core.js?v=20260808-03"></script>
+<script src="core.js?v=20260809-01"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -3687,8 +3687,9 @@ function renderDayRow(day, di, dateISO, issues){
            at all, so every supernumerary move showed as "not recorded" — which said we didn't
            know, when the truth is nobody asked (Ali, 4 Aug: "why are there still so many not
            recorded, this isnt acceptable"). */
-        const wasIn = PODS.find(q => day.pods[q].assign.some(a => a.id === id)
-                                  || (day.pods[q].super || []).includes(id)) || "";
+        const wasIn = (PODS.find(q => day.pods[q].assign.some(a => a.id === id)
+                                  || (day.pods[q].super || []).includes(id)) || "")
+                      || nightSpotOf(day, id);
         const keepShift = currentAssignShift(day, id) || shiftFromPool(pool, id);
         removeAssign(day, id);
         pod.super = pod.super || [];
@@ -3700,13 +3701,22 @@ function renderDayRow(day, di, dateISO, issues){
       }
       const keepShift = currentAssignShift(day, id);
       const fromPod = PODS.find(q => day.pods[q].assign.some(a => a.id === id)) || null;
+      /* THE NIGHT COLUMN IS A PLACE TOO. fromPod only ever looked at the pods, so dragging
+         somebody OUT OF the night team and into a pod logged from:"" — which the log draws as
+         "bench", meaning "they were unallocated". They were not: they were standing in the wrong
+         shift, which is the opposite of unallocated and the whole reason for the drag.
+         Antony Taylor Gutierrez, 9 Aug: Optima moved him off Wed/Thu nights onto LD on the Friday,
+         the board left him on nights, Nick moved him by hand — and the only record of the fix
+         reads "bench → C", i.e. as though nothing had been wrong (Ali: "it should all be
+         explainable"). The bench zone (see makeZone above) and the night zone both already fall
+         back to nightSpotOf; this one did not. recordOverride still gets the pod-only value: an
+         override means a pod-to-pod choice the allocator should respect, and coming off nights
+         is not that. */
+      const wasIn = fromPod || nightSpotOf(day, id);
       removeAssign(day, id);
       pod.assign.push({ id, shift: keepShift != null ? keepShift : shiftFromPool(pool, id) });
-      /* fromPod was computed above and then thrown away — which is why a year of entries say
-         only where somebody went. "bench" is a real answer too: it means they were unallocated,
-         which is different from not knowing. */
       logEntry(s.name + " → Pod " + p + " (" + dayShort(di) + ")", "manual", dateOfDi(di), null,
-        { act: "move", subj: s.name, from: fromPod || "", to: p, bench: !fromPod });
+        { act: "move", subj: s.name, from: wasIn, to: p, bench: !wasIn });
       recordOverride(dateISO, id, fromPod, p, keepShift);
     }, oid => { const o = (day.obs || []).find(x => x.oid === oid); if (o) { const was = o.pod || ""; o.pod = p;
       logEntry("Observer " + o.name + " → Pod " + p + " (" + dayShort(di) + ")", "manual", dateOfDi(di), null,
@@ -3981,6 +3991,29 @@ function checkDay(day, dateISO, di, wk){
     const r = wk && wk.roster && wk.roster[dateISO];
     if (r && r[id] && r[id].kind === "night") continue;
     H(s.name + " is on the night team but not flagged for nights.");
+  }
+  /* STANDING IN THE WRONG SHIFT. Every check on this board looks at what is THERE, and a night
+     team of four looks like a night team of four whoever is in it. So when Optima moved Antony
+     Taylor Gutierrez off Wed/Thu nights onto LD on Friday 7 Aug, the roster row changed, the
+     board left him standing on nights, and nothing anywhere said so: the tick-check above bails
+     out early for anyone who does work nights, and "on both the day and night shift" never fired
+     because he was on the day BENCH, not in a pod. It took a person noticing, two days later
+     (Nick Coffin, 9 Aug).
+     allocate_auto now moves these people itself, so this should almost never appear. It is the
+     backstop for the window before the next sync run, for days held by the edit lock, and for a
+     hand-drag onto the wrong side — and it is what makes the state explainable rather than
+     merely wrong. Soft, not hard: the arrangement is not broken, it is out of date, and it
+     clears itself within the hour. */
+  const rk = (wk && wk.roster && wk.roster[dateISO]) || null;
+  if (rk) {
+    for (const id of nightIds)
+      if (rk[id] && rk[id].kind === "day")
+        S(name(id) + " is on the night team but Optima has them on a day shift (" +
+          (rk[id].code || "day") + ") — they need moving to a pod.");
+    for (const id of dayIds)
+      if (rk[id] && rk[id].kind === "night")
+        S(name(id) + " is in a pod but Optima has them on nights (" + (rk[id].code || "night") +
+          ") — they need moving to the night team.");
   }
   const podOccurrences = {};
   for (const p of PODS) for (const a of day.pods[p].assign) if (a.id) (podOccurrences[a.id] = podOccurrences[a.id] || []).push(p);
