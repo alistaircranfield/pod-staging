@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-09T19:39:14.544134+00:00",
- "build": "7105b25",
+ "generated": "2026-08-09T19:40:42.322847+00:00",
+ "build": "6526739",
  "liveBuild": "a1075c5",
- "count": 121,
+ "count": 123,
  "changes": [
+  {
+   "sha": "6526739",
+   "who": "alistaircranfield",
+   "when": "2026-08-09T20:40:34+01:00",
+   "msg": "Catch staging up to live: night-column From fix and the soft backstop note"
+  },
+  {
+   "sha": "1c5a14f",
+   "who": "github-actions[bot]",
+   "when": "2026-08-09T19:39:14Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "7105b25",
    "who": "alistaircranfield",
