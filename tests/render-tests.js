@@ -955,6 +955,36 @@ const SEED = `(function(){
        !/why:\s*["'](sick|rota)["']/.test(coreCode));
   }
 
+  /* THE TABLE'S OWN SCROLL PANE, AND THE BUTTON BAR.
+     Ali, 9 Aug: "the scroll to see the oncall/fgh is glitchy. Scrolls the whole page and the top
+     header doesnt extend that far - surely would be better if it was just the table that scrolled
+     within its pane". Measured on the live page before changing anything: a 1512px viewport
+     against a 1733px document, so the page slid 221px sideways while the sticky topbar, sized to
+     the viewport at 1434px, stopped dead and left bare background beside it.
+
+     jsdom has no layout, so these assert the rules that PRODUCE the behaviour. They are only
+     correct together, which is why they are tested together: making the wrapper a scroll container
+     re-points the header's sticky from the viewport to the pane, so `top` must become 0, and the
+     day column must gain `left:0` or you scroll to Fairfield and lose which day you are reading. */
+  {
+    const cssAll = require("fs").readFileSync(require("path").join(__dirname, "..", "index.html"), "utf8");
+    const css = cssAll.split("<style>")[1].split("</style>")[0];
+    ok("the table scrolls inside its own pane, so the page cannot slide past the topbar",
+      /\.rota-wrap\{overflow:auto/.test(css));
+    ok("the header row sticks to the PANE, not the viewport", /table\.rota th\{top:0/.test(css));
+    ok("the day column is pinned left", /table\.rota td\.daylabel\{position:sticky;left:0/.test(css));
+    ok("borders are separate, or a sticky cell carries its border away and the seam flickers",
+      /table\.rota\{border-collapse:separate/.test(css));
+    ok("the phone hands the pane back — it reflows to cards and has nothing to scroll sideways",
+      /\.rota-wrap\{overflow:visible;max-height:none\}/.test(css));
+    /* `.pill`, `.chip` and `.statchip` all had white-space:nowrap; the buttons were missed, so
+       "Auto-fill week" wrapped and that one button grew while its neighbours stayed short. */
+    ok("button labels cannot wrap, which is what made the bar ragged in edit mode",
+      /button\.btn,\.hbtn\{white-space:nowrap\}/.test(css));
+    ok("and everything in the week bar is one height",
+      /\.weekbar>button,\.weekbar \.btn\{min-height:36px/.test(css));
+  }
+
   ok("no errors across the whole run", errors.length === 0, errors.slice(0, 3).join(" | "));
 
   console.log("\n=== " + pass + " passed, " + fail + " failed ===");
