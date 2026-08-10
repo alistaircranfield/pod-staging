@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-10T09:25:29.902024+00:00",
- "build": "9a84a4b",
+ "generated": "2026-08-10T09:27:34.474270+00:00",
+ "build": "d207b9a",
  "liveBuild": "a1075c5",
- "count": 129,
+ "count": 131,
  "changes": [
+  {
+   "sha": "d207b9a",
+   "who": "alistaircranfield",
+   "when": "2026-08-10T10:27:24+01:00",
+   "msg": "Seven tests for the scroll pane and the button bar"
+  },
+  {
+   "sha": "5ef82b2",
+   "who": "github-actions[bot]",
+   "when": "2026-08-10T09:25:29Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "9a84a4b",
    "who": "alistaircranfield",
