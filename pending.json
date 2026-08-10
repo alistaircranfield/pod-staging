@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-10T09:27:34.474270+00:00",
- "build": "d207b9a",
- "liveBuild": "a1075c5",
- "count": 131,
+ "generated": "2026-08-10T19:35:33.362919+00:00",
+ "build": "541ac02",
+ "liveBuild": "0c0b343",
+ "count": 133,
  "changes": [
+  {
+   "sha": "541ac02",
+   "who": "alistaircranfield",
+   "when": "2026-08-10T20:35:24+01:00",
+   "msg": "Two tests that a placed arrival leaves one row, not two"
+  },
+  {
+   "sha": "705f34a",
+   "who": "github-actions[bot]",
+   "when": "2026-08-10T09:27:34Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "d207b9a",
    "who": "alistaircranfield",
