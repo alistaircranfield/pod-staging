@@ -989,6 +989,38 @@ async function main() {
     ok("...and the board raises the recheck bar, because the day was already read",
        !!(a2.data.autoNotice && (a2.data.autoNotice.days || []).includes(dateISO)),
        JSON.stringify(a2.data.autoNotice));
+
+    /* ONE EVENT, ONE ROW — the arrival half (Ali, 9 Aug: "Confusing change log, what happened").
+       merge.py writes the ROSTER row, "X on the rota, SD", with no pod because it does not know
+       where anyone will be put. This file then places them and writes "X added by Optima — put in
+       Pod B (SD)". Until now BOTH survived, so a reader got the same arrival twice: once saying
+       nothing and once saying everything. Measured on the live log that day: four of six arrivals
+       were that pair. The departure half has been folded since 8 Aug; this is its twin. */
+    console.log("One event, one row — arrivals");
+    {
+      const newcomer = mkStaff(a2, { airway: true, phoneHolder: true, transfer: true });
+      const w3 = a2.getWeek(wkKey);
+      w3.roster[dateISO][newcomer.id] = { code: "SD", kind: "day" };
+      a2.data.log = [{ t: new Date().toISOString(), who: "allocate sync", kind: "auto",
+                       on: dateISO, msg: newcomer.name + " on the rota, SD",
+                       d: { act: "on", subj: newcomer.name, shift: "SD", to: "bench" } }];
+      await win.eval("(" + blob[1] + ")")();
+      const rows = (a2.data.log || []).filter(e => e && e.d && e.d.act === "on"
+        && e.d.subj === newcomer.name && (e.on || null) === dateISO);
+      const placed = a2.PODS.some(p => a2.getWeek(wkKey).days[di].pods[p].assign
+        .some(x => x.id === newcomer.id));
+      if (placed) {
+        ok("a placed arrival leaves ONE row, not the sync's silent one as well",
+           rows.length === 1, rows.length + " rows: " + rows.map(r => r.msg).join(" | "));
+        ok("...and the row that survives is the one carrying the pod",
+           rows.length === 1 && /put in Pod/.test(rows[0].msg), (rows[0] || {}).msg);
+      } else {
+        /* Not placed — a day already arranged, which pass 1 skips. merge.py's row is the only
+           record, so it has to say something: "bench" is the board's own word for that state. */
+        ok("an arrival nobody placed keeps its row, and that row still names a destination",
+           rows.length === 1 && !!rows[0].d.to, JSON.stringify((rows[0] || {}).d));
+      }
+    }
   }
 
   // ---- summary --------------------------------------------------------------------------
