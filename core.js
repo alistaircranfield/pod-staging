@@ -20,14 +20,26 @@
       here once rather than drifting apart in two files.
    ============================================================================ */
 
-var LIVE_HOST = "rota.salford.icu";
+/* THE LIVE ADDRESSES. A LIST, because there is more than one of them now (11 Aug).
+   Cover moved to consultants.salford.icu and immediately started showing the TEST banner —
+   Scott, via Ali: "Scott's moved across to consultants.salford.icu but says test site banner at
+   bottom." Nothing had been redirected; the site was serving the real files and the real data.
+   The check simply did not know the address, and an unknown address is treated as a sandbox.
 
-/* The live site is that one host over http(s). A local file keeps its own
-   behaviour (it saves to the file via the File System API, so it must not be
-   diverted into browser storage). An explicit window.__POD_TEST set by a build
-   still wins, so rota.salford.icu/test.html carries on working. */
+   That fail-safe is right and stays. What was wrong was hard-coding one host for a product that
+   now has two front doors — and the cost was not cosmetic: the banner reads "Nothing here changes
+   the real cover", which was false, and would reasonably stop somebody making a change they had
+   every right to make.
+
+   Adding a live address means adding it here. Anything not on this list is still a sandbox. */
+var LIVE_HOSTS = ["rota.salford.icu", "consultants.salford.icu"];
+var LIVE_HOST = LIVE_HOSTS[0];          // kept: older code and tests still read the single name
+
+/* A local file keeps its own behaviour (it saves to the file via the File System API, so it must
+   not be diverted into browser storage). An explicit window.__POD_TEST set by a build still wins,
+   so rota.salford.icu/test.html carries on working. */
 window.__POD_TEST = (window.__POD_TEST === true) ||
-  (location.protocol !== "file:" && location.hostname !== LIVE_HOST);
+  (location.protocol !== "file:" && LIVE_HOSTS.indexOf(location.hostname) < 0);
 
 /* Stamped by hand when pushing to staging. Shown next to the pending list so
    there is never a question about which build you are looking at. */
