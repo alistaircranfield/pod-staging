@@ -344,6 +344,21 @@ function __fmtDate(iso){
   catch (e) { return String(iso || ""); }
 }
 /* Reader, so every call site agrees on the shape. */
+/* A `kids` entry, whichever way it was written. Some call sites pass objects ({subj, from, to});
+   trialSkillFrom passes the STRINGS that diffWeeks produces, and the renderer read .subj off them
+   — so an expandable row drew "⤷ undefined — not on" once per child, four times over, which is
+   what Ali was looking at on 11 Aug. "not on" was the worst part: it is the removal chip, so the
+   row actively claimed four people had been taken off when they had merely moved pod.
+   Parsed here rather than fixed at the writer alone, so the entries already stored come good too. */
+function kidFields(k){
+  if (k && typeof k === "object") return k;
+  var s = String(k || ""), m;
+  if ((m = s.match(/^(.+?):\s*Pod ([A-E])\s*(?:→|->)\s*Pod ([A-E])/)))
+    return { subj: m[1].trim(), from: m[2], to: m[3] };
+  if ((m = s.match(/^(Night phone|Phone):\s*(.+?)\s*(?:→|->)\s*(.+?)(?:\s+on\s|$)/)))
+    return { subj: m[1], from: m[2] === "nobody" ? "" : m[2], to: m[3] === "nobody" ? "" : m[3], plain: true };
+  return { subj: s, plain: true };          // unrecognised: show the sentence, invent no columns
+}
 function logDet(e){
   if (e && e.d && typeof e.d === "object") return e.d;
   /* `old` means "these fields were read back out of a sentence, not written as fields". Stamped
@@ -821,13 +836,23 @@ function logGroups(list, cap){
                               "#eef7f1", "var(--podBb)")], "width:24%;text-align:center"));
         row.children[1].colSpan = 2;
         row.append(when, by);
-        kidList.forEach(k => {
-          const kr = __el("tr", { style: "border-top:1px solid var(--hair);display:none;background:var(--hair)" },
-            __el("td", {}),
-            cell([" \u2937 " + k.subj], "width:30%;padding-left:1.4rem"),
-            cell([k.from ? pod(k.from) : "\u2014"], "width:12%;text-align:center"),
-            cell([k.to ? pod(k.to) : reason(k.why)], "width:12%;text-align:center"),
-            __el("td", {}), __el("td", {}));
+        kidList.forEach(k0 => {
+          const k = kidFields(k0);
+          /* A child that could not be parsed gets its sentence across the row rather than three
+             invented columns \u2014 and crucially never the "not on" chip, which would say somebody had
+             been taken off the rota when nothing of the sort happened. */
+          const kr = k.plain && !k.from && !k.to
+            ? __el("tr", { style: "border-top:1px solid var(--hair);display:none;background:var(--hair)" },
+                __el("td", {}), cell([" \u2937 " + k.subj], "width:54%;padding-left:1.4rem"),
+                __el("td", {}), __el("td", {}))
+            : __el("tr", { style: "border-top:1px solid var(--hair);display:none;background:var(--hair)" },
+                __el("td", {}),
+                cell([" \u2937 " + (k.subj || "")], "width:30%;padding-left:1.4rem"),
+                cell([k.from ? (k.plain ? chip(k.from, "var(--hair)", "var(--ink)") : pod(k.from)) : "\u2014"], "width:12%;text-align:center"),
+                cell([k.to ? (k.plain ? chip(k.to, "var(--hair)", "var(--ink)") : pod(k.to))
+                           : (k.plain ? "\u2014" : reason(k.why))], "width:12%;text-align:center"),
+                __el("td", {}), __el("td", {}));
+          if (k.plain && !k.from && !k.to) kr.children[1].colSpan = 3;
           kidRows.push(kr);
         });
         open.onclick = () => {
