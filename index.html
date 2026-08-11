@@ -3013,7 +3013,37 @@ function idListEditor(container, dateISO, arr, filter, addLabel, day){
     }
     return;
   }
+  /* ...AND THE SAME IS TRUE WHILE EDITING (11 Aug). The 8 Aug fix above only covered reading, so
+     in edit mode a filled Super slot was still a full-width <select> sitting under a row of
+     compact chips — Ali again, looking at Pod D: "why aaron cooke still rendering weird".
+     He is right, and the dropdown was never earning its place: nobody edits a pod member by
+     picking a different name from a list attached to them, they take one out and put another in.
+     So a FILLED slot is a chip, exactly like the pod above it — same shift pill, same ✕, same
+     press-and-hold. The <select> survives only for an EMPTY slot, which is the one moment it is
+     actually doing something: choosing who goes in. "+ super" pushes an empty slot, so adding
+     still works the way it always did. */
+  const superDi = (() => { try { return getWeek(currentWeekKey).days.indexOf(day); } catch (e) { return null; } })();
   arr.forEach((id, i) => {
+    if (id && staffById(id)) {
+      const st = staffById(id);
+      const sh = day ? superShiftOf(day, id) : null;
+      container.append(chip(st, {
+        day, di: (superDi != null && superDi >= 0) ? superDi : null, tag: sh || null,
+        tagClick: sh ? async () => {
+          const next = sh === "LD" ? "SD" : "LD";
+          if (!(await uiConfirm(st.name + ": " + (next === "LD" ? "standard day → long day (8–8)?" : "long day → standard day (8–4)?"),
+                { title: "Change shift?", okLabel: "Change to " + next }))) return;
+          setSuperShift(day, id, next);
+          logEntry(st.name + ": " + (next === "LD" ? "SD → LD" : "LD → SD") + " (supernumerary)" + dayOfWeekName(day),
+            "manual", dateOfDay(day), null,
+            { act: "set", subj: st.name, facet: "shift", from: sh, to: next });
+          markDirty(); renderWeek();
+        } : null,
+        removeTitle: "Remove",
+        onRemove: () => { arr.splice(i, 1); if (day) pruneSuperShift(day); markDirty(); renderWeek(); }
+      }));
+      return;
+    }
     const row = el("div", { class: "slotrow" });
     row.append(personSelect(dateISO, id, v => {
       if (v) { if (day && arr[i] && arr[i] !== v) setSuperShift(day, v, superShiftOf(day, arr[i])); arr[i] = v; }
@@ -3283,6 +3313,43 @@ function putBackOnDay(day, id){ day.removed = (day.removed || []).filter(x => x 
    It never asks why, and there is nowhere to record one — hard rule 6. Sickness, a swap, a family
    emergency and a rota error all produce the identical record. */
 let sheetClosedAt = 0;
+
+/* What the ✕ on a pod chip opens. Two outcomes, and the difference between them is the entire
+   lesson of 11 Aug: "not in today" writes to day.removed and merge.py honours it, so nobody puts
+   them back; "just out of this pod" leaves them on the bench, available, which is right when you
+   are reshuffling and wrong when someone has gone home. The old ✕ silently did the second whatever
+   you meant. Naming both and letting the person pick costs one tap and removes the trap. */
+function podRemoveSheet(day, di, p, a){
+  const s = staffById(a.id);
+  if (!s) return;
+  const bg  = el("div", { class: "dlg-bg" });
+  const box = el("div", { class: "dlg" });
+  const shut = () => { sheetClosedAt = Date.now(); bg.remove(); window.removeEventListener("keydown", esc); };
+  const esc = e => { if (e.key === "Escape") shut(); };
+  box.append(
+    el("div", { class: "dlg-title" }, s.name),
+    el("div", { class: "dlg-body" }, [a.shift, "Pod " + p, DAYNAMES[di]].filter(Boolean).join(" · ")),
+    el("button", { class: "btn sheetbtn", onclick: () => {
+        shut();
+        takeOffDay(day, di, a.id);
+        markDirty(); renderWeek();
+        toast(s.name + " is off today — the sync won't put them back");
+      } }, "Not in today"),
+    el("button", { class: "btn sec sheetbtn", onclick: () => {
+        shut();
+        day.pods[p].assign = day.pods[p].assign.filter(x => x !== a);
+        logEntry(s.name + " → bench (" + dayShort(di) + ")", "manual", dateOfDi(di), null,
+          { act: "move", subj: s.name, from: p, to: "", bench: true });
+        markDirty(); renderWeek();
+        toast(s.name + " is on the bench — still on today");
+      } }, "Just out of this pod"),
+    el("button", { class: "btn sec sheetbtn plain", onclick: shut }, "Cancel"));
+  bg.append(box);
+  bg.onclick = e => { if (e.target === bg) shut(); };
+  window.addEventListener("keydown", esc);
+  document.body.append(bg);
+}
+
 function personSheet(s, di, day){
   const bg  = el("div", { class: "dlg-bg" });
   const box = el("div", { class: "dlg" });
@@ -3974,7 +4041,20 @@ function renderDayRow(day, di, dateISO, issues){
           if (day.phone === a.id && next !== "LD") { day.phone = null; toast("Phone taken off " + staffById(a.id).name + " — a long day is needed to hold it"); }
           markDirty(); renderWeek();
         },
-        onRemove: () => { pod.assign = pod.assign.filter(x => x !== a); logEntry("Removed " + staffById(a.id).name + " from Pod " + p + " (" + dayShort(di) + ")", "manual", dateOfDi(di)); markDirty(); renderWeek(); } }));
+        /* THE ✕ ASKS NOW (11 Aug, second pass). It used to empty the pod slot on the spot, which
+           dropped the person on the bench — off the left edge of a scrolled board, so it read as
+           nothing having happened at all, and left them where the allocator would pick them up
+           again. That is the whole of what went wrong at 05:45.
+
+           My first attempt put the good path behind a press-and-hold and left this alone. Ali:
+           "it should have done the nice popup box workflow... why didnt it". Right — a hidden
+           good path next to a visible bad one is not a fix. The ambiguous control is this one, so
+           this one is where the question belongs.
+
+           Both answers stay one tap away, and neither is preselected, because the board genuinely
+           cannot tell which was meant. It does not ask why, and there is nowhere to record one. */
+        removeTitle: "Take out of this pod",
+        onRemove: () => podRemoveSheet(day, di, p, a) }));
     }
     if (!pod.assign.length) col.append(el("div", { class: "hint" }, "drop staff here"));
     // Only say "Super" when someone actually is one here. In edit mode the empty box still
