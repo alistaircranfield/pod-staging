@@ -120,6 +120,123 @@ function logDayLabel(iso, todayIso){
   } catch (err) { return iso; }
 }
 
+/* ---------------------------------------------------------------------------
+   THE DAY STRIP — ONE COMPONENT, BOTH BOARDS.
+
+   Ali, 10 Aug, on being told the two boards had two different strips: "tey dont
+   need to be thoguh do they, and shiould be." Correct. They were never meant to
+   diverge; the Pod Board grew a scrolling strip of wide pills with status dots
+   and Cover grew a fixed seven-across of small two-line ones, and nobody chose
+   that. logPanel and groupLog already live here for exactly this reason, so the
+   strip joins them and the boards stop being able to drift apart.
+
+   ALL SEVEN, NOTHING SCROLLS (Ali chose this over a smoother scroller, 10 Aug).
+   The scrolling version generated three separate complaints — every press
+   selected the next day instead of scrolling, it was unclear whether today
+   should sit left or centred, and a new week did not land on its Monday. None
+   of the three is a bug in the scroller: they are all consequences of there
+   being a scroller. Seven pills that always fit have no scroll position to get
+   wrong, no question of where today belongs, and nothing to default to.
+
+   STYLED INLINE, ON PURPOSE. There is no shared stylesheet — core.css is a
+   different file on each board — so a class-based strip would need the same
+   rules maintained in two places, which is the exact failure this is undoing.
+   The only thing it takes from the page is var(--accent), which is blue on the
+   Pod Board and amber on Cover, so today's ring matches whichever board it is
+   drawn on without being told.
+
+   FOUR SIGNALS THAT DO NOT COLLIDE: chosen is solid, today is a ring, the past
+   is faded, the weekend is tinted. They are on independent properties, so a
+   Saturday that has already been still reads as both.
+   --------------------------------------------------------------------------- */
+var DAYSTRIP_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+var DAYSTRIP_DOT   = { hard: "#e2504e", soft: "#e6b84c", ok: "#7fc99a", none: "#e2e4e8" };
+
+/* dates: seven ISO days. sel: index currently shown. opts.dot(iso, i) returns
+   "hard"|"soft"|"ok"|"none" or nothing at all — Cover passes one for days that
+   need attention, the Pod Board for days with issues, and a board that has
+   nothing to say simply omits it and gets the spacer instead, so the pills stay
+   the same height either way. */
+function dayStrip(dates, sel, opts){
+  opts = opts || {};
+  var today = opts.today || __todayISO();
+  var wrap  = __el("div", { class: "daystrip",
+    style: "display:flex;gap:3px;margin:0 0 .6rem;align-items:stretch" });
+  (dates || []).forEach(function(iso, i){
+    var wknd = false, num = "", nm = "";
+    try {
+      var dt = new Date(iso + "T12:00:00");
+      wknd = (dt.getDay() === 0 || dt.getDay() === 6);
+      num  = String(dt.getDate());
+      nm   = DAYSTRIP_NAMES[dt.getDay()];
+    } catch (err) {}
+    var act = (i === sel), isToday = (iso === today), past = (iso < today);
+    var b = __el("button", {
+      type: "button", "data-di": String(i), "aria-pressed": act ? "true" : "false",
+      class: "daypill" + (act ? " active" : "") + (wknd ? " wknd" : "") +
+             (past ? " past" : "") + (isToday ? " today" : ""),
+      style: "flex:1 1 0;min-width:0;padding:.42rem .1rem;border-radius:10px;cursor:pointer;" +
+             "font:inherit;font-size:.72rem;font-weight:600;line-height:1.2;text-align:center;" +
+             "background:" + (act ? "var(--ink)" : wknd ? "var(--hair)" : "var(--card)") + ";" +
+             "color:" + (act ? "#fff" : wknd ? "var(--muted)" : "var(--ink)") + ";" +
+             "border:0.5px solid " + (act ? "var(--ink)" : "var(--line)") + ";" +
+             (isToday && !act ? "box-shadow:inset 0 0 0 1.5px var(--accent);" : "") +
+             (past && !act ? "opacity:.45;" : "")
+    });
+    b.append(nm, __el("span", { style: "display:block;font-size:.68rem;font-weight:500;opacity:.72" }, num));
+    var state = opts.dot ? opts.dot(iso, i) : null;
+    b.append(state
+      ? __el("span", { class: "statusdot " + state,
+          style: "display:block;width:6px;height:6px;border-radius:50%;margin:.2rem auto 0;cursor:inherit;" +
+                 "background:" + (act ? "rgba(255,255,255,.85)" : (DAYSTRIP_DOT[state] || "transparent")) })
+      : __el("span", { style: "display:block;height:9px" }));
+    if (opts.onPick) b.onclick = function(){ opts.onPick(i, iso); };
+    wrap.append(b);
+  });
+  return wrap;
+}
+
+/* The week card's second line. On the current week it is the hint that the title
+   is tappable; anywhere else it becomes the way back, so "This week" is never a
+   dead control sitting in a row of its own (Ali, 10 Aug, on it being hidden
+   outright on phones: "agree it should be"). */
+function weekCardSub(weekKey, todayIso, onBack){
+  var today = todayIso || __todayISO();
+  var mon = today;
+  try {
+    var d = new Date(today + "T12:00:00");
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    mon = d.toISOString().slice(0, 10);
+  } catch (err) {}
+  if (String(weekKey || "") === mon) {
+    return __el("span", { class: "wcsub",
+      style: "font-size:.6rem;letter-spacing:.09em;color:var(--muted)" }, "TAP TO PICK A DATE");
+  }
+  var b = __el("button", { type: "button", class: "wcsub wcback",
+    style: "font:inherit;font-size:.6rem;letter-spacing:.09em;padding:.1rem .6rem;border-radius:999px;" +
+           "border:0.5px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer" },
+    "← THIS WEEK");
+  if (onBack) b.onclick = onBack;
+  return b;
+}
+
+/* The hairline under a sticky header should mean "there is content under here", so it has to know
+   whether the page has moved. One class on <body>, set once for both boards, and the CSS decides
+   what to do with it — a board that wants no line simply never styles body.scrolled.
+   Passive, and it only touches the DOM when the answer actually changes. */
+(function(){
+  if (typeof window === "undefined" || !window.addEventListener) return;
+  var on = false;
+  var read = function(){
+    var now = (window.scrollY || window.pageYOffset || 0) > 4;
+    if (now === on) return;
+    on = now;
+    if (document.body) document.body.classList.toggle("scrolled", on);
+  };
+  window.addEventListener("scroll", read, { passive: true });
+  document.addEventListener("DOMContentLoaded", read);
+})();
+
 document.addEventListener("DOMContentLoaded", function(){
   if (!window.__POD_TEST) return;
 
@@ -223,7 +340,13 @@ function __fmtDate(iso){
 /* Reader, so every call site agrees on the shape. */
 function logDet(e){
   if (e && e.d && typeof e.d === "object") return e.d;
-  return deriveDet(e && e.msg);
+  /* `old` means "these fields were read back out of a sentence, not written as fields". Stamped
+     here rather than inside deriveDet so it is true of EVERY parsed shape, including the three
+     that predate the table, and so a test can prove the parser is not quietly standing in for a
+     writer that should be passing `d` itself. */
+  var d = deriveDet(e && e.msg);
+  if (d) d.old = true;
+  return d;
 }
 /* Months of entries were written before the fields existed, and they are the bulk of the log —
    so a table that only fills in for NEW entries is a table nobody sees the point of. The old
@@ -253,8 +376,172 @@ function deriveDet(msg){
     return { act: "move", subj: x[1].trim(), from: x[2], to: x[3] };
   if ((x = m.match(/^Fixed .+?\(minimal changes\)/)))
     return { act: "fix", n: 0, kids: [] };
+  for (var s = 0; s < LOG_SHAPES.length; s++) {
+    var hit = m.match(LOG_SHAPES[s][0]);
+    if (hit) { var got = LOG_SHAPES[s][1](hit); if (got) return got; }
+  }
   return null;
 }
+
+/* ---------------------------------------------------------------------------
+   READING THE OLD ENTRIES BACK INTO FIELDS.
+
+   Ali, 10 Aug: "make sure all historic events get rewritten with new eassy to
+   use change log format please somehow. wont take no, find a way."
+
+   This is the way, and it is the one that does not cost anything. The rows are
+   not rewritten — they are PARSED, here, at the moment they are drawn. The 330
+   stored entries keep the exact bytes they were written with, so the log has
+   still never edited its own past, which matters because a log that revises
+   itself is not evidence of anything. Delete this table and every row falls
+   back to the sentence it always was.
+
+   It is only possible because the old messages are not free prose. Every one of
+   them came out of a template at one of about sixty call sites across the two
+   boards, so there is a finite list of shapes and each one can be read back
+   into the same fields a new entry would have carried. Where a shape genuinely
+   never recorded a fact, the field is left absent rather than guessed — an
+   invented From is worse than a blank one.
+
+   `old: true` is stamped on everything that comes through here so the renderer
+   can tell a parsed row from a natively structured one, and so a test can prove
+   the parser is not quietly taking over from the writers.
+
+   ADDING A SHAPE: put the regex nearest the top that cannot be matched by an
+   earlier one, and return the fields you can actually justify from the text.
+   --------------------------------------------------------------------------- */
+function _cap(s){ s = String(s || "").trim(); return s.replace(/\s*\((Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*\)\s*$/i, "").trim(); }
+function _num(s){ var n = parseInt(s, 10); return isNaN(n) ? 0 : n; }
+
+var LOG_SHAPES = [
+  /* ---- SET: a named facet of a person, a pod or the day changed ---- */
+  [/^(.+?):\s*(SD|LD|N)\s*(?:→|->)\s*(SD|LD|N)\b/,
+    function(x){ return { act: "set", subj: _cap(x[1]), facet: "shift", from: x[2], to: x[3] }; }],
+  [/^(.+?)\s*\(Fairfield\)\s*shift\s*(?:→|->)\s*(\S+)/,
+    function(x){ return { act: "set", subj: _cap(x[1]), facet: "Fairfield shift", to: x[2] }; }],
+  [/^Pod ([A-E]) consultant:\s*(.+?)\s*$/,
+    function(x){ var v = _cap(x[2]); return { act: "set", subj: "Pod " + x[1], facet: "consultant",
+      to: /^cleared$/i.test(v) ? "" : v, cleared: /^cleared$/i.test(v) }; }],
+  [/^On call:\s*(.+?)\s*$/,
+    function(x){ var v = _cap(x[1]); return { act: "set", subj: "On call", facet: "",
+      to: /^cleared$/i.test(v) ? "" : v, cleared: /^cleared$/i.test(v) }; }],
+  [/^(Night phone|Shadowing phone|Phone)\s*(?:→|->)\s*(.+?)\s*$/,
+    function(x){ return { act: "set", subj: x[1], facet: "", to: _cap(x[2]) }; }],
+  [/^(Night phone|Phone) cleared/,
+    function(x){ return { act: "set", subj: x[1], facet: "", to: "", cleared: true }; }],
+  [/^Stopped shadowing phone:\s*(.+?)\s*$/,
+    function(x){ return { act: "set", subj: "Shadowing phone", facet: "", from: _cap(x[1]), to: "", cleared: true }; }],
+  /* Cover. Its writers pass no fields at all today, so every Cover row in the
+     store is one of these — this is the whole of Cover's history. */
+  [/^Consultant swap \S+\s+(.+?):\s*(.+?)\s*(?:→|->)\s*(.+?)\s*$/,
+    function(x){ return { act: "set", subj: _cap(x[1]), facet: "consultant",
+      from: x[2] === "—" ? "" : _cap(x[2]), to: x[3] === "—" ? "" : _cap(x[3]) }; }],
+  [/^Pod swap \S+:\s*(\S+)\s+(.+?)\s*$/,
+    function(x){ return { act: "set", subj: _cap(x[2]), facet: "consultant", to: _cap(x[1]) }; }],
+  [/^Taken off (.+?) on .+?:\s*(.+?)\s*$/,
+    function(x){ return { act: "set", subj: _cap(x[1]), facet: "consultant", from: _cap(x[2]), to: "", cleared: true }; }],
+  [/^([^:]+?) covers (.+?) on .+$/,
+    function(x){ return { act: "set", subj: _cap(x[2]), facet: "consultant", to: _cap(x[1]) }; }],
+  [/^([^:]+?) moves to (.+?) on .+$/,
+    function(x){ return { act: "set", subj: _cap(x[2]), facet: "consultant", to: _cap(x[1]) }; }],
+  [/^Pod left empty on .+?—\s*nobody available/,
+    function(){ return { act: "set", subj: "A pod", facet: "consultant", to: "", cleared: true, warn: true }; }],
+  [/^Finish swap \S+:\s*(.+?)\s+(\d{1,2}:\d{2})\s*↔\s*(.+?)\s+(\d{1,2}:\d{2})\s*$/,
+    function(x){ return { act: "set", subj: _cap(x[1]) + " ↔ " + _cap(x[3]), facet: "finish",
+      from: x[2], to: x[4] }; }],
+  [/^Renamed (\S+):\s*(.+?)\s*(?:→|->)\s*(.+?)\s*$/,
+    function(x){ return { act: "set", subj: x[1], facet: "name", from: _cap(x[2]), to: _cap(x[3]) }; }],
+  [/^(\S+) named as (.+?)\s*$/,
+    function(x){ return { act: "set", subj: x[1], facet: "name", to: _cap(x[2]) }; }],
+
+  /* ---- PERSON: the staff list, not a rota day ---- */
+  [/^(Added|Edited) staff:\s*(.+?)\s*$/,
+    function(x){ return { act: "person", subj: _cap(x[2]), facet: "staff list", did: x[1].toLowerCase() }; }],
+  [/^Deleted staff:\s*(.+?)\s*$/,
+    function(x){ return { act: "person", subj: _cap(x[1]), facet: "staff list", did: "deleted" }; }],
+  [/^Checked new starter:\s*(.+?)\s*$/,
+    function(x){ return { act: "person", subj: _cap(x[1]), facet: "staff list", did: "checked" }; }],
+  [/^([^:]+?) brought back to the current staff list/,
+    function(x){ return { act: "person", subj: _cap(x[1]), facet: "staff list", did: "brought back" }; }],
+  [/^([^:]+?) merged into (.+?)\s*—\s*(\d+) allocation/,
+    function(x){ return { act: "person", subj: _cap(x[1]), facet: "staff list",
+      did: "merged into " + _cap(x[2]), note: x[3] + " moved" }; }],
+  [/^([^:]+?) gains (.+?) now — auto-fill starts using them (.+?)\s*$/,
+    function(x){ return { act: "person", subj: _cap(x[1]), facet: "skills",
+      did: "gains " + _cap(x[2]), note: "counts from " + _cap(x[3]) }; }],
+  [/^([^:]+?) added to the staff list\s*—\s*grade still to set/,
+    function(x){ return { act: "person", subj: _cap(x[1]), facet: "staff list", did: "added", note: "grade to set" }; }],
+  [/^([^:]+?) kept as one-off cover/,
+    function(x){ return { act: "person", subj: _cap(x[1]), facet: "staff list", did: "one-off cover" }; }],
+  [/^([^:]+?) taken off (\d+) day\(s\)\s*—\s*will be asked again/,
+    function(x){ return { act: "person", subj: _cap(x[1]), facet: "staff list",
+      did: "declined", note: x[2] + " day(s)" }; }],
+  [/^Locum named:\s*(.+?) on \S+ is (.+?)\s*$/,
+    function(x){ return { act: "person", subj: _cap(x[1]), facet: "locum", did: "named", note: _cap(x[2]) }; }],
+  [/^Added (.+?) \(locum\/bank\)\s*—\s*(.+?)\s*$/,
+    function(x){ return { act: "person", subj: _cap(x[1]), facet: "locum/bank", did: "added", note: _cap(x[2]) }; }],
+  [/^Skills change started for (.+?)\s*—\s*weeks from (.+?)\s*$/,
+    function(x){ return { act: "person", subj: _cap(x[1]), facet: "skills", did: "change started",
+      note: "from " + _cap(x[2]) }; }],
+
+  /* ---- BATCH: the software did something to many things at once ---- */
+  [/^Auto-filled week (.+?)\s*$/,
+    function(x){ return { act: "batch", subj: "Auto-fill", facet: "week " + _cap(x[1]) }; }],
+  [/^Auto-allocated (\d+) new day\(s\)/,
+    function(x){ return { act: "batch", subj: "Auto-fill", facet: "new days", n: _num(x[1]), unit: "day" }; }],
+  [/^Auto-allocated \S+/,
+    function(){ return { act: "batch", subj: "Auto-fill", facet: "untouched day", n: 1, unit: "day" }; }],
+  /* "Fixed N day(s) this week (minimal changes)" is deliberately NOT here. It is caught further
+     up by the older `fix` shape, which renders the expandable Day-tidied row — richer than a
+     batch count, so the earlier match is the better one and this must not overtake it. */
+  [/^Imported Optima roster for week (\S+) \((\d+) matched(?:,\s*(\d+) added)?\)/,
+    function(x){ return { act: "batch", subj: "Optima import", facet: "roster",
+      n: _num(x[2]), unit: "matched", extra: x[3] ? x[3] + " added" : "" }; }],
+  [/^Imported consultant allocations \((\d+) week/,
+    function(x){ return { act: "batch", subj: "Consultant import", facet: "allocations",
+      n: _num(x[1]), unit: "week" }; }],
+  [/^Optima sync:\s*(\d+) added/,
+    function(x){ return { act: "batch", subj: "Optima added", facet: "too many to name",
+      n: _num(x[1]), unit: "person" }; }],
+  [/^Optima newcomers reviewed:\s*(\d+) added to the staff list,\s*(\d+) kept/,
+    function(x){ return { act: "batch", subj: "Newcomers reviewed", facet: "",
+      n: _num(x[1]), unit: "added", extra: x[2] + " one-off" }; }],
+  [/^Auto-deleted (\d+) week\(s\) older than/,
+    function(x){ return { act: "batch", subj: "Housekeeping", facet: "retention",
+      n: _num(x[1]), unit: "week removed" }; }],
+  [/^Released (\d+) phone allocation/,
+    function(x){ return { act: "batch", subj: "Phone", facet: "released",
+      n: _num(x[1]), unit: "allocation" }; }],
+  [/^Reset skills to grade defaults for (\d+) staff/,
+    function(x){ return { act: "batch", subj: "Skills reset", facet: "grade defaults",
+      n: _num(x[1]), unit: "person" }; }],
+  [/^PICC line marked for (\d+) ACCP/,
+    function(x){ return { act: "batch", subj: "PICC", facet: "one-off", n: _num(x[1]), unit: "ACCP" }; }],
+  [/^Supernumeraries moved out of the counted numbers on (\d+) day/,
+    function(x){ return { act: "batch", subj: "Supernumeraries", facet: "uncounted",
+      n: _num(x[1]), unit: "day" }; }],
+  [/^Rota worked out again from (.+?) for (.+?)\s*—\s*(\d+)/,
+    function(x){ return { act: "batch", subj: "Reworked", facet: _cap(x[2]),
+      n: _num(x[3]), unit: "move" }; }],
+  [/^Draft weeks handed back to the algorithm\s*—\s*(\d+) hand-made/,
+    function(x){ return { act: "batch", subj: "Handed back", facet: "draft weeks",
+      n: _num(x[1]), unit: "kept" }; }],
+  [/^Consultant allocation worked out again for \S+/,
+    function(){ return { act: "batch", subj: "Reworked", facet: "consultant cover" }; }],
+  [/^Rota change on .+? sorted out/,
+    function(){ return { act: "batch", subj: "Reworked", facet: "after a rota change" }; }],
+  [/^(Accepted|Re-opened) check \((.+?)\):/,
+    function(x){ return { act: "batch", subj: "Check " + x[1].toLowerCase(), facet: _cap(x[2]) }; }],
+  [/^Optima check \S+ (.+?):/,
+    function(x){ return { act: "batch", subj: "Optima check", facet: _cap(x[1]) }; }],
+  [/^Optima disagrees on (.+?):/,
+    function(x){ return { act: "batch", subj: "Optima disagreed", facet: _cap(x[1]), warn: true }; }],
+  [/^Saved print copy\s*—\s*week (.+?)\s*$/,
+    function(x){ return { act: "batch", subj: "Print copy", facet: "week " + _cap(x[1]) }; }],
+  [/^Staff-list password set/,  function(){ return { act: "batch", subj: "Access", facet: "staff-list password" }; }],
+  [/^Shared saving link set/,   function(){ return { act: "batch", subj: "Setup",  facet: "saving link" }; }],
+  [/^Sync requested/,           function(){ return { act: "batch", subj: "Sync",   facet: "requested by hand" }; }]
+];
 
 let logBy = "made", logFilter = "all", logWhen = "ahead", logQuery = "";
 
@@ -544,6 +831,54 @@ function logGroups(list, cap){
         };
         tbl.append(row); kidRows.forEach(r => tbl.append(r));
         continue;
+      } else if (d && (d.act === "set" || d.act === "person" || d.act === "batch")) {
+        /* THE OTHER THREE FAMILIES (Ali, 10 Aug: "make sure all events that arent moves like that
+           also have smooth well desifgned thoguh through and easily nderstandable displays").
+
+           Every writer on both boards lands in one of four families, and the columns are the same
+           for all of them — the row never changes shape, only what sits in the middle. What makes
+           that possible is splitting the Person column into a SUBJECT and a FACET: "Pod A" +
+           "consultant", "Dan Gill" + "shift", "Day" + "phone". Once a row names which facet of the
+           subject moved, a consultant swap and a phone handover can use the same From → To arrows
+           the pod moves already use, instead of each needing a sentence of its own.
+
+           Ali, 9 Aug, and it governs all of this: "i prefer th nice coloured pods and arrows that
+           are there now. thats the best bit and simplest to understand A -> B." So nothing here
+           replaces the arrows — it extends them to the rows that never had them. */
+        const named = __el("span", {}, d.subj || "",
+          d.facet ? __el("span", { style: "color:var(--muted);font-size:.75rem;margin-left:.4rem" }, d.facet) : null);
+        /* A value is drawn as a pod chip when it IS a pod, so Cover's consultant columns and the
+           board's own pods share one visual language rather than two. */
+        const val = v => {
+          if (v === "" || v == null) return null;
+          const p = String(v).match(/^(?:Pod )?([A-E])$/);
+          return p ? pod(p[1]) : chip(String(v), "var(--hair)", "var(--ink)");
+        };
+        if (d.act === "set") {
+          const gone = __el("span", { style: "color:var(--muted)",
+            title: "Cleared — nobody is down for this" }, "—");
+          row.append(lead, cell([named], "width:30%"),
+            cell([val(d.from) || __el("span", { style: "color:var(--muted);opacity:.45",
+                   title: "This entry is from before the log recorded what it changed from" }, "")],
+                 "width:12%;text-align:center"),
+            cell([d.cleared ? gone : (val(d.to) || gone)], "width:12%;text-align:center"), when, by);
+        } else if (d.act === "person") {
+          const act2 = chip(d.did || "changed", "var(--accent-bg)", "var(--accent)");
+          const note = d.note ? __el("span", { style: "color:var(--muted);font-size:.75rem;margin-left:.45rem" }, d.note) : null;
+          const mid = cell([act2, note], "width:24%");
+          mid.colSpan = 2;
+          row.append(lead, cell([named], "width:30%"), mid, when, by);
+        } else {
+          /* A batch says how much it did, or says nothing rather than "0". A count of zero and a
+             count that was never recorded look identical on screen and are not the same fact. */
+          const cnt = d.n
+            ? chip(d.n + " " + (d.unit || "") + (d.n === 1 || /d$/.test(d.unit || "") ? "" : "s"), "#eef7f1", "var(--podBb)")
+            : null;
+          const extra = d.extra ? __el("span", { style: "color:var(--muted);font-size:.75rem;margin-left:.45rem" }, d.extra) : null;
+          const mid = cell([cnt, extra], "width:24%;text-align:center");
+          mid.colSpan = 2;
+          row.append(lead, cell([named], "width:30%;color:var(--muted)"), mid, when, by);
+        }
       } else {
         /* Anything written before the fields existed, and anything that genuinely is not about
            one person — an import, a password change. One wide cell, no invented columns. */
