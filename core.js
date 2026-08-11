@@ -160,8 +160,14 @@ var DAYSTRIP_DOT   = { hard: "#e2504e", soft: "#e6b84c", ok: "#7fc99a", none: "#
 function dayStrip(dates, sel, opts){
   opts = opts || {};
   var today = opts.today || __todayISO();
+  /* NO `display` HERE, deliberately. The component owns how the pills look; the PAGE owns whether
+     the strip is shown at all, because that is a question about the page's layout and not about
+     the component. Setting display:flex inline made the strip beat `.daystrip{display:none}` in
+     the stylesheet — inline style wins — and seven bare pills appeared above the desktop table.
+     That is the 9 Aug fault exactly, arriving by a different route: the rule was written, and the
+     component overrode it. Both boards set display:flex inside their phone media query. */
   var wrap  = __el("div", { class: "daystrip",
-    style: "display:flex;gap:3px;margin:0 0 .6rem;align-items:stretch" });
+    style: "gap:3px;margin:0 0 .6rem;align-items:stretch" });
   (dates || []).forEach(function(iso, i){
     var wknd = false, num = "", nm = "";
     try {
