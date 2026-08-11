@@ -41,6 +41,20 @@ var LIVE_HOST = LIVE_HOSTS[0];          // kept: older code and tests still read
 window.__POD_TEST = (window.__POD_TEST === true) ||
   (location.protocol !== "file:" && LIVE_HOSTS.indexOf(location.hostname) < 0);
 
+/* THE TAB TITLE FOLLOWS THE SAME ANSWER. Both live sites shipped with "— TEST" written into
+   <title> by hand, so rota.salford.icu and consultants.salford.icu have been saying TEST in the
+   browser tab the whole time — the same false signal as the banner, just somewhere less obvious.
+   Hard-coding it could not work: staging and live are separate repos serving the SAME file, so a
+   fixed title is wrong on one of them whatever it says. Deriving it removes the choice.
+   Runs at once rather than on DOMContentLoaded, because <title> is already parsed by the time
+   core.js executes and the tab should never flash the wrong word. */
+(function(){
+  try {
+    var base = String(document.title || "").replace(/\s*[—-]\s*TEST\s*$/i, "");
+    document.title = window.__POD_TEST ? base + " — TEST" : base;
+  } catch (e) {}
+})();
+
 /* Stamped by hand when pushing to staging. Shown next to the pending list so
    there is never a question about which build you are looking at. */
 window.__POD_BUILD = "2026-08-03-03";
