@@ -534,6 +534,13 @@ body.testmode main{padding-bottom:4rem}
 .dlg-body{font-size:.88rem;color:var(--muted);line-height:1.55;white-space:pre-line}
 .dlg input{width:100%;margin-top:.9rem;font-size:.95rem;padding:.55rem .7rem}
 .dlg-btns{display:flex;gap:.6rem;justify-content:flex-end;margin-top:1.2rem}
+/* The person sheet stacks its actions full width instead of lining them up bottom-right. At 5am,
+   on a phone, held in one hand, the thing you want has to be a thumb-sized target in the middle of
+   the screen — not a small button in a corner beside a similar-looking one. Order is deliberate:
+   the destructive-sounding action is the one people actually came for, so it leads. */
+.sheetbtn{display:block;width:100%;margin-top:.55rem;padding:.75rem;font-size:.92rem;justify-content:center}
+.sheetbtn.plain{border-color:transparent;background:transparent;color:var(--muted)}
+.sheetbtn.plain:hover{background:var(--hair);color:var(--ink)}
 .combolist{max-height:190px;overflow:auto;border:1px solid var(--line,#e2e4e8);border-radius:10px;margin-top:.5rem}
 .comboopt{padding:.55rem .8rem;cursor:pointer;font-size:.9rem;border-bottom:1px solid var(--line,#eef0f3)}
 .comboopt:last-child{border-bottom:none}
@@ -3221,7 +3228,21 @@ function poolFor(day, dateISO){
 }
 // Take someone off a single day. Rostered people go on a per-day "off" list
 // so they vanish from the bench and the checks; manually-added extras are simply dropped.
+/* Where somebody is standing on a day, as a From value for the log. Read BEFORE anything is
+   cleared, or the row records a dash and the reader cannot see what the removal actually cost. */
+function placeOnDay(day, id){
+  for (const p of PODS) {
+    if (day.pods[p].assign.some(a => a.id === id)) return p;
+    if ((day.pods[p].super || []).includes(id)) return p;
+  }
+  if (day.night.AB.includes(id)) return "A&B night";
+  if (day.night.CDE.includes(id)) return "C&D night";
+  if ((day.night.E || []).includes(id)) return "night Pod E";
+  if (day.night.phone === id) return "night";
+  return "bench";
+}
 function takeOffDay(day, di, id){
+  const was = placeOnDay(day, id);
   const p = poolFor(day, addDays(currentWeekKey, di))[id];
   if (p && p.extra) { day.extras = (day.extras || []).filter(x => x.id !== id); }
   else { day.removed = day.removed || []; if (!day.removed.includes(id)) day.removed.push(id); }
@@ -3229,9 +3250,73 @@ function takeOffDay(day, di, id){
   if (day.phone === id) day.phone = null;
   if (day.night.phone === id) day.night.phone = null;
   day.shadow = (day.shadow || []).filter(x => x !== id);
-  logEntry((staffById(id) ? staffById(id).name : id) + " taken off " + dayShort(di), "manual", dateOfDi(di));
+  const nm = staffById(id) ? staffById(id).name : id;
+  /* Passing `d` matters more than it looks. Without it this row is free text, which is exactly
+     what the five entries from the morning of 11 Aug were — no From, no thread, nothing for
+     group-by-person to hang on. `from` is where they actually were; there is no `why` and there
+     must never be one (hard rule 6). */
+  logEntry(nm + " taken off " + dayShort(di), "manual", dateOfDi(di), null,
+    { act: "off", subj: nm, from: was === "bench" ? "" : was, bench: was === "bench" });
 }
 function putBackOnDay(day, id){ day.removed = (day.removed || []).filter(x => x !== id); }
+
+/* ── THE PERSON SHEET ──────────────────────────────────────────────────────────────────────────
+   Built 11 Aug 2026, out of what happened at 05:45 that morning. The night reg needed one thing —
+   somebody is not in — and the log shows him doing this instead:
+
+     05:45  Removed Jamiu Aliu from Pod D     (out of the pod; still on the day, still on the bench)
+     05:45  Jamiu Aliu taken off Tue          (right thing)
+     05:45  Jamiu Aliu put back on Tue        (undone, one minute later)
+     05:52  allocate sync → Pod E             (correct behaviour: he WAS on)
+     07:00  Removed Jamiu Aliu from Pod E     (out of the pod again, still on the day)
+
+   Three separate traps, none of them his fault. The ✕ on a pod chip is the nearest control and it
+   means "out of this pod", which leaves the person on the bench where the allocator shops — so
+   they come back, in a different pod. Taking off is a silent toggle, so a second tap reverses the
+   first with no warning. And nothing on the board said anything was wrong afterwards, because with
+   podMin 2 and podEMin 1 nothing WAS wrong by the rules — Fix week would have found nothing to do.
+
+   So the fix is not a warning and not a new rule. It is one control that says what a person
+   actually means, reachable from the name itself rather than from whichever pod they happen to be
+   sitting in. Press and hold.
+
+   It never asks why, and there is nowhere to record one — hard rule 6. Sickness, a swap, a family
+   emergency and a rota error all produce the identical record. */
+let sheetClosedAt = 0;
+function personSheet(s, di, day){
+  const bg  = el("div", { class: "dlg-bg" });
+  const box = el("div", { class: "dlg" });
+  const shut = () => { sheetClosedAt = Date.now(); bg.remove(); window.removeEventListener("keydown", esc); };
+  const esc = e => { if (e.key === "Escape") shut(); };
+  const where = placeOnDay(day, s.id);
+  const shift = (() => {
+    for (const p of PODS) { const a = day.pods[p].assign.find(x => x.id === s.id); if (a) return a.shift; }
+    return null;
+  })();
+  box.append(
+    el("div", { class: "dlg-title" }, s.name),
+    el("div", { class: "dlg-body" },
+      [shift, where === "bench" ? "on the bench" : where === "A&B night" || where === "C&D night" || where === "night Pod E" ? where : "Pod " + where,
+       DAYNAMES[di]].filter(Boolean).join(" · ")),
+    /* The primary action is the one somebody reaches for at 5am, and it is the DAY not the pod. */
+    el("button", { class: "btn sheetbtn", onclick: () => {
+        shut();
+        takeOffDay(day, di, s.id);
+        markDirty(); renderWeek();
+        toast(s.name + " is off today — the sync won't put them back");
+      } }, "Not in today"),
+    el("button", { class: "btn sec sheetbtn", onclick: () => {
+        shut();
+        tapPick = { id: s.id, di }; tapPhone = null;
+        renderWeek();
+        toast("Now tap the pod to move " + s.name.split(" ")[0] + " to");
+      } }, "Move to another pod"),
+    el("button", { class: "btn sec sheetbtn plain", onclick: shut }, "Cancel"));
+  bg.append(box);
+  bg.onclick = e => { if (e.target === bg) shut(); };
+  window.addEventListener("keydown", esc);
+  document.body.append(bg);
+}
 /* ── Neurology registrars ─────────────────────────────────────────────────────────────────────
    Ali, 4 Aug 2026: "set a firm rule that neurology registrars are supernumerary and only ever
    allocated to C & D". Firm, not a lean — he asked for a hard block, so a drag onto A, B or E is
@@ -3397,8 +3482,31 @@ function chip(s, opts){
   if (opts.onRemove) c.append(el("button", { class: "x", title: opts.removeTitle || "Remove", onclick: e => { e.stopPropagation(); opts.onRemove(); } }, "✕"));
   if (tapPick && tapPick.id === s.id && tapPick.di === opts.di) c.classList.add("selected");
   if (tapPhone && day && tapPhone.di === opts.di) c.classList.add("phonehover");
+  /* PRESS AND HOLD OPENS THE PERSON SHEET — see personSheet() for why this exists at all.
+     Held to 500ms and cancelled by any real movement, because the same gesture starts a drag and
+     a drag must always win: somebody moving a chip has already said what they want. The 10px
+     slop is there because a thumb never holds perfectly still. contextmenu gets the same sheet so
+     it is reachable with a mouse without holding the button down. */
+  if (canEdit() && opts.di != null && day) {
+    let timer = null, sx = 0, sy = 0;
+    const stop = () => { if (timer) { clearTimeout(timer); timer = null; } };
+    c.addEventListener("pointerdown", e => {
+      if (e.target.closest(".tagx") || e.target.closest(".x") || e.target.closest(".phoneicon")) return;
+      sx = e.clientX; sy = e.clientY;
+      stop();
+      timer = setTimeout(() => { timer = null; personSheet(s, opts.di, day); }, 500);
+    });
+    c.addEventListener("pointermove", e => {
+      if (timer && (Math.abs(e.clientX - sx) > 10 || Math.abs(e.clientY - sy) > 10)) stop();
+    });
+    ["pointerup", "pointercancel", "pointerleave", "dragstart"].forEach(ev => c.addEventListener(ev, stop));
+    c.addEventListener("contextmenu", e => { e.preventDefault(); stop(); personSheet(s, opts.di, day); });
+  }
   c.addEventListener("click", async e => {
     if (!canEdit() || Date.now() - dragEndedAt < 400) return;
+    /* A hold ends in a pointerup, which the browser then reports as a click — without this the
+       sheet opens and the chip is picked up underneath it. */
+    if (Date.now() - sheetClosedAt < 400 || document.querySelector(".dlg-bg")) return;
     if (e.target.closest(".tagx") || e.target.closest(".x") || e.target.closest(".phoneicon")) return;
     if (tapPhone && day && tapPhone.di === opts.di) { await assignPhoneTo(day, tapPhone.type, s); return; }
     if (opts.di == null) return;
@@ -3726,12 +3834,26 @@ function renderDayRow(day, di, dateISO, issues){
     const addIn = el("input", { class: "addsearch-input", list: dlId, placeholder: "Type a name…", title: "Type a staff name — or a locum/bank name not on the list" });
     const wrap = el("div", { class: "addmenu-wrap" });
     const close = () => wrap.className = "addmenu-wrap";
-    addIn.onchange = () => {
+    addIn.onchange = async () => {
       const v = addIn.value.trim(); if (!v) { close(); return; }
       const s = activeStaff(dateISO).find(x => x.name === v && !pool[x.id]);
       if (s) {
         day.extras = day.extras || [];
-        if ((day.removed || []).includes(s.id)) { putBackOnDay(day, s.id); logEntry(s.name + " put back on " + dayShort(di), "manual", dateOfDi(di)); }
+        /* ASK BEFORE REINSTATING SOMEBODY WHO WAS TAKEN OFF (11 Aug). This box is how the morning
+           of the 11th went wrong: the night reg took Jamiu Aliu off at 05:45 and, a minute later,
+           picked the same name in here — which silently put him back on, so the 05:52 sync quite
+           correctly placed him in a pod again. Nothing on screen said the name he was choosing was
+           the name he had just removed. Adding a stranger is still one action; only undoing your
+           own removal stops to ask, and the question names the person so it cannot be waved
+           through by reflex. It does not ask why, and it never records one. */
+        if ((day.removed || []).includes(s.id)) {
+          const yes = await uiConfirm(s.name + " was taken off " + dayShort(di) + " earlier today. Put them back on?",
+            { title: "Put " + s.name.split(" ")[0] + " back on?", okLabel: "Put back on" });
+          if (!yes) { addIn.value = ""; return; }
+          putBackOnDay(day, s.id);
+          logEntry(s.name + " put back on " + dayShort(di), "manual", dateOfDi(di), null,
+            { act: "on", subj: s.name, to: "" });
+        }
         else { day.extras.push({ id: s.id, kind: "day" }); logEntry(s.name + " added to bench (" + dayShort(di) + ")", "manual", dateOfDi(di)); }
         addIn.value = ""; markDirty(); renderWeek();
       } else { const nm = v; addIn.value = ""; adhocDialog(di, nm); }
