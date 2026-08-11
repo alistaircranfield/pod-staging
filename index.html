@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CCU Pod Allocator — TEST</title>
-<link rel="stylesheet" href="core.css?v=20260809-02">
+<link rel="stylesheet" href="core.css?v=20260810-01">
 <style>
 :root{
   /* Everything shared lives in core.css. Only the role accent is this page's. */
@@ -584,11 +584,13 @@ details.steps summary{cursor:pointer;font-weight:600;color:var(--ink)}
 .imp-summary{background:#fbfbf9;border:1px solid var(--line);border-radius:12px;padding:.75rem 1rem;font-size:.84rem;margin:.7rem 0}
 .imp-unmatched{display:flex;align-items:center;gap:.5rem;margin:.35rem 0;font-size:.84rem}
 .imp-unmatched select{flex:1}
-.daypills{display:none;gap:.4rem;overflow-x:auto;flex-wrap:nowrap;padding:.1rem 0 .7rem;-webkit-overflow-scrolling:touch;touch-action:pan-x;overscroll-behavior-x:contain;scrollbar-width:none}
-.daypills::-webkit-scrollbar{display:none}
-.daypill{flex:0 0 auto;border:0.5px solid var(--line);background:var(--card);border-radius:10px;padding:.4rem .75rem;font-weight:600;font-size:.8rem;display:flex;gap:.4rem;align-items:center;white-space:nowrap;cursor:pointer;font-family:inherit}
-.daypill.active{background:var(--ink);color:#fff;border-color:var(--ink)}
-.daypill .statusdot{margin:0;width:8px;height:8px;cursor:pointer}
+/* THE DAY STRIP IS dayStrip() IN core.js and styles its own pills inline, so there are no .daypill
+   rules here any more — that is the point of moving it, and adding some back would start the drift
+   over again. What stays in CSS is only what a shared component cannot know: that this board shows
+   it on phones and not on desktops, and how it behaves as a sticky element.
+   Default OFF, media query turns it on — the 9 Aug lesson, when a strip styled only inside the
+   phone block rendered as seven bare buttons above the desktop table. */
+.daystrip{display:none}
 /* THE TABLE SCROLLS IN ITS OWN PANE, not by widening the page (Ali, 9 Aug: "the scroll to see the
    oncall/fgh is glitchy. Scrolls the whole page and the top header doesnt extend that far").
    Measured before changing anything: a 1512px viewport against a 1733px document, so the page slid
@@ -658,16 +660,34 @@ button.btn,.hbtn{white-space:nowrap}
   .weekbar{display:grid;grid-template-columns:auto 1fr auto;gap:.5rem .4rem;align-items:center;background:#fff;border:0.5px solid rgba(29,31,36,.05);box-shadow:0 1px 3px rgba(29,31,36,.10);border-radius:16px;padding:.55rem .6rem;margin-bottom:.5rem}
   .weekbar b{min-width:0;font-size:1.05rem;white-space:nowrap;text-align:center;cursor:pointer}
   .weekbar b small{display:block;font-size:.66rem;color:#8a8f98;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
-  .weekbar .spacer,.weekbar #btnToday{display:none}
+  .weekbar .spacer{display:none}
+  /* "This week" was hidden outright on phones, which is why it looked missing next to the desktop
+     bar (Ali, 10 Aug: "on desktop theres a show current week bar which is obv missing and i agree
+     wiht" — and, on being told it was deliberate, "agree it should be"). It is back, but only when
+     it would do something: renderWeek already stamps aria-current, so on this week the control
+     removes itself rather than sitting there greyed out taking a row of a phone screen. */
+  .weekbar #btnToday[aria-current="true"]{display:none}
   .navarrow{border:0;background:var(--hair);width:42px;height:42px}
   .navarrow:hover{background:var(--ink)}
   #btnAutoFill{grid-column:1 / -1;justify-self:center}
   #summaryBanner{grid-column:1 / -1;display:flex;justify-content:flex-start;width:100%;background:transparent;border:0;box-shadow:none;border-radius:0;border-top:0.5px solid #f0f0ee;margin:0;padding:.55rem .1rem .05rem}
   body.viewmode table.rota td.tray:not(:has(.chip)){display:none}
   table.rota td.tray:not(:has(.chip)):not(:has(.tray-sec)){padding:.45rem .7rem}
-  .daypills{display:flex;position:sticky;top:0;z-index:30;background:var(--bg);margin:0 -0.7rem;padding:.4rem .7rem .6rem}
-  .daypill{font-size:.95rem;padding:.8rem 1.05rem;border-radius:13px;font-weight:700}
-  .daypill .statusdot{width:9px;height:9px}
+  /* FROSTED, NOT SOLID (Ali, 10 Aug: "they look a bit weird when scrolling up and stuff
+     disappears under header., mok up options for this? glass or border or somehting"). A solid
+     header cuts a resident's name dead at the seam and gives the eye nothing to follow. Blurring
+     the strip lets the names show through as they pass under it, so it reads as one surface
+     sliding over another rather than content ceasing to exist. It is also already the language of
+     this design — the desktop sidebar has used backdrop-filter blur(16px) since the first build.
+     The flat background is declared first as the fallback: a browser without backdrop-filter gets
+     the opaque strip it has today rather than unreadable text over moving names.
+     The hairline appears only once something is actually underneath — see body.scrolled. */
+  .daystrip{display:flex;position:sticky;top:0;z-index:30;margin:0 -0.7rem;padding:.45rem .7rem .55rem;
+    background:var(--bg);
+    background:rgba(246,246,244,.62);
+    backdrop-filter:blur(14px) saturate(1.5);-webkit-backdrop-filter:blur(14px) saturate(1.5);
+    border-bottom:1px solid transparent;transition:border-color .18s}
+  body.scrolled .daystrip{border-bottom-color:rgba(23,24,28,.10)}
   td.daylabel{display:flex;gap:.5rem;align-items:center;padding:.15rem .2rem;margin-bottom:.3rem;border:0}
   td.daylabel .dn,td.daylabel .d{display:none}
   .dl-inner{position:static}
@@ -1083,7 +1103,7 @@ button.btn,.hbtn{white-space:nowrap}
   <button class="hbtn ghost" id="btnTestReset" title="Throw away the rota changes made here and re-read the live rota data">Reload live rota data</button>
 </div>
 
-<script src="core.js?v=20260809-02"></script>
+<script src="core.js?v=20260810-01"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -1121,6 +1141,10 @@ let tapPick = null, tapPhone = null;
 let dragEndedAt = 0;
 const isMobile = () => window.matchMedia("(max-width: 820px)").matches;
 let mobileDay = (new Date().getDay() + 6) % 7;
+/* The week the strip was last drawn for, so renderWeek can tell a redraw of the same week (keep
+   the chosen day) from a move to a different one (go to its Monday). null means nothing has been
+   drawn yet, which must NOT count as a change or the first render would overwrite today. */
+let lastWeekShown = null;
 try { window.matchMedia("(max-width: 820px)").addEventListener("change", () => renderWeek()); } catch(e){}
 let swipeX = null;
 document.addEventListener("touchstart", e => { if (isMobile() && e.target.closest("#weekGrid")) swipeX = e.touches[0].clientX; }, { passive: true });
@@ -3049,6 +3073,17 @@ function renderWeek(){
   const tbody = el("tbody");
   const allIssues = [];
   const mob = isMobile();
+  /* WHICH DAY A NEW WEEK OPENS ON (Ali, 10 Aug: "When go to new week it should default to the
+     monday of that week"). mobileDay is an index into the week on screen, so carrying it across a
+     week change means landing on whatever weekday you happened to be looking at — page forward
+     from a Thursday and you get the next Thursday, which is not what anyone means by "next week".
+     Monday, unless the week you have opened contains today, in which case today is the better
+     answer and is what you would have chosen anyway. */
+  if (lastWeekShown !== null && lastWeekShown !== currentWeekKey) {
+    const di = [0,1,2,3,4,5,6].map(i => addDays(currentWeekKey, i)).indexOf(todayISO());
+    mobileDay = di >= 0 ? di : 0;
+  }
+  lastWeekShown = currentWeekKey;
   const dayIssues = [];
   wk.days.forEach((day, di) => {
     const dateISO = addDays(currentWeekKey, di);
@@ -3060,19 +3095,26 @@ function renderWeek(){
   });
   tbl.append(tbody);
   if (mob) {
-    const pills = el("div", { class: "daypills" });
-    wk.days.forEach((day, di) => {
-      const issues = dayIssues[di];
-      const hardN = issues.filter(i => i.hard).length;
-      const softN = issues.filter(i => !i.hard && !i.info).length;
-      const isEmptyD = issues.length === 1 && issues[0].empty;
-      const dot = el("span", { class: "statusdot " + (isEmptyD ? "none" : hardN ? "hard" : softN ? "soft" : "ok") });
-      pills.append(el("button", { class: "daypill" + (di === mobileDay ? " active" : ""), onclick: () => { mobileDay = di; renderWeek(); } },
-        DAYNAMES[di].slice(0,3) + " " + fmtDate(addDays(currentWeekKey, di)).split(" ")[0], dot));
-    });
-    grid.append(pills);
-    // Keep the chosen day centred in the strip — otherwise every re-render snapped it back to Monday.
-    requestAnimationFrame(() => { const a = pills.querySelector(".daypill.active"); if (a) pills.scrollLeft = a.offsetLeft - pills.clientWidth / 2 + a.clientWidth / 2; });
+    /* THE STRIP IS dayStrip() IN core.js NOW — one component, both boards (Ali, 10 Aug: "tey dont
+       need to be thoguh do they, and shiould be"). What used to be here was this board's own
+       scrolling version; Cover had a different one; neither was chosen over the other.
+
+       Gone with it: the scrollLeft line that re-centred the chosen day on every re-render. It was
+       there because the strip scrolled, and it was the reason a swipe kept selecting a day instead
+       of moving the strip. Seven pills that always fit have no scroll position to restore. */
+    grid.append(dayStrip(
+      wk.days.map((_, di) => addDays(currentWeekKey, di)),
+      mobileDay,
+      {
+        dot: (iso, di) => {
+          const issues = dayIssues[di];
+          if (issues.length === 1 && issues[0].empty) return "none";
+          if (issues.filter(i => i.hard).length) return "hard";
+          if (issues.filter(i => !i.hard && !i.info).length) return "soft";
+          return "ok";
+        },
+        onPick: di => { mobileDay = di; renderWeek(); }
+      }));
   }
   wrap.append(tbl);
   grid.append(wrap);
