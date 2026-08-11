@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-10T19:35:33.362919+00:00",
- "build": "541ac02",
+ "generated": "2026-08-11T06:54:23.263795+00:00",
+ "build": "36bc228",
  "liveBuild": "0c0b343",
- "count": 133,
+ "count": 135,
  "changes": [
+  {
+   "sha": "36bc228",
+   "who": "alistaircranfield",
+   "when": "2026-08-11T07:54:14+01:00",
+   "msg": "One shared day strip; the change log reads its own history"
+  },
+  {
+   "sha": "bd58372",
+   "who": "github-actions[bot]",
+   "when": "2026-08-10T19:35:33Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "541ac02",
    "who": "alistaircranfield",
