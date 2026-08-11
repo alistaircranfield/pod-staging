@@ -660,13 +660,17 @@ button.btn,.hbtn{white-space:nowrap}
   .weekbar{display:grid;grid-template-columns:auto 1fr auto;gap:.5rem .4rem;align-items:center;background:#fff;border:0.5px solid rgba(29,31,36,.05);box-shadow:0 1px 3px rgba(29,31,36,.10);border-radius:16px;padding:.55rem .6rem;margin-bottom:.5rem}
   .weekbar b{min-width:0;font-size:1.05rem;white-space:nowrap;text-align:center;cursor:pointer}
   .weekbar b small{display:block;font-size:.66rem;color:#8a8f98;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
-  .weekbar .spacer{display:none}
-  /* "This week" was hidden outright on phones, which is why it looked missing next to the desktop
-     bar (Ali, 10 Aug: "on desktop theres a show current week bar which is obv missing and i agree
-     wiht" — and, on being told it was deliberate, "agree it should be"). It is back, but only when
-     it would do something: renderWeek already stamps aria-current, so on this week the control
-     removes itself rather than sitting there greyed out taking a row of a phone screen. */
-  .weekbar #btnToday[aria-current="true"]{display:none}
+  .weekbar .spacer,.weekbar #btnToday{display:none}
+  /* WHICH WEEK YOU ARE ON, AS A TINT (Ali, 10 Aug: "no we agreed this shuld be hidden. I just
+     wante dthe week date badge slighlty different visually ehen on current week and fiture weeks
+     as a hint"). I had put the "This week" button back on phones; that was not what he asked for
+     and it is now hidden again, as it was.
+
+     The hint is on the badge instead, and it is wordless, which hard rule 2 requires — a card that
+     needs the words "this week" written in it is a card that has not been designed. The current
+     week takes the board's own accent wash; any other week stays white. Nothing moves, nothing
+     changes size, so paging between weeks does not shift the layout under your thumb. */
+  body[data-week="now"] .weekbar{background:var(--accent-bg);border-color:var(--accent)}
   .navarrow{border:0;background:var(--hair);width:42px;height:42px}
   .navarrow:hover{background:var(--ink)}
   #btnAutoFill{grid-column:1 / -1;justify-self:center}
@@ -3047,6 +3051,11 @@ function renderWeek(){
     today.setAttribute("aria-current", isNow ? "true" : "false");
     today.title = isNow ? "You are on this week" : "Jump back to this week";
   }
+  /* The week badge's tint is driven from here rather than from a class on the bar itself, so the
+     stylesheet can hint at it in any way it likes without this function knowing how. Three states
+     and not two: a week already worked is a different thing from one still to come. */
+  document.body.dataset.week =
+    isNow ? "now" : (currentWeekKey > mondayOf(todayISO()) ? "ahead" : "past");
   const grid = $("#weekGrid");
   grid.innerHTML = "";
   const banner = $("#summaryBanner");
