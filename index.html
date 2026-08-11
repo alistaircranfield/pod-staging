@@ -539,6 +539,14 @@ body.testmode main{padding-bottom:4rem}
    the screen — not a small button in a corner beside a similar-looking one. Order is deliberate:
    the destructive-sounding action is the one people actually came for, so it leads. */
 .sheetbtn{display:block;width:100%;margin-top:.55rem;padding:.75rem;font-size:.92rem;justify-content:center}
+/* The consequence card's lines. Colour carries the same meaning it does everywhere else on the
+   board — red is broken, amber is an aim, green is fine — so nothing new has to be learned. */
+.cc-line{display:flex;gap:.5rem;align-items:flex-start;border-radius:9px;padding:.45rem .55rem;margin-top:.4rem;font-size:.82rem;line-height:1.45}
+.cc-line .cc-tag{font-size:.56rem;font-weight:700;letter-spacing:.06em;background:#fff;border-radius:4px;padding:.08rem .3rem;flex:none;margin-top:.12rem}
+.cc-line.hard{background:#FCEBEB;color:#A32D2D}
+.cc-line.soft{background:#FAEEDA;color:#854F0B}
+.cc-line.ok{background:#EAF3DE;color:#3B6D11}
+.cc-sub{font-size:.72rem;color:var(--muted);margin:.6rem 0 .3rem;line-height:1.5}
 .sheetbtn.plain{border-color:transparent;background:transparent;color:var(--muted)}
 .sheetbtn.plain:hover{background:var(--hair);color:var(--ink)}
 .combolist{max-height:190px;overflow:auto;border:1px solid var(--line,#e2e4e8);border-radius:10px;margin-top:.5rem}
@@ -1123,7 +1131,19 @@ button.btn,.hbtn{white-space:nowrap}
 const PODS = ["A","B","C","D","E"];
 const DAYNAMES = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const GRADES = ["CON","ACCP","SCF","JCF","RCF","ST","CT","ACCS","IMT","FY1","FY2","ICM","Anaes","ED","Neurology","Other"];
-const RULE_DEFAULTS = { podMin: 2, podEMin: 1, nightMin: 4, transferAim: 4, neuroTarget: 70, retentionDays: 400 };
+/* spreadMax / spreadE are the SPREAD rule, added 11 Aug. They are not minimums — a day can pass
+   every minimum and still be badly split, which is exactly what happened when Jamiu Aliu came off
+   and left 4·4·4·3·2 with no complaint from anything. Ali's rule: "2 on pod E is fine unless other
+   pods >4… if removing somebody from a day and theres a better spread need to suggest. dont move
+   people for the sake if it otherwise will annoy."
+   Both are the gap at which it SPEAKS, not the gap it tolerates:
+     spreadMax 2  fullest of A–D minus thinnest of A–D is 2 or more → suggest.
+     spreadE   3  fullest pod minus E is 3 or more → suggest. So E may sit 2 light without
+                  comment, because it is a smaller pod by design (its own minimum is 1 against 2).
+   Both editable in Settings — hard rule 1. Drop spreadE to 2 and today's 4·4·4·3·2 starts
+   suggesting a move; raise it to 4 and E goes quiet almost always. */
+const RULE_DEFAULTS = { podMin: 2, podEMin: 1, nightMin: 4, transferAim: 4, neuroTarget: 70, retentionDays: 400,
+                        spreadMax: 2, spreadE: 3 };
 /* Every number the checks argue about, editable from Settings — hard rule 1. The table above is
    only the FALLBACK, so a board nobody has touched behaves exactly as it always did. */
 function rule(k){
@@ -3314,6 +3334,125 @@ function putBackOnDay(day, id){ day.removed = (day.removed || []).filter(x => x 
    emergency and a rota error all produce the identical record. */
 let sheetClosedAt = 0;
 
+/* ── THE SPREAD CHECK ──────────────────────────────────────────────────────────────────────────
+   Taking somebody off can leave a day that breaks no rule and is still lopsided. On 11 Aug it left
+   4·4·4·3·2 and every check stayed silent, because minimums were met — so nobody knew there was
+   anything to think about. This is the thing that was missing, and it is deliberately NOT a new
+   minimum: it compares pods with each other rather than with a floor.
+
+   Ali's constraint, and it shapes the whole function: "dont move people for the sake if it
+   otherwise will annoy." So it proposes at most ONE move, only when that move genuinely closes the
+   gap, and only when the person is really free to go. Anything else and it says so plainly. */
+function podCounts(day){
+  const { perPod } = dayCountables(day);
+  const o = {}; for (const p of PODS) o[p] = (perPod[p] || []).length;
+  return o;
+}
+/* Who may be moved out of a pod without breaking something else. Not a preference list — each of
+   these is a rule the board already enforces elsewhere, restated here so a suggestion can never
+   propose a move the checks would immediately complain about. */
+function canLeavePod(day, p, a){
+  const s = staffById(a.id);
+  if (!s) return false;
+  if (day.phone === a.id || day.night.phone === a.id) return false;      // the phone stays put
+  if (isSupernumerary(s)) return false;                                  // supers are not counted, so moving one changes nothing
+  if (isNeuroReg && isNeuroReg(s)) return false;                         // neuro regs are tied to C and D
+  const lds = day.pods[p].assign.filter(x => x.shift === "LD" && countsInNumbers(x.id));
+  if (a.shift === "LD" && lds.length <= 1) return false;                 // every pod needs a long day
+  return true;
+}
+/* One sentence about the spread, or nothing at all. Deliberately NOT a check in checkDay: plenty of
+   perfectly good days are uneven, and an amber dot on all of them would be ignored inside a
+   fortnight — so this speaks only in the card below, when you have just caused the split yourself.
+   It is an AIM, never an issue: it can suggest, it can never block. */
+function spreadNote(day){
+  const c = podCounts(day);
+  const ad = ["A", "B", "C", "D"];
+  const maxAD = Math.max(...ad.map(p => c[p]));
+  const minAD = Math.min(...ad.map(p => c[p]));
+  const thinAD = ad.find(p => c[p] === minAD);
+  if (maxAD - minAD >= rule("spreadMax"))
+    return "Pod " + thinAD + " has " + minAD + " while the fullest has " + maxAD + ".";
+  if (maxAD - c.E >= rule("spreadE"))
+    return "Pod E has " + c.E + " while the fullest has " + maxAD + ".";
+  return null;
+}
+
+/* ── WHAT THE CHANGE COST ──────────────────────────────────────────────────────────────────────
+   Shown after anybody is taken off a day. Ali, 11 Aug: "it did the not in this pod but didnt
+   suggest any changes or say no changes needed. big issue" — and then, when I answered that with a
+   head-count: "fixing the day isnt just about pod numbers is it. weve spent weeks going through
+   skill mix phone airway etc and now seems like youre truting to super simplofy."
+
+   Both fair. So this adds almost no logic of its own: it runs the checks that already exist and the
+   planner that already exists, and its only judgement is which button leads.
+
+     something broken   →  Apply leads. Airway cover, phone training, phone supervision, a pod with
+                           no long day — these are the things that actually make a day unsafe, and
+                           none of them are visible in a head-count.
+     only aims left     →  Done leads, evening up is the quiet secondary. "dont move people for the
+                           sake if it otherwise will annoy" — get this backwards and everyone taps
+                           the top button on reflex, including on the days it matters.
+     nothing at all     →  say what was checked. Silence and "I looked, it is fine" must not look
+                           the same at five in the morning.
+     broken, unfixable  →  say so, and offer a way to go and look. planDayFix already returns
+                           `unresolved`; showing an empty plan instead of that is a lie of omission. */
+function afterChangeCard(di, headline){
+  const wk = getWeek(currentWeekKey), day = wk.days[di];
+  const issues = checkDay(day, addDays(currentWeekKey, di), di, wk)
+    .filter(i => !i.empty && !isAccepted(wk, di, i.msg));
+  const hard = issues.filter(i => i.hard);
+  const soft = issues.filter(i => !i.hard && !i.info);
+  const spread = spreadNote(day);
+  let plan = { changes: [], unresolved: [] };
+  try { plan = planDayFix(di); } catch (e) {}
+
+  const bg  = el("div", { class: "dlg-bg" });
+  const box = el("div", { class: "dlg" });
+  const shut = () => { sheetClosedAt = Date.now(); bg.remove(); window.removeEventListener("keydown", esc); };
+  const esc = e => { if (e.key === "Escape") shut(); };
+  box.append(el("div", { class: "dlg-title" }, headline),
+             el("div", { class: "dlg-body" }, "The sync won't put them back."));
+
+  const line = (kind, txt) => el("div", { class: "cc-line " + kind },
+    el("span", { class: "cc-tag" }, kind === "hard" ? "ISSUE" : kind === "soft" ? "AIM" : "OK"),
+    el("span", {}, txt));
+  hard.forEach(i => box.append(line("hard", i.msg)));
+  soft.forEach(i => box.append(line("soft", i.msg)));
+  if (spread) box.append(line("soft", spread));
+
+  if (!hard.length && !soft.length && !spread) {
+    box.append(line("ok", "Every check passes. Nothing to move."),
+      el("div", { class: "cc-sub" }, "Airway, phone, phone supervision, long days, transfers and pod numbers all still hold."));
+    box.append(el("button", { class: "btn sheetbtn", onclick: shut }, "Done"));
+  } else if (plan.changes.length) {
+    box.append(el("div", { class: "cc-sub" }, "The fewest changes that clear it — everyone else stays put"));
+    const list = el("div", { class: "fixlist" });
+    plan.changes.forEach(c => list.append(fixChangeRow(c)));
+    box.append(list);
+    const apply = el("button", { class: "btn sheetbtn", onclick: () => {
+        shut(); applyFixedDay(di, plan.fixed, plan.changes);
+        toast("Fixed " + DAYNAMES[di].slice(0,3) + " — Undo reverses it");
+      } }, "Apply " + plan.changes.length + " change" + (plan.changes.length > 1 ? "s" : ""));
+    const done = el("button", { class: "btn sec sheetbtn plain", onclick: shut }, "Leave it as it is");
+    /* Which one leads is the whole argument of this function. */
+    if (hard.length) box.append(apply, done);
+    else { done.textContent = "Done"; done.className = "btn sheetbtn";
+           apply.textContent = "Even the pods up anyway"; apply.className = "btn sec sheetbtn plain";
+           box.append(done, apply); }
+  } else {
+    box.append(el("div", { class: "cc-sub" },
+      plan.unresolved.length ? "Nothing can be moved to fix this — " + plan.unresolved[0]
+                             : "Nothing can be moved to fix this automatically."));
+    box.append(el("button", { class: "btn sheetbtn", onclick: shut }, "Done"),
+      el("button", { class: "btn sec sheetbtn plain", onclick: () => { shut(); checksDialog(di); } }, "Show me the day's checks"));
+  }
+  bg.append(box);
+  bg.onclick = e => { if (e.target === bg) shut(); };
+  window.addEventListener("keydown", esc);
+  document.body.append(bg);
+}
+
 /* What the ✕ on a pod chip opens. Two outcomes, and the difference between them is the entire
    lesson of 11 Aug: "not in today" writes to day.removed and merge.py honours it, so nobody puts
    them back; "just out of this pod" leaves them on the bench, available, which is right when you
@@ -3333,7 +3472,7 @@ function podRemoveSheet(day, di, p, a){
         shut();
         takeOffDay(day, di, a.id);
         markDirty(); renderWeek();
-        toast(s.name + " is off today — the sync won't put them back");
+        afterChangeCard(di, s.name + " is off today.");
       } }, "Not in today"),
     el("button", { class: "btn sec sheetbtn", onclick: () => {
         shut();
@@ -3341,7 +3480,7 @@ function podRemoveSheet(day, di, p, a){
         logEntry(s.name + " → bench (" + dayShort(di) + ")", "manual", dateOfDi(di), null,
           { act: "move", subj: s.name, from: p, to: "", bench: true });
         markDirty(); renderWeek();
-        toast(s.name + " is on the bench — still on today");
+        afterChangeCard(di, s.name + " is on the bench, still on today.");
       } }, "Just out of this pod"),
     el("button", { class: "btn sec sheetbtn plain", onclick: shut }, "Cancel"));
   bg.append(box);
@@ -3370,7 +3509,7 @@ function personSheet(s, di, day){
         shut();
         takeOffDay(day, di, s.id);
         markDirty(); renderWeek();
-        toast(s.name + " is off today — the sync won't put them back");
+        afterChangeCard(di, s.name + " is off today.");
       } }, "Not in today"),
     el("button", { class: "btn sec sheetbtn", onclick: () => {
         shut();
