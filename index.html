@@ -1613,7 +1613,16 @@ async function enterEdit(){
 async function enterEditInner(){
   // On a local (OneDrive-synced) file we always save to the file itself, so get a handle
   // even though a relay link is baked in. In hosted/Teams contexts the relay link is enough.
-  if (!fileHandle && (LOCAL_FILE || !relayUrl())) {
+  /* A TEST BUILD NEEDS NEITHER A FILE NOR A RELAY, AND ASKING FOR ONE LOCKED THE BOARD.
+     saveFile() diverts every save into this browser's own storage on the FIRST line, before a
+     handle or a relay is touched — so the setup below answers a question whose answer changes
+     nothing here. On staging, which carries read keys only, relayUrl() is empty and this put a
+     file picker in front of the Edit button: nobody could reach edit mode, and the pod rings are
+     gated on it, so the whole of v1.1 was invisible on the one site it exists to be tried on.
+     Found on staging 26.08.14, the same day as the startup read gate and the same fault one
+     capability along — being able to READ, being allowed to SAVE and having somewhere to save TO
+     are three questions, and the code kept asking one of them for all three. */
+  if (!TESTMODE && !fileHandle && (LOCAL_FILE || !relayUrl())) {
     // A file picker only works on a standalone, non-sandboxed page. Inside Teams the file is
     // framed/sandboxed, so we use shared saving (paste the flow link once) instead.
     const framed = (() => { try { return window.self !== window.top; } catch(e){ return true; } })();
@@ -1635,7 +1644,7 @@ async function enterEditInner(){
       applyEnvClasses();
     }
   }
-  if (!fileHandle && !relayUrl()) { uiAlert("Editing isn't available here — open the file from the shared Teams folder.", { title: "View only on this device" }); return; }
+  if (!TESTMODE && !fileHandle && !relayUrl()) { uiAlert("Editing isn't available here — open the file from the shared Teams folder.", { title: "View only on this device" }); return; }
   // Pull the latest in the background so the "Who's editing?" dialog opens instantly instead of
   // waiting on a network read first.
   const syncP = Promise.resolve(syncLatest()).catch(() => {});
