@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T18:24:46.192262+00:00",
- "build": "ff96d09",
+ "generated": "2026-08-14T18:28:41.878651+00:00",
+ "build": "d9f81b8",
  "liveBuild": "35abf4e",
- "count": 183,
+ "count": 185,
  "changes": [
+  {
+   "sha": "d9f81b8",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T19:28:30+01:00",
+   "msg": "A test build needs neither a file nor a relay to edit \u2014 the rings were unreachable on staging"
+  },
+  {
+   "sha": "8835db9",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T18:24:46Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "ff96d09",
    "who": "alistaircranfield",
