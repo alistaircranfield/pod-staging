@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T21:03:51.637657+00:00",
- "build": "f183222",
+ "generated": "2026-08-14T21:04:35.464952+00:00",
+ "build": "a7fae08",
  "liveBuild": "35abf4e",
- "count": 205,
+ "count": 207,
  "changes": [
+  {
+   "sha": "a7fae08",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T22:04:26+01:00",
+   "msg": "Phone-trained joins the register; cover scales with pod size; ACCP down to the lowest weight"
+  },
+  {
+   "sha": "f9e1691",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T21:03:51Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "f183222",
    "who": "alistaircranfield",
