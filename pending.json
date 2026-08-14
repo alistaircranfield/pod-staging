@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T22:56:50.881989+00:00",
- "build": "ba1dd92",
+ "generated": "2026-08-14T23:10:57.680597+00:00",
+ "build": "c3d93a3",
  "liveBuild": "35abf4e",
- "count": 219,
+ "count": 221,
  "changes": [
+  {
+   "sha": "c3d93a3",
+   "who": "alistaircranfield",
+   "when": "2026-08-15T00:10:49+01:00",
+   "msg": "One line per day, closed \u2014 everything else behind a triangle"
+  },
+  {
+   "sha": "7b2bbc8",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T22:56:51Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "ba1dd92",
    "who": "alistaircranfield",
