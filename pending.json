@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T21:04:35.464952+00:00",
- "build": "a7fae08",
+ "generated": "2026-08-14T22:15:30.469537+00:00",
+ "build": "4ab4966",
  "liveBuild": "35abf4e",
- "count": 207,
+ "count": 209,
  "changes": [
+  {
+   "sha": "4ab4966",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T23:15:22+01:00",
+   "msg": "ACCPs are not asked for, only counted when stacked; Pod E gets its own weights"
+  },
+  {
+   "sha": "fae89b9",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T21:04:35Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "a7fae08",
    "who": "alistaircranfield",
