@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T20:40:08.602376+00:00",
- "build": "e4d5fb2",
+ "generated": "2026-08-14T21:03:51.637657+00:00",
+ "build": "f183222",
  "liveBuild": "35abf4e",
- "count": 203,
+ "count": 205,
  "changes": [
+  {
+   "sha": "f183222",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T22:03:42+01:00",
+   "msg": "Two layers: the list stays present-or-not, the ring scores by degree"
+  },
+  {
+   "sha": "bf96207",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T20:40:08Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "e4d5fb2",
    "who": "alistaircranfield",
