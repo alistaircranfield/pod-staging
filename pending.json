@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T14:48:06.016118+00:00",
- "build": "b9f90fc",
+ "generated": "2026-08-14T14:50:38.740618+00:00",
+ "build": "a327d52",
  "liveBuild": "35abf4e",
- "count": 167,
+ "count": 169,
  "changes": [
+  {
+   "sha": "a327d52",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T15:50:29+01:00",
+   "msg": "Name picker: stop offering a suggestion identical to what is already typed"
+  },
+  {
+   "sha": "2f20577",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T14:48:06Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "b9f90fc",
    "who": "alistaircranfield",
