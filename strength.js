@@ -1,4 +1,4 @@
-—/* strength.js — the requirement register and the one evaluator that reads it.
+/* strength.js — the requirement register and the one evaluator that reads it.
  *
  * WHY THIS EXISTS
  * Thu 13 Aug 2026: Pod C held Breslin (IMT, three weeks) and Gutierrez (FY2) with no airway,
