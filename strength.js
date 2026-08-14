@@ -1,4 +1,4 @@
-/* strength.js — the requirement register and the one evaluator that reads it.
+—/* strength.js — the requirement register and the one evaluator that reads it.
  *
  * WHY THIS EXISTS
  * Thu 13 Aug 2026: Pod C held Breslin (IMT, three weeks) and Gutierrez (FY2) with no airway,
@@ -698,23 +698,38 @@
      The stops are the board's own red, amber and green, so nothing new has to be learned. */
   function colourOf(pct) {
     if (pct == null) return "#8a8f98";
-    var stops = [[0, 163, 45, 45], [60, 239, 159, 39], [100, 99, 153, 34]], i, a, b, t;
-    var v = Math.max(0, Math.min(100, Number(pct)));
+    /* HSL, NOT RGB, AND THE YELLOW BAND IS COMPRESSED ON PURPOSE.
+       Ali, 26.08.15: "85 pretty high, why sludgy green not helpful." He was right and it was an
+       arithmetic accident, not taste. Interpolating red to green in RGB walks straight through
+       olive, so every score in the eighties came out the colour of pond water — the exact range
+       where somebody most needs to know at a glance whether a day is fine.
+
+       Hue moves instead, which keeps every step saturated, and the stops are placed so the yellows
+       are passed through quickly: 75 is still gold, 88 is properly green, and 85 lands on green
+       rather than halfway between the two. */
+    /* Lightness lifted through the middle, 26.08.15: "i dont like the dark mustart colour btw, use
+       brighter yellow for spectrums." At 43% lightness the yellows came out as mustard — the hue was
+       right and the value was too low, which is what makes a yellow look dirty. The number inside
+       the ring is black now, so the arc is free to be bright without anything having to read on it. */
+    var stops = [[0, 2, 72, 48], [50, 30, 92, 52], [75, 48, 96, 53], [88, 95, 58, 42], [100, 122, 52, 36]];
+    var v = Math.max(0, Math.min(100, Number(pct))), i, x, y, t;
     for (i = 0; i < stops.length - 1; i++) {
-      a = stops[i]; b = stops[i + 1];
-      if (v <= b[0]) {
-        t = (v - a[0]) / (b[0] - a[0]);
-        return "rgb(" + Math.round(a[1] + (b[1] - a[1]) * t) + "," +
-                        Math.round(a[2] + (b[2] - a[2]) * t) + "," +
-                        Math.round(a[3] + (b[3] - a[3]) * t) + ")";
+      x = stops[i]; y = stops[i + 1];
+      if (v <= y[0]) {
+        t = (y[0] === x[0]) ? 0 : (v - x[0]) / (y[0] - x[0]);
+        return "hsl(" + Math.round(x[1] + (y[1] - x[1]) * t) + ","
+                      + Math.round(x[2] + (y[2] - x[2]) * t) + "%,"
+                      + Math.round(x[3] + (y[3] - x[3]) * t) + "%)";
       }
     }
-    return "rgb(99,153,34)";
+    return "hsl(122,48%,34%)";
   }
   function band(pct) {
     if (pct == null) return "unknown";
-    if (pct >= 90) return "ok";
-    if (pct >= 70) return "thin";
+    /* 85 is a good day, not a middling one — the bands follow the colour rather than the other
+       way round (Ali, 26.08.15: "85 pretty high"). */
+    if (pct >= 85) return "ok";
+    if (pct >= 65) return "thin";
     return "bare";
   }
 
