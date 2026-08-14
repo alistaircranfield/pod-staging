@@ -1486,7 +1486,9 @@ function uiDialog(o){
         const renderList = () => {
           const q = input.value.trim().toLowerCase();
           list.innerHTML = "";
-          const matches = o.options.filter(opt => opt.toLowerCase().includes(q)).slice(0, 80);
+          // Once what's typed IS the name, stop offering it back — a sole suggestion identical to
+          // the box above it looks broken, and picking it does nothing.
+          const matches = o.options.filter(opt => opt.toLowerCase().includes(q) && opt.toLowerCase() !== q).slice(0, 80);
           for (const opt of matches) list.append(el("div", { class: "comboopt", onclick: () => { input.value = opt; renderList(); input.focus(); } }, opt));
           list.style.display = matches.length ? "block" : "none";
         };
