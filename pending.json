@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T18:28:41.878651+00:00",
- "build": "d9f81b8",
+ "generated": "2026-08-14T18:32:12.549073+00:00",
+ "build": "3f2302d",
  "liveBuild": "35abf4e",
- "count": 185,
+ "count": 187,
  "changes": [
+  {
+   "sha": "3f2302d",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T19:32:02+01:00",
+   "msg": "A yesterday nobody allocated is not a yesterday \u2014 continuity drops rather than fails"
+  },
+  {
+   "sha": "de4efca",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T18:28:41Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "d9f81b8",
    "who": "alistaircranfield",
