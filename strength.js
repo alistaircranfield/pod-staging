@@ -85,18 +85,23 @@
   var REGISTER = [
     { id: "R01", scope: "pod",  kind: "gate", label: "Headcount at or above the minimum", from: "check", short: "under minimum" },
     { id: "R02", scope: "pod",  kind: "gate", label: "Somebody on a long day", from: "check", short: "no long day" },
-    { id: "R04", scope: "pod",  kind: "aim",  label: "Airway-trained in the pod", rel: true, pods: ["A","B","C","D"], trait: "airway", short: "no airway" },
-    /* A–D, not E. Ali, 26.08.15: "no transfer on E not important." Pod E is a smaller pod by
-       design — its own minimum is 1 against 2 — and asking a pod of one or two for a
-       transfer-trained person is the "E is always the weakest" fault the old per-pod floors had,
-       arriving through a different door. Same list as R04, for the same reason. */
-    { id: "N01", scope: "pod",  kind: "aim",  label: "Transfer-trained in the pod", rel: true, pods: ["A","B","C","D"], trait: "transfer", short: "no transfer" },
+    { id: "R04", scope: "pod",  kind: "aim",  label: "Airway-trained in the pod", rel: true, trait: "airway", short: "no airway" },
+    { id: "N01", scope: "pod",  kind: "aim",  label: "Transfer-trained in the pod", rel: true, trait: "transfer", short: "no transfer" },
     { id: "N05", scope: "pod",  kind: "aim",  label: "Phone-trained in the pod", rel: true, trait: "phoneHolder", short: "no phone-trained" },
-    /* LOWEST WEIGHT OF THE LOT. Ali, 26.08.15: "the ACCP thing seems overstated." It was — with
-       every requirement at 1 an ACCP miss moved a pod as far as an airway miss, and there are 11
-       ACCPs against 37 airway-trained, so it fired constantly and loudly. It stays in the list,
-       because "no ACCP in this pod" is a true and useful thing to read; it stops shouting. */
-    { id: "N02", scope: "pod",  kind: "aim",  label: "An ACCP in the pod", rel: true, trait: "accp", short: "no ACCP" },
+    /* NOT A THING TO HAVE — A THING NOT TO STACK. Ali, 26.08.15: "the ACCP thing just is
+       complicatin it. as long as transfer i saccoubnted thats whats needed. remove that from
+       algorithm, just penalise having >1 accp per pod."
+
+       Asking every pod for an ACCP was wrong twice over. There are 11 of them against 37
+       airway-trained, so on most days most pods cannot have one and the requirement was noise; and
+       what an ACCP actually brings to a pod is already counted, because 9 of the 11 are
+       transfer-trained and transfer is scored on its own. So the positive requirement is gone.
+
+       What remains is the real failure mode, which is the opposite one: two ACCPs sitting in the
+       same pod is a scarce thing used twice where it could have been used once — the same fault as
+       Pod A's three transfer-trained on 13 August, in a different currency. Nothing is asked of a
+       pod with one or none. */
+    { id: "N02", scope: "pod",  kind: "aim",  label: "No more than one ACCP in the pod", short: "two ACCPs stacked" },
     { id: "N03", scope: "pod",  kind: "aim",  label: "Not everybody in their first weeks", short: "all new" },
     { id: "N04", scope: "pod",  kind: "aim",  label: "Keeps its people from yesterday", short: "pod broken up" },
 
@@ -158,6 +163,24 @@
        Ali's ruling was asked for on this number; 3 is the starting point, editable in Setup. */
     coverPer: 3,
 
+    /* ── POD E IS A DIFFERENT KIND OF POD AND IS NOW SCORED LIKE ONE ────────────────────────
+       Ali, 26.08.15: "E needs to be weighted differently somehoe or iwll aleways look terrible. the
+       airway skill should cary less weight for pod E only." And earlier: "no transfer on E not
+       important."
+
+       E was first dealt with by leaving it OUT of airway and transfer altogether, which is the
+       blunt version of the same idea and wrong in a way that showed: a pod that is not asked for
+       something cannot be credited when it has it either, so an airway-trained person standing in
+       Pod E counted for nothing anywhere. This is the same fault as the old per-pod FLOORS, which
+       were thrown out on 14 Aug for making E the weakest pod on almost every day — a signal that
+       only ever says "E" is no signal at all.
+
+       So E is asked the same questions as everywhere else and its answers are worth less. A
+       multiplier of 1 is the default and means "same as any pod"; anything below it says this pod
+       wants less of that thing. Per pod and per requirement, so if D ever needs its own treatment
+       it is one line rather than a new mechanism. Editable from Setup like everything else. */
+    podWeight: { E: { R04: 0.4, N01: 0.25, N05: 0.6 } },
+
     /* Any requirement can be switched off from the front end. Off means not asked and not in the
      * denominator — never "asked and always passing", which would inflate every score. */
     off: {},
@@ -214,6 +237,14 @@
   }
   function isOn(cfg, id) { return !(cfg.off && cfg.off[id] === true); }
   function wOf(cfg, id) { var v = Number(cfg.w && cfg.w[id]); return isFinite(v) && v >= 0 ? v : 1; }
+  /* The same weight, scaled by what THIS pod wants of it. Everything reads weights through here so
+     a pod-specific multiplier cannot be honoured in one place and forgotten in another. */
+  function wFor(cfg, id, pod) {
+    var base = wOf(cfg, id);
+    var m = (cfg.podWeight && cfg.podWeight[pod] && cfg.podWeight[pod][id]);
+    m = Number(m);
+    return (isFinite(m) && m >= 0) ? base * m : base;
+  }
 
   /* ── TIME ON THE UNIT ────────────────────────────────────────────────────────────────────
      Stated start date first; failing that, the first shift the Optima roster ever gave them.
@@ -409,7 +440,17 @@
           sum += tierVal(pe[j].tier);
           if (pe[j].tier !== "new") anyBeyond = true;
         }
-        charge(pods[p], "N03", sum / pe.length, anyBeyond, wOf(cfg, "N03"));
+        charge(pods[p], "N03", sum / pe.length, anyBeyond, wFor(cfg, "N03", p));
+      }
+
+      /* ACCPs, counted as an EXCESS rather than a presence. One or none is what everybody gets; a
+         second in the same pod costs, because it is a scarce person doing a job the first already
+         covers. Halves per extra, so two is 0.5 and three is 0. */
+      if (isOn(cfg, "N02")) {
+        var accps = 0;
+        for (j = 0; j < pe.length; j++) if (pe[j].accp) accps++;
+        var over = Math.max(0, accps - 1);
+        charge(pods[p], "N02", Math.max(0, 1 - over * 0.5), over === 0, wFor(cfg, "N02", p));
       }
 
       /* Continuity. Share of the pod that was in it yesterday, against the share we ask for. */
@@ -417,7 +458,7 @@
         var kept = 0;
         for (j = 0; j < pe.length; j++) if ((prevP[p] || []).indexOf(pe[j].id) !== -1) kept++;
         var want = Math.max(1, Math.ceil(pe.length * Number(cfg.keepShare)));
-        charge(pods[p], "N04", Math.min(1, kept / want), kept >= want, wOf(cfg, "N04"));
+        charge(pods[p], "N04", Math.min(1, kept / want), kept >= want, wFor(cfg, "N04", p));
       } else if (isOn(cfg, "N04")) {
         pods[p].dropped.push("N04");
       }
@@ -453,7 +494,7 @@
         /* Airway and transfer scale with the size of the pod; the phone and an ACCP are one each,
            because two phone-trained people in a pod is not twice the phone. */
         var wantN = (reg.id === "R04" || reg.id === "N01") ? coverNeed(pods[p].people.length) : 1;
-        charge(pods[p], reg.id, Math.min(1, countIn[p] / wantN), countIn[p] > 0, wOf(cfg, reg.id));
+        charge(pods[p], reg.id, Math.min(1, countIn[p] / wantN), countIn[p] > 0, wFor(cfg, reg.id, p));
       }
       for (i = spare; i < ordered.length; i++) pods[ordered[i]].unfixable.push(reg.id);
     }
@@ -595,7 +636,7 @@
     function unfixableWeight(podSc) {
       var t = 0, q, id, w, f;
       for (q = 0; q < (podSc.unfixable || []).length; q++) {
-        id = podSc.unfixable[q]; w = wOf(cfg, id); f = 0;
+        id = podSc.unfixable[q]; w = wFor(cfg, id, podSc.pod); f = 0;
         for (var z = 0; z < (podSc.part || []).length; z++) if (podSc.part[z].id === id) f = podSc.part[z].f;
         if (podSc.met.indexOf(id) !== -1 && f === 0) f = 1;
         t += w * (1 - f);
@@ -671,7 +712,7 @@
     daysOn: daysOn, tierOf: tierOf,
     scoreDay: scoreDay, dayAimFor: dayAimFor,
     rowOf: rowOf, labelOf: labelOf, shortOf: shortOf, podNamedIn: podNamedIn,
-    colourOf: colourOf, band: band, donors: donors,
+    colourOf: colourOf, band: band, donors: donors, wFor: wFor,
     indexStaff: byIdOf, isOn: isOn, wOf: wOf
   };
 
