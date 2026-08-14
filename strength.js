@@ -22,7 +22,7 @@
  *     a GATE: break it and the pod is broken, full stop, no percentage. The percentage is of
  *     the AIMS, and only the aims that were genuinely in question.
  *
- *  2. WHAT CANNOT BE DONE IS AWARDED, NOT CHARGED AND NOT REMOVED.  On 13 Aug only three
+ *  2. WHAT THE DAY COULD NOT SUPPLY IS NOT COUNTED AGAINST THE POD.  On 13 Aug only three
  *     airway-trained people were on the day shift for four pods that want one. A requirement the
  *     day could not supply is not a fault of a pod; scoring it as one is what made the board say
  *     "nothing can be moved to fix this automatically" and invited 42 minutes of hand-shuffling.
@@ -36,6 +36,14 @@
  *     did as well as it could, which is what full marks mean. Pods that could have done better are
  *     still the only ones charged, so the comparison between pods is unchanged — but the scale
  *     stops collapsing to two points on exactly the days somebody needs to read it.
+ *
+ *     THE WORD MATTERS AND "AWARDED" IS THE WRONG ONE. Ali, 26.08.15: "unmeetable and therefore
+ *     awarded 0 i think that concept will confuse everybody." He is right — a tick beside "airway
+ *     in the pod" on a pod with no airway person is a lie, however defensible the arithmetic. So
+ *     the panel draws these with a DASH, says "none on today, not counted against this pod", and
+ *     the total states its own basis: "80% of what was possible · 2 of 5 assessed". `assessed`
+ *     below is that count, and it is what stops a 100 built on one requirement reading like a 100
+ *     built on five.
  *
  *  3. WHERE SUPPLY IS SHORT, THE WEAKEST POD CARRIES THE MISS.  Two ACCPs both in Pod A: four
  *     pods lack one and only one of them could have been helped. Smearing the miss across four
@@ -87,14 +95,14 @@
     { id: "R08", scope: "day",  kind: "gate", label: "Day phone allocated", from: "check", short: "no day phone" },
     { id: "R09", scope: "day",  kind: "gate", label: "Phone holder trained, learner supervised", from: "check", short: "phone untrained" },
     { id: "R10", scope: "day",  kind: "gate", label: "Phone holder on a long day", from: "check", short: "phone not long day" },
-    { id: "R11", scope: "day",  kind: "gate", label: "Night phone qualified and covering a pod", from: "check", short: "night phone" },
-    { id: "R12", scope: "day",  kind: "gate", label: "Night team at or above the minimum", from: "check", short: "night team short" },
-    { id: "R13", scope: "day",  kind: "gate", label: "Night team able to work nights", from: "check", short: "nights not flagged" },
+    { id: "R11", scope: "night",  kind: "gate", label: "Night phone qualified and covering a pod", from: "check", short: "night phone" },
+    { id: "R12", scope: "night",  kind: "gate", label: "Night team at or above the minimum", from: "check", short: "night team short" },
+    { id: "R13", scope: "night",  kind: "gate", label: "Night team able to work nights", from: "check", short: "nights not flagged" },
     { id: "R16", scope: "day",  kind: "gate", label: "Nobody on both the day and the night", from: "check", short: "day and night" },
     { id: "R05", scope: "day",  kind: "aim",  label: "Pod E is the smallest", from: "check", short: "E not smallest" },
     { id: "R06", scope: "day",  kind: "aim",  label: "Phone holder where there is most cover", from: "check", short: "phone not with cover" },
     { id: "R07", scope: "day",  kind: "aim",  label: "Pods evenly spread", short: "uneven spread" },
-    { id: "R14", scope: "day",  kind: "aim",  label: "Two airway on nights, one each side", from: "check", short: "night airway split" },
+    { id: "R14", scope: "night",  kind: "aim",  label: "Two airway on nights, one each side", from: "check", short: "night airway split" },
     { id: "R15", scope: "day",  kind: "aim",  label: "Transfer-trained on the day shift", from: "check", short: "transfer on days" },
     { id: "R17", scope: "day",  kind: "aim",  label: "Nobody standing in the wrong shift", from: "check", short: "wrong shift" },
     { id: "R18", scope: "week", kind: "aim",  label: "Day phone rotates", from: "check", short: "day phone stuck" },
@@ -272,7 +280,7 @@
 
     /* Gates first, and separately, because a broken gate is not a low score — it is a broken pod,
        and the two must never be averaged into each other. */
-    var broken = {}, dayBroken = [], aimFail = {};
+    var broken = {}, dayBroken = [], nightBroken = [], aimFail = {};
     for (i = 0; i < order.length; i++) broken[order[i]] = [];
     var issues = ctx.issues || [];
     for (i = 0; i < issues.length; i++) {
@@ -281,7 +289,11 @@
       var id = dayAimFor(it.msg), row = rowOf(id);
       var pod = podNamedIn(it.msg);
       if (row && row.kind === "gate") {
+        /* A night gate belongs to the night team's own ring, not to the day's. Routed here rather
+           than sorted out later, because "which thing is this breach about" is a property of the
+           register row and reading it twice is how the two lists drift. */
         if (row.scope === "pod" && pod) broken[pod].push(id);
+        else if (row.scope === "night") nightBroken.push(id);
         else dayBroken.push(id || "?");
       } else if (id !== "R04") {
         /* R04 is re-derived below against supply — checkDay's airway sentence predates
@@ -391,6 +403,51 @@
       if (aimFail[rg.id]) dayMissed.push(rg.id); else { dGot += wt; dayMet.push(rg.id); }
     }
 
+    /* ── THE NIGHT TEAM IS A POD TOO ────────────────────────────────────────────────────────
+       Ali, 26.08.15: "nights have no score either." It had none because the five day pods were
+       what Thursday was about, and the night team was left as a set of gates — allocated, trained,
+       able to work nights — with nothing to say about how good a night team it actually is.
+
+       It is scored exactly like a pod and for the same reasons: the same experience mix, the same
+       continuity, plus the one aim that is only about nights (two airway-trained, one each side).
+       Its gates behave like a pod's: break one and the night is BROKEN, no percentage. It does not
+       enter the day score, because a day percentage that mixed the day board with the night team
+       would move for reasons nobody could see on the screen they were looking at. */
+    var night = null;
+    if (ctx.nightCounts) {
+      var nIds = ctx.nightCounts || [], nj;
+      night = { pod: "N", got: 0, app: 0, met: [], missed: [], part: [], dropped: [], broken: [], people: [] };
+      for (nj = 0; nj < nIds.length; nj++) {
+        var np = S(nIds[nj]);
+        night.people.push({ id: nIds[nj], tier: tierOf(np, iso, cfg, fs), name: np && np.name, grade: np && np.grade,
+          airway: !!(np && np.airway), transfer: !!(np && np.transfer), accp: !!(np && np.grade === "ACCP") });
+      }
+      night.broken = nightBroken.slice();
+      if (isOn(cfg, "R14")) {
+        /* Only asked when there are two to split. One airway-trained on a night team is not a
+           spread problem, it is the whole of what the night has. */
+        var nAir = 0;
+        for (nj = 0; nj < night.people.length; nj++) if (night.people[nj].airway) nAir++;
+        if (nAir >= 2) charge(night, "R14", !aimFail.R14, wOf(cfg, "R14"));
+        else night.dropped.push("R14");
+      }
+      if (isOn(cfg, "N03") && night.people.length) {
+        var nMix = 0;
+        for (nj = 0; nj < night.people.length; nj++) if (night.people[nj].tier !== "new") nMix++;
+        charge(night, "N03", Number(cfg.mixShare) > 0 ? Math.min(1, (nMix / night.people.length) / Number(cfg.mixShare)) : 1, wOf(cfg, "N03"));
+      }
+      if (isOn(cfg, "N04") && night.people.length && ctx.prevNightCounts && ctx.prevNightCounts.length) {
+        var nKept = 0;
+        for (nj = 0; nj < night.people.length; nj++) if (ctx.prevNightCounts.indexOf(night.people[nj].id) !== -1) nKept++;
+        var nShare = nKept / night.people.length, nWant = Number(cfg.keepShare);
+        charge(night, "N04", nWant > 0 ? Math.min(1, nShare / nWant) : 1, wOf(cfg, "N04"));
+      } else if (isOn(cfg, "N04") && night.people.length) night.dropped.push("N04");
+      night.pct = night.app ? Math.max(0, Math.min(100, Math.round(night.got / night.app * 100))) : (night.people.length ? null : 0);
+      night.isBroken = night.broken.length > 0;
+      night.assessed = night.met.length + night.missed.length;
+      night.possible = night.assessed + night.dropped.length;
+    }
+
     var got = dGot, app = dApp;
     for (i = 0; i < order.length; i++) {
       var pd = pods[order[i]];
@@ -399,13 +456,22 @@
          Ali, 26.08.15: "cant be a minus number, the bottom must be a zero when no people on." */
       pd.pct = pd.app ? Math.max(0, Math.min(100, Math.round(pd.got / pd.app * 100))) : (pd.people.length ? null : 0);
       pd.isBroken = pd.broken.length > 0;
+      /* How much of this pod was actually judged. A pod whose airway, transfer and ACCP were all
+         unsupplied is scored on two requirements, and a percentage off two requirements should not
+         look like a percentage off five — that is the "Monday reads 100 everywhere" fault, and it
+         is answered by saying so rather than by bending the arithmetic. */
+      pd.assessed = pd.met.length + pd.missed.length;
+      pd.possible = pd.assessed + pd.dropped.length;
       got += pd.got; app += pd.app;
     }
-    var dayPct = app ? Math.round(got / app * 100) : null;
+    var dayPct = app ? Math.max(0, Math.min(100, Math.round(got / app * 100))) : null;
+    var dAssessed = 0, dPossible = 0;
+    for (i = 0; i < order.length; i++) { dAssessed += pods[order[i]].assessed; dPossible += pods[order[i]].possible; }
+    dAssessed += dayMet.length + dayMissed.length; dPossible += dayMet.length + dayMissed.length;
 
     return {
-      pods: pods, day: { pct: dayPct, got: got, app: app, met: dayMet, missed: dayMissed, broken: dayBroken },
-      capacity: capacity, unknowns: unknowns, register: REGISTER, cfg: cfg,
+      pods: pods, day: { pct: dayPct, got: got, app: app, met: dayMet, missed: dayMissed, broken: dayBroken, assessed: dAssessed, possible: dPossible },
+      night: night, capacity: capacity, unknowns: unknowns, register: REGISTER, cfg: cfg,
       empty: app === 0
     };
 
