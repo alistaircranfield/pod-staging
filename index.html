@@ -1245,7 +1245,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
 </div>
 
 <script src="core.js?v=20260810-04"></script>
-<script src="strength.js?v=20260814-07"></script>
+<script src="strength.js?v=20260814-10"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -3278,7 +3278,35 @@ function idListEditor(container, dateISO, arr, filter, addLabel, day){
   container.append(el("button", { class: "addbtn", onclick: () => { arr.push(""); markDirty(); renderWeek(); } }, "+ " + addLabel));
 }
 
-function renderWeek(){
+/* THE PAGE STOPS JUMPING TO THE TOP. Ali, 26.08.15: "its annoying when make a change jumps up to
+   top of the page - why is something refreshign?" Because every change ends in renderWeek(), which
+   rebuilds the table from scratch — and a browser has nowhere to put the scroll position of a node
+   that no longer exists. Nothing was reloading; the page was being redrawn under a scrollbar that
+   then had nothing to hold on to.
+
+   So the position is taken before the rebuild and put back after it, on the next frame — after
+   layout, or the restore lands against a document that is still the old height. Both axes and both
+   the window and the board's own scroller, because on a laptop the table scrolls sideways inside
+   its wrapper and on a phone the whole document scrolls. */
+function withScrollKept(fn){
+  var w = (typeof window !== "undefined") ? window : null;
+  var box = document.querySelector(".tablewrap, .boardwrap, #boardScroll, main") || null;
+  var y = w ? (w.scrollY || w.pageYOffset || 0) : 0, x = w ? (w.scrollX || w.pageXOffset || 0) : 0;
+  var by = box ? box.scrollTop : 0, bx = box ? box.scrollLeft : 0;
+  try { fn(); } finally {
+    var put = function () {
+      try { if (w && (y || x)) w.scrollTo(x, y); } catch (e) {}
+      try {
+        var b = document.querySelector(".tablewrap, .boardwrap, #boardScroll, main");
+        if (b && (by || bx)) { b.scrollTop = by; b.scrollLeft = bx; }
+      } catch (e) {}
+    };
+    put();
+    if (w && w.requestAnimationFrame) w.requestAnimationFrame(put);
+  }
+}
+function renderWeek(){ withScrollKept(renderWeekInner); }
+function renderWeekInner(){
   if (!data) return;
   if (!currentWeekKey) currentWeekKey = mondayOf(todayISO());
   const isNow = currentWeekKey === mondayOf(todayISO());
@@ -4200,6 +4228,9 @@ function cycleShift(day, id, pool){
 var STR_SEEN = {};   // dateISO -> { pods: { A: pct }, day: pct } as the board last drew it
 var STR_DAY  = {};   // dateISO -> { sc, delta: { A: n }, dayDelta: n }
 var STR_FS   = null; // id -> first rostered date, built once per load
+/* Set while Fix this day is applying its own plan, so the override counter does not credit the
+   planner's moves to a human. The whole value of that count is that it is people. */
+var STR_FROM_FIX = false;
 
 /* Hard rule 1: the register's defaults are a starting point. What the board actually scores with
    is whatever the rota team has written into the store from Setup. */
@@ -4226,6 +4257,16 @@ function strFirstSeen(){
 }
 /* "Countable" belongs to the board, not to strength.js — supernumeraries and neuro regs are a rule
    about this unit, and the evaluator should not have to know about either. */
+/* The night team, de-duplicated, as one list — somebody appears under every hat they wear (the
+   phone holder is also in a pod group), and counting them twice would flatter the night's mix. */
+function strNightCounts(day){
+  var n = day && day.night;
+  if (!n) return [];
+  var ids = [n.phone].concat(n.AB || [], n.CDE || [], n.E || []).filter(Boolean);
+  var seen = {}, out = [], i;
+  for (i = 0; i < ids.length; i++) if (!seen[ids[i]] && countsInNumbers(ids[i])) { seen[ids[i]] = 1; out.push(ids[i]); }
+  return out;
+}
 function strCounts(day){
   var o = {}, i, p;
   for (i = 0; i < PODS.length; i++) {
@@ -4250,17 +4291,44 @@ function strengthTick(day, dateISO, issues, wk, di){
     day: day, dateISO: dateISO, byId: Strength.indexStaff(data.staff),
     firstSeen: strFirstSeen(), counts: strCounts(day),
     prevCounts: prev ? strCounts(prev) : null,
+    nightCounts: strNightCounts(day), prevNightCounts: prev ? strNightCounts(prev) : null,
     issues: issues || [], cfg: strengthCfg() });
-  var seen = STR_SEEN[dateISO], delta = {}, now = { pods: {}, day: sc.day.pct }, i, p, pd;
+  var seen = STR_SEEN[dateISO], delta = {}, now = { pods: {}, miss: {}, day: sc.day.pct }, i, p, pd;
   for (i = 0; i < PODS.length; i++) {
     p = PODS[i]; pd = sc.pods[p];
     now.pods[p] = pd ? pd.pct : null;
+    now.miss[p] = pd ? pd.missed.slice() : [];
     if (seen && seen.pods[p] != null && pd && pd.pct != null && seen.pods[p] !== pd.pct)
       delta[p] = pd.pct - seen.pods[p];
   }
+  /* ── WHAT A BREACH ACTUALLY COSTS, COUNTED RATHER THAN GUESSED ─────────────────────────────
+     Every aim ships at weight 1 because nothing measured which ones matter, and Ali cannot supply
+     that: "the consequence is consultants get annoyed — we cover the safety aspects." But
+     annoyance IS measurable. Somebody reaching in and moving a person by hand is the cost of a
+     breach, paid, in public — 312 manual log entries and 70 pod moves before any of this existed.
+
+     So: a requirement that was missed on the last redraw and is met on this one, in edit mode, by
+     a hand and not by Fix this day, gets a mark against its name. After a few weeks the weights
+     come from what people actually correct instead of from me.
+
+     COUNTS ONLY, NEVER NAMES. The store gets a tally per requirement id and nothing else — no
+     person, no pod, no date, no editor. Hard rule 6 is about absence, but the same instinct
+     applies: a log of who moved whom would be a behaviour record nobody asked for. */
+  if (EDIT_MODE && !STR_FROM_FIX && seen && seen.miss && data) {
+    data.reqFixes = data.reqFixes || {};
+    for (i = 0; i < PODS.length; i++) {
+      p = PODS[i];
+      var was = seen.miss[p] || [], k;
+      for (k = 0; k < was.length; k++)
+        if (now.miss[p].indexOf(was[k]) === -1 && sc.pods[p] && sc.pods[p].people.length)
+          data.reqFixes[was[k]] = (data.reqFixes[was[k]] || 0) + 1;
+    }
+  }
   var dd = (seen && seen.day != null && sc.day.pct != null && seen.day !== sc.day.pct) ? sc.day.pct - seen.day : 0;
+  now.night = sc.night ? sc.night.pct : null;
+  var nd = (seen && seen.night != null && now.night != null && seen.night !== now.night) ? now.night - seen.night : 0;
   STR_SEEN[dateISO] = now;
-  STR_DAY[dateISO] = { sc: sc, delta: delta, dayDelta: dd };
+  STR_DAY[dateISO] = { sc: sc, delta: delta, dayDelta: dd, nightDelta: nd };
   return STR_DAY[dateISO];
 }
 /* THE DONOR SENTENCE, WHICH IS THE WHOLE POINT. Surplus is capacity, not score: a pod is not better
@@ -4331,9 +4399,11 @@ var STR_TIERLAB = { "new": "first weeks", mid: "under a year", settled: "a year 
    is named, counted, hinted at or explained anywhere on this panel. */
 function strengthRulesDialog(dateISO, p){
   var rec = STR_DAY[dateISO];
-  if (!rec || !rec.sc || !rec.sc.pods || !rec.sc.pods[p]) return;
+  if (!rec || !rec.sc) return;
+  var pd0 = (p === "N") ? rec.sc.night : (rec.sc.pods || {})[p];
+  if (!pd0) return;
   var m = $("#modal"); if (!m) return;
-  var sc = rec.sc, pd = sc.pods[p], i;
+  var sc = rec.sc, pd = pd0, i;
   var mark = function(k){ return el("span", { class: "rmk" }, k); };
   var line = function(cls, glyph, label, sub, right){
     return el("div", { class: "strrule " + cls }, mark(glyph),
@@ -4341,7 +4411,7 @@ function strengthRulesDialog(dateISO, p){
       el("span", { class: "rwt" }, right || ""));
   };
   m.innerHTML = "";
-  m.append(el("h3", {}, "Pod " + p + " · " + fmtDate(dateISO)));
+  m.append(el("h3", {}, (p === "N" ? "Night team" : "Pod " + p) + " · " + fmtDate(dateISO)));
   for (i = 0; i < pd.broken.length; i++)
     m.append(line("unmet", "✕", Strength.labelOf(pd.broken[i]), "", "must"));
   var partOf = function (id) { var k; for (k = 0; k < (pd.part || []).length; k++) if (pd.part[k].id === id) return pd.part[k].f; return null; };
@@ -4354,8 +4424,14 @@ function strengthRulesDialog(dateISO, p){
   for (i = 0; i < pd.met.length; i++)
     m.append(line("met", "✓", Strength.labelOf(pd.met[i]), "",
       Strength.wOf(sc.cfg, pd.met[i]) + " of " + Strength.wOf(sc.cfg, pd.met[i])));
+  /* NOT A TICK AND NOT A CROSS. Ali, 26.08.15: "unmeetable and therefore awarded 0 i think that
+     concept will confuse everybody." A tick beside "airway in the pod" on a pod with no airway
+     person is a lie however defensible the arithmetic, and a cross blames the pod for a shortage
+     it did not cause. So: a dash, the plain reason, and the words that answer the question a
+     reader is about to ask. No arithmetic column at all — there is nothing to add up. */
   for (i = 0; i < pd.dropped.length; i++)
-    m.append(line("na", "–", Strength.labelOf(pd.dropped[i]), "none spare on the day shift", "n/a"));
+    m.append(line("na", "–", Strength.labelOf(pd.dropped[i]),
+      "none on today · not counted against this pod", ""));
   m.append(el("div", { class: "strhead" }, "In the pod"));
   if (!pd.people.length) m.append(line("unmet", "✕", "empty", "", ""));
   for (i = 0; i < pd.people.length; i++) {
@@ -4368,10 +4444,15 @@ function strengthRulesDialog(dateISO, p){
       (STR_TIERLAB[pe.tier] || pe.tier) + (sk.length ? " · " + sk.join(" · ") : ""),
       pe.grade || ""));
   }
+  /* THE TOTAL STATES ITS OWN BASIS. "80%" invites "of what?", and on a thin day the honest answer
+     is "of the two things that were actually in play" — which is also what stops a 100 built on one
+     requirement reading like a 100 built on five (Monday 10 Aug read 100 on all five pods). */
   m.append(el("div", { class: "strrule tot " + (pd.isBroken ? "unmet" : "met") },
     mark(pd.isBroken ? "✕" : "✓"),
-    el("span", { class: "rlb" }, "Pod " + p),
-    el("span", { class: "rwt" }, pd.isBroken ? "broken" : (pd.pct + "% · " + (Math.round(pd.got * 100) / 100) + " of " + pd.app))));
+    el("span", { class: "rlb" }, (p === "N" ? "Night team" : "Pod " + p),
+      pd.isBroken ? null : el("span", { class: "rsk" },
+        "of what was possible · " + pd.assessed + " of " + pd.possible + " assessed")),
+    el("span", { class: "rwt" }, pd.isBroken ? "broken" : (pd.pct + "%"))));
   m.append(el("div", { class: "modalbtns" }, el("button", { class: "btn", onclick: closeModal }, "Close")));
   $("#modalBg").style.display = "flex";
 }
@@ -4397,6 +4478,28 @@ function askDate(title, cur){
    any of this existed — which also leaves the pod corner to the consultant initials — and the ring
    appears only once somebody has pressed Edit. The gate is here rather than at the call site so no
    future caller can bypass it. */
+/* THE NIGHT TEAM GETS THE SAME RING. Ali, 26.08.15: "nights have no score either." Same function,
+   same colours, same tap-through — a night team that is thin should look thin in the way a pod does,
+   not in a way somebody has to learn separately. */
+function strengthNightDial(dateISO){
+  if (!canEdit()) return null;
+  var rec = STR_DAY[dateISO];
+  if (!rec || !rec.sc || !rec.sc.night) return null;
+  var nd = rec.sc.night;
+  if (!nd.app && !nd.isBroken) return null;
+  var lab = nd.isBroken ? "Night team broken" : ("Night team " + nd.pct + " per cent");
+  var btn = el("button", { class: "strdial " + (nd.isBroken ? "broken" : Strength.band(nd.pct)), type: "button",
+    title: lab, "aria-label": lab, html: strengthRingSVG(nd),
+    onclick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); strengthRulesDialog(dateISO, "N"); } });
+  var wrap = el("div", { class: "strpod" }, btn);
+  var d = rec.nightDelta;
+  if (d && !nd.isBroken) wrap.append(el("span", { class: "strdelta " + (d > 0 ? "up" : "down") },
+    (d > 0 ? "+" : "−") + String(Math.abs(d))));
+  var parts = [], i;
+  for (i = 0; i < nd.broken.length; i++) parts.push(Strength.shortOf(nd.broken[i]));
+  if (parts.length) wrap.append(el("span", { class: "strwhy" }, parts.join(" · ")));
+  return wrap;
+}
 function strengthDial(dateISO, p){
   if (!canEdit()) return null;
   var rec = STR_DAY[dateISO];
@@ -4459,7 +4562,9 @@ function strengthScoreOf(day, dateISO, di, wk){
   return Strength.scoreDay({
     day: day, dateISO: dateISO, byId: Strength.indexStaff(data.staff),
     firstSeen: strFirstSeen(), counts: strCounts(day),
-    prevCounts: prev ? strCounts(prev) : null, issues: issues, cfg: strengthCfg() });
+    prevCounts: prev ? strCounts(prev) : null,
+    nightCounts: strNightCounts(day), prevNightCounts: prev ? strNightCounts(prev) : null,
+    issues: issues, cfg: strengthCfg() });
 }
 /* Kept for the day-row form, which nothing on the board calls any more (see the note in renderWeek).
    The shape is the one Setup draws, and this is the thing to reach for if the day meter is ever
@@ -4725,6 +4830,8 @@ function renderDayRow(day, di, dateISO, issues){
   /* ---- night ---- */
   normalizeNight(day);
   const night = el("td", { class: "nighttd", style: "background:var(--night-bg)" });
+  /* The night team's own ring, top of its column, on the same edit-mode gate as the pods. */
+  { const nDial = strengthNightDial(dateISO); if (nDial) night.append(nDial); }
   // The zones only cover a fraction of this column's height; the rest was dead. Anywhere in the
   // column now drops into the smaller of the two night halves, so aim roughly and it still lands.
   makeZone(night, di, id => {
@@ -6724,81 +6831,126 @@ function planDayFix(di){
     }
   }
 
-  /* 3a) SPREAD THE AIRWAY COVER — added 11 Aug 2026.
+  /* ── 3a) EVERYTHING ELSE IS A SEARCH, NOT A LIST OF STEPS ────────────────────────────────
+     Ali, 26.08.15, on the open list: "has to be combined."
 
-     Ali moved Bruce Liu from B to D by hand to give D airway presence, and asked why the board had
-     neither suggested it nor done it. The check for this already existed and had fired — amber:
-     "Pod D has nobody airway-trained while another pod has 2." What did not exist was any way to
-     ACT on it: this planner only ever moved people for pod minimums and long-day cover, so Fix day
-     would not have made that move. It was not declining; the possibility never occurred to it.
+     What was here until now: three hand-written heuristics, added one at a time as somebody
+     noticed the planner would not do something. Spread the airway cover (11 Aug, because Bruce Liu
+     had been moved by hand and the board neither suggested it nor did it). Keep Pod E smallest.
+     Put the phone holder in the busiest pod. Each was correct, each was bolted on, and TOGETHER
+     they could only ever do the three things somebody had already thought of — the transfer-trained
+     hoard in Pod A on 13 Aug was invisible to all three, so Fix this day proposed nothing on the
+     day that started this whole exercise.
 
-     The trigger is deliberately the clinically meaningful case and no wider — a pod with NOBODY
-     airway-trained while some other pod has TWO or more. One each is the aim; taking the only
-     airway person out of a pod to give another one is not a fix, it is the same problem moved.
-     So the donor must keep at least one, which is what `> 1` guarantees.
+     Now there is one objective and it is the score the rings draw. The planner enumerates the moves
+     it is allowed to make, scores the day each one would produce through the SAME evaluator, and
+     takes the best — then does it again, until nothing improves. Anything the register asks for is
+     optimised for automatically, including requirements added after this code was written, and
+     nobody has to come back and bolt on a fourth heuristic.
 
-     Everything already established stays established: never a third pod in a week, never strand a
-     pod below its minimum, never move the phone holder, and never take a pod's only long day.
-     Those are the rules that make the day work at all; airway is an aim, and an aim never gets to
-     break an issue to satisfy itself. If no move clears all of them, this says nothing and the
-     amber stands — the honest outcome, and the same shape as the pod-spread logic. */
-  {
-    const airwayIn = p => day.pods[p].assign.filter(a => a.id && countsIn(a.id) && (staffById(a.id) || {}).airway).length;
-    const AD = PODS.filter(p => p !== "E");
-    for (const p of AD) {
-      if (guard++ > 160) break;
-      if (podCount(p) === 0 || airwayIn(p) > 0) continue;
-      const donor = AD.find(q => q !== p && airwayIn(q) >= 2);
-      if (!donor) continue;                       // nobody has a spare — leave the amber alone
-      /* A SWAP, NOT A MOVE, and the difference is not cosmetic. The first version moved the spare
-         across, which made the receiving pod the biggest on the unit — and step 3c then pulls the
-         PHONE HOLDER into the biggest pod, dragging the donor's other airway person with them. Net
-         result: both airway people ended up in the same pod and the donor had none, which is the
-         very fault this step exists to fix. Swapping keeps every pod's headcount and long-day count
-         exactly as they were, so nothing downstream has anything to react to. */
-      const spare = day.pods[donor].assign.find(a =>
-        a.id && countsIn(a.id) && (staffById(a.id) || {}).airway &&
-        a.id !== day.phone &&                                  // the phone stays where it is
-        !(a.shift === "LD" && podLDs(donor) <= 1) &&            // never the donor's only long day
-        !wouldBeThirdPod(a.id, p));
-      if (!spare) continue;
-      // Same shift, so long-day cover on both sides is untouched. No same-shift partner, no swap.
-      const back = day.pods[p].assign.find(a =>
-        a.id && countsIn(a.id) && !(staffById(a.id) || {}).airway &&
-        a.id !== day.phone && a.shift === spare.shift &&
-        !wouldBeThirdPod(a.id, donor));
-      if (!back) continue;
-      day.pods[donor].assign = day.pods[donor].assign.filter(x => x !== spare);
-      day.pods[p].assign     = day.pods[p].assign.filter(x => x !== back);
-      day.pods[p].assign.push({ id: spare.id, shift: spare.shift });
-      day.pods[donor].assign.push({ id: back.id, shift: back.shift });
-    }
-  }
+     THE INVARIANTS ARE UNCHANGED, because they are what make a day work at all: never a third pod
+     in a week, never strand a pod below its minimum, never move the phone holder, never take a
+     pod's only long day. They are applied as a filter on candidates rather than as care inside
+     each heuristic, so a move that breaks one is not expressible.
 
-  // 3b) Keep Pod E the smallest — move any excess in E to the emptiest other pod
-  while (podCount("E") > Math.min(...PODS.filter(q => q !== "E").map(podCount)) && podCount("E") > 1 && guard++ < 140) {
-    const target = PODS.filter(q => q !== "E").sort((a,b) => podCount(a) - podCount(b))[0];
-    const a = day.pods.E.assign.find(x => x.id && countsIn(x.id));
-    if (!a) break;
-    day.pods.E.assign = day.pods.E.assign.filter(x => x !== a);
-    day.pods[target].assign.push({ id: a.id, shift: a.shift });
-  }
+     "DONT MOVE PEOPLE FOR THE SAKE IF IT OTHERWISE WILL ANNOY" is enforced two ways: a candidate
+     must improve the score by more than MIN_GAIN to be taken at all, and the loop stops the moment
+     nothing does. A swap is preferred over a move at equal gain, because a swap leaves every pod
+     the size it was. */
+  /* GUARDED, BECAUSE strength.js IS A SEPARATE FILE AND A SEPARATE FILE CAN BE ABSENT. If it has
+     not loaded — a cache miss, a bad deploy, a test harness that only evaluates the page — the
+     planner still repairs every GATE above and still sorts both phones below. It simply stops
+     optimising the aims, which is exactly the behaviour this page had before today. A missing
+     score must degrade the plan, never throw inside it. */
+  if (typeof Strength !== "undefined" && Strength && Strength.scoreDay && data) {
+    var MIN_GAIN = 1;          // percentage points — below this it is churn, not improvement
+    var MAX_MOVES = 4;         // the plan stays small enough to read
+    var byIdX = Strength.indexStaff(data.staff), fsX = strFirstSeen(), cfgX = strengthCfg();
+    var prevDay = di > 0 ? wk.days[di - 1] : ((data.weeks[addDays(currentWeekKey, -7)] || {}).days || [])[6];
+    var prevCountsX = prevDay ? strCounts(prevDay) : null;
 
-  // 3c) Phone holder into the busiest pod (swap a long-day person back to keep counts unchanged)
-  if (day.phone) {
-    const hPod = podOf(day.phone);
-    if (hPod) {
-      const busiest = PODS.slice().sort((x,y) => podCount(y) - podCount(x) || (x==="E") - (y==="E"))[0];
-      if (busiest !== hPod && podCount(busiest) > podCount(hPod)) {
-        const swap = day.pods[busiest].assign.find(a => a.id && a.id !== day.phone && a.shift === "LD");
-        const h = day.pods[hPod].assign.find(a => a.id === day.phone);
-        if (swap && h) {
-          day.pods[hPod].assign = day.pods[hPod].assign.filter(x => x !== h);
-          day.pods[busiest].assign = day.pods[busiest].assign.filter(x => x !== swap);
-          day.pods[hPod].assign.push({ id: swap.id, shift: swap.shift });
-          day.pods[busiest].assign.push({ id: h.id, shift: h.shift });
+    /* One number for a whole day: broken gates first and always, then the percentage. A move that
+       repairs a gate beats any amount of percentage, and a move that breaks one is worthless
+       however good it looks — which is the same order the board draws them in. */
+    var rate = function (d) {
+      var iss = checkDay(d, dateISO, di, wk).filter(function (i) { return !i.empty; });
+      var sc = Strength.scoreDay({ day: d, dateISO: dateISO, byId: byIdX, firstSeen: fsX,
+        counts: strCounts(d), prevCounts: prevCountsX, issues: iss, cfg: cfgX });
+      var brk = sc.day.broken.length, q;
+      for (q = 0; q < PODS.length; q++) brk += sc.pods[PODS[q]].broken.length;
+      return { brk: brk, pct: sc.day.pct == null ? 0 : sc.day.pct };
+    };
+    var better = function (x, y) { return x.brk !== y.brk ? x.brk < y.brk : x.pct > y.pct + 0; };
+
+    var clone = function (d) { return JSON.parse(JSON.stringify(d)); };
+    var cnt = function (d, q) { return d.pods[q].assign.filter(function (x) { return x.id && countsIn(x.id); }).length; };
+    var lds = function (d, q) { return d.pods[q].assign.filter(function (x) { return x.id && x.shift === "LD" && countsIn(x.id); }).length; };
+
+    /* Every legal single change, as a list of functions that each return a NEW day. Generated
+       rather than reasoned about: the planner does not need to know why a move helps. */
+    var moves = function (d) {
+      var out = [], qi, pi, ai, bi, q, pp, A, B;
+      for (qi = 0; qi < PODS.length; qi++) {
+        q = PODS[qi]; A = d.pods[q].assign;
+        for (ai = 0; ai < A.length; ai++) {
+          var a = A[ai];
+          if (!a.id || !countsIn(a.id) || a.id === d.phone) continue;
+          for (pi = 0; pi < PODS.length; pi++) {
+            pp = PODS[pi]; if (pp === q) continue;
+            if (wouldBeThirdPod(a.id, pp)) continue;
+            // a straight move, only where the donor can spare the head and the long day
+            if (cnt(d, q) > minFor(q) && !(a.shift === "LD" && lds(d, q) <= 1))
+              out.push({ kind: "move", fn: (function (q, pp, id) { return function (dd) {
+                var k, src = dd.pods[q].assign, one = null;
+                for (k = 0; k < src.length; k++) if (src[k].id === id) { one = src[k]; break; }
+                if (!one) return null;
+                dd.pods[q].assign = src.filter(function (x) { return x !== one; });
+                dd.pods[pp].assign.push({ id: one.id, shift: one.shift });
+                return dd; }; })(q, pp, a.id) });
+            // a swap, which changes no pod's size or long-day count at all
+            B = d.pods[pp].assign;
+            for (bi = 0; bi < B.length; bi++) {
+              var b = B[bi];
+              if (!b.id || !countsIn(b.id) || b.id === d.phone) continue;
+              if (b.shift !== a.shift) continue;
+              if (wouldBeThirdPod(b.id, q)) continue;
+              out.push({ kind: "swap", fn: (function (q, pp, ida, idb) { return function (dd) {
+                var k, S1 = dd.pods[q].assign, S2 = dd.pods[pp].assign, x1 = null, x2 = null;
+                for (k = 0; k < S1.length; k++) if (S1[k].id === ida) x1 = S1[k];
+                for (k = 0; k < S2.length; k++) if (S2[k].id === idb) x2 = S2[k];
+                if (!x1 || !x2) return null;
+                dd.pods[q].assign = S1.filter(function (x) { return x !== x1; });
+                dd.pods[pp].assign = S2.filter(function (x) { return x !== x2; });
+                dd.pods[q].assign.push({ id: x2.id, shift: x2.shift });
+                dd.pods[pp].assign.push({ id: x1.id, shift: x1.shift });
+                return dd; }; })(q, pp, a.id, b.id) });
+            }
+          }
         }
       }
+      return out;
+    };
+
+    var here = rate(day), step;
+    for (step = 0; step < MAX_MOVES; step++) {
+      /* The winner is held aside and applied only once the whole round has been judged. Applying
+         it as it was found mutated the day the remaining candidates were being generated and
+         cloned from, so a round could stack two moves that were each only best on their own. */
+      var list = moves(day), best = null, bestKind = null, bestDay = null, k2;
+      for (k2 = 0; k2 < list.length; k2++) {
+        var trial = list[k2].fn(clone(day));
+        if (!trial) continue;
+        var got = rate(trial);
+        // a repaired gate always wins; otherwise the gain has to be worth the annoyance
+        var worth = (got.brk < here.brk) || (got.brk === here.brk && got.pct >= here.pct + MIN_GAIN);
+        if (!worth) continue;
+        var wins = !best || better(got, best) ||
+          (got.pct === best.pct && got.brk === best.brk && list[k2].kind === "swap" && bestKind !== "swap");
+        if (wins) { best = got; bestKind = list[k2].kind; bestDay = trial; }
+      }
+      if (!best) break;
+      day.pods = bestDay.pods;
+      here = best;
     }
   }
 
@@ -6826,7 +6978,8 @@ function planDayFix(di){
   return { changes, fixed: day, unresolved: [...new Set(unresolved)] };
 }
 function applyFixedDay(di, fixed, changes){
-  getWeek(currentWeekKey).days[di] = fixed;
+  STR_FROM_FIX = true;
+  try { getWeek(currentWeekKey).days[di] = fixed; } finally { setTimeout(function () { STR_FROM_FIX = false; }, 0); }
   /* The individual moves inside a fix used to be discarded — the log said "2 changes" and there
      was nowhere to see WHICH two. They are kept as children so the row can be opened. */
   const kids = (changes || []).map(c => ({
@@ -8143,11 +8296,15 @@ function renderStrengthPage(box){
     const row = el("div", { class: "regrow" + (isGate ? " gate" : "") + (on ? "" : " off") });
     row.append(el("span", { class: "regid" }, r.id),
       el("span", { class: "reglb" }, r.label,
-        el("span", { class: "regsub" }, scopeLab[r.scope] + (r.rel ? " · drops below supply" : "") + (isGate ? " · gate" : ""))));
+        el("span", { class: "regsub" }, scopeLab[r.scope] + (r.rel ? " · drops below supply" : "") + (isGate ? " · gate" : "")
+          /* The only evidence anybody has about what a breach is worth: how often somebody has gone
+             in and fixed it by hand. Shown beside the weight so the two can be argued together. */
+          + (((data && data.reqFixes) || {})[r.id] ? " · corrected " + data.reqFixes[r.id] + "\u00d7 by hand" : ""))));
     if (isGate) {
       row.append(el("span", { class: "regw" }, "must"));
     } else {
       const wt = Strength.wOf(sc0, r.id);
+      const fixes = ((data && data.reqFixes) || {})[r.id] || 0;
       const inp = el("input", { type: "number", value: String(wt), min: "0",
         style: "width:3.2rem;font-size:1rem;font-weight:700;border:0;background:transparent;padding:0;text-align:right" });
       inp.disabled = !on;
