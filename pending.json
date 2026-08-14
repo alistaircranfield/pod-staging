@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T19:16:30.840349+00:00",
- "build": "5f275d6",
+ "generated": "2026-08-14T19:18:22.778877+00:00",
+ "build": "54c76ad",
  "liveBuild": "35abf4e",
- "count": 197,
+ "count": 199,
  "changes": [
+  {
+   "sha": "54c76ad",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T20:18:12+01:00",
+   "msg": "Fix this day optimises the score; night ring; scroll kept; override counter"
+  },
+  {
+   "sha": "fa904da",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T19:16:30Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "5f275d6",
    "who": "alistaircranfield",
