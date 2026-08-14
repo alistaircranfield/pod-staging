@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T18:34:21.864654+00:00",
- "build": "9fbba78",
+ "generated": "2026-08-14T18:47:37.714786+00:00",
+ "build": "e50da3e",
  "liveBuild": "35abf4e",
- "count": 191,
+ "count": 193,
  "changes": [
+  {
+   "sha": "e50da3e",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T19:47:28+01:00",
+   "msg": "Unmeetable aims are awarded, not removed; part marks; A-D only for transfer"
+  },
+  {
+   "sha": "290cdb5",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T18:34:21Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "9fbba78",
    "who": "alistaircranfield",
