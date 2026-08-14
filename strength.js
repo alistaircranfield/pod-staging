@@ -22,29 +22,33 @@
  *     a GATE: break it and the pod is broken, full stop, no percentage. The percentage is of
  *     the AIMS, and only the aims that were genuinely in question.
  *
- *  2. WHAT THE DAY COULD NOT SUPPLY IS NOT COUNTED AGAINST THE POD.  On 13 Aug only three
- *     airway-trained people were on the day shift for four pods that want one. A requirement the
- *     day could not supply is not a fault of a pod; scoring it as one is what made the board say
- *     "nothing can be moved to fix this automatically" and invited 42 minutes of hand-shuffling.
+ *  2. THE SCORE SAYS WHAT THE POD HAS. IT DOES NOT SAY WHOSE FAULT THAT IS.
+ *     This one has been wrong twice, in opposite directions, and the third version is the first
+ *     that answers the question a reader is actually asking.
  *
- *     It was first built to leave the DENOMINATOR, which was wrong in a way only the real board
- *     showed: on a thin day three of a pod's five aims drop out, the pod is judged on the two that
- *     are left, and one bad answer halves it. Ali, 26.08.15, on a staffed pod reading zero: "all
- *     new · pod broken up score of 0 when 2 people on - total codswallop." He is right — a pod with
- *     two people in it, doing as well as the day allowed on three of five requirements, is not
- *     nothing. So an unmeetable requirement now stays in the denominator and is AWARDED: the pod
- *     did as well as it could, which is what full marks mean. Pods that could have done better are
- *     still the only ones charged, so the comparison between pods is unchanged — but the scale
- *     stops collapsing to two points on exactly the days somebody needs to read it.
+ *     v1 removed an unmeetable requirement from the DENOMINATOR. On a thin day three of a pod's
+ *     five aims dropped out, the pod was judged on the two that remained, and one bad answer
+ *     halved it — a staffed pod could read 0. Ali: "total codswallop."
  *
- *     THE WORD MATTERS AND "AWARDED" IS THE WRONG ONE. Ali, 26.08.15: "unmeetable and therefore
- *     awarded 0 i think that concept will confuse everybody." He is right — a tick beside "airway
- *     in the pod" on a pod with no airway person is a lie, however defensible the arithmetic. So
- *     the panel draws these with a DASH, says "none on today, not counted against this pod", and
- *     the total states its own basis: "80% of what was possible · 2 of 5 assessed". `assessed`
- *     below is that count, and it is what stops a 100 built on one requirement reading like a 100
- *     built on five.
+ *     v2 kept it in the denominator and gave it full marks. That produced the opposite absurdity,
+ *     and Ali caught it on the real board: "That cannot be an 80% day when no airway and no
+ *     transfer, somethings off." He is right, and it is not a tuning problem. A pod with no airway
+ *     and no transfer is a WEAK POD. That the rota could not have fixed it does not make it strong.
  *
+ *     The mistake underneath both was cramming two different questions into one number: "how good
+ *     is this pod" and "could anybody have done better". They are not the same question and they
+ *     have different readers. So:
+ *
+ *       THE PERCENTAGE ANSWERS ONLY THE FIRST. Every requirement asked of a pod is scored on what
+ *       the pod actually holds. No airway means no airway, whatever was available.
+ *
+ *       WHETHER IT COULD HAVE BEEN FIXED IS A SEPARATE FACT, carried beside the row — "nothing on
+ *       today could be moved" against "Pod A has 2 spare" — and it is what the planner reads and
+ *       what stops the board nagging about arithmetic nobody can beat. It changes the ADVICE. It
+ *       never changes the score.
+ *
+ *     A pod that is thin because the day is thin still reads thin, and it should: somebody looking
+ *     at Thursday needs to see that Pod C was weak, not that Pod C was blameless.
  *  3. WHERE SUPPLY IS SHORT, THE WEAKEST POD CARRIES THE MISS.  Two ACCPs both in Pod A: four
  *     pods lack one and only one of them could have been helped. Smearing the miss across four
  *     would say every pod is slightly wrong when three of them are as right as they could be.
@@ -87,6 +91,11 @@
        transfer-trained person is the "E is always the weakest" fault the old per-pod floors had,
        arriving through a different door. Same list as R04, for the same reason. */
     { id: "N01", scope: "pod",  kind: "aim",  label: "Transfer-trained in the pod", rel: true, pods: ["A","B","C","D"], trait: "transfer", short: "no transfer" },
+    { id: "N05", scope: "pod",  kind: "aim",  label: "Phone-trained in the pod", rel: true, trait: "phoneHolder", short: "no phone-trained" },
+    /* LOWEST WEIGHT OF THE LOT. Ali, 26.08.15: "the ACCP thing seems overstated." It was — with
+       every requirement at 1 an ACCP miss moved a pod as far as an airway miss, and there are 11
+       ACCPs against 37 airway-trained, so it fired constantly and loudly. It stays in the list,
+       because "no ACCP in this pod" is a true and useful thing to read; it stops shouting. */
     { id: "N02", scope: "pod",  kind: "aim",  label: "An ACCP in the pod", rel: true, trait: "accp", short: "no ACCP" },
     { id: "N03", scope: "pod",  kind: "aim",  label: "Not everybody in their first weeks", short: "all new" },
     { id: "N04", scope: "pod",  kind: "aim",  label: "Keeps its people from yesterday", short: "pod broken up" },
@@ -127,8 +136,27 @@
      * so what a breach COSTS is how often somebody reaches in and fixes it by hand, which is a
      * thing to be measured rather than a thing to be judged. 312 manual log entries and 70
      * hand-made pod moves are the raw material; until that is counted per requirement, one. */
-    w: { R04: 1, N01: 1, N02: 1, N03: 1, N04: 1,
+    /* NOT ALL THE SAME ANY MORE. Everything at 1 was why the ring could only ever land on a
+       multiple of 20 (Ali: "still suspicious of algorithm with all the 100s and 80s and muliples
+       of 10"). These are a proposal and the weakest part of the model — the override counter is
+       what should set them, and it has only just started collecting. Editable from Setup. */
+    w: { R04: 3, N01: 2, N05: 2, N02: 1, N03: 3, N04: 1,
          R05: 1, R06: 1, R07: 1, R14: 1, R15: 1, R17: 1, R18: 1, R19: 1, R20: 1 },
+
+    /* WHAT ONE PERSON IS WORTH TO A POD'S EXPERIENCE. Ali, 26.08.15: "nights even with 5 and 3
+       airways cant be 100% if even one of them is inexperienced." That is the sharpest statement
+       anybody has made about this model, and it generalises: experience is not a threshold a team
+       clears, it is a property every person on the team carries. So a pod scores the AVERAGE of
+       these, and one newcomer among five costs real points that no amount of airway cover buys
+       back. Unknown sits at the mid value rather than the bottom — a blank field must never make
+       a pod look worse (see the Attention rows that ask instead). */
+    tierValue: { "new": 0.35, mid: 0.75, settled: 1, unknown: 0.75 },
+
+    /* HOW MANY OF A SKILL A POD OF n WANTS: one per this many people, minimum one. A pod of five
+       with a single airway-trained person is thinner than a pod of two with one, and a yes/no tick
+       cannot see the difference — which is the other half of why the old scale was so coarse.
+       Ali's ruling was asked for on this number; 3 is the starting point, editable in Setup. */
+    coverPer: 3,
 
     /* Any requirement can be switched off from the front end. Off means not asked and not in the
      * denominator — never "asked and always passing", which would inflate every score. */
@@ -328,7 +356,7 @@
     var pods = {}, capacity = {}, unknowns = [];
     for (i = 0; i < order.length; i++) {
       p = order[i];
-      pods[p] = { pod: p, got: 0, app: 0, met: [], missed: [], part: [], dropped: [], broken: broken[p], people: [] };
+      pods[p] = { pod: p, got: 0, app: 0, met: [], missed: [], part: [], dropped: [], unfixable: [], broken: broken[p], people: [] };
       var ids = P[p] || [];
       for (j = 0; j < ids.length; j++) {
         var per = S(ids[j]), t = tierOf(per, iso, cfg, fs);
@@ -338,30 +366,60 @@
       }
     }
 
-    /* Absolute pod aims. N03 and N04 do not depend on anybody else being on, so they are settled
-       before the relative ones — and their result is what ranks the pods for rule 3 above. */
+    /* ── TWO LAYERS, AND THIS IS THE HEART OF IT ─────────────────────────────────────────────
+       Ali, 26.08.15: "yes like 41 things for the ring and the actual alogirthm for the lsit keep
+       to simple things that are either present or not."
+
+       So every requirement answers TWO questions and they are not the same question:
+
+         has   present or not. Drives the LIST — the ticks and crosses, the grey line under a ring,
+               the sentence in the log, and what the planner aims at. "No airway in Pod C" is true
+               or it is false, and a coordinator at five in the morning needs it that way.
+
+         val   0 to 1, by degree. Drives the RING and nothing else. A pod of five with one
+               airway-trained person is thinner than a pod of two with one; a team carrying one
+               newcomer is not the same as a team carrying three. This is what stopped the score
+               landing on a multiple of twenty — 7 distinct values became 41 across the same days.
+
+       A requirement can be PRESENT and still not score full: Pod A holds one airway person for
+       three people and reads met on the list, 1.00 on the ring; the same one person in a pod of
+       five reads met on the list and 0.50 on the ring. Nothing about the list gets fuzzy. */
+    var coverNeed = function (n) {
+      var per = Number(cfg.coverPer);
+      if (!isFinite(per) || per < 1) per = 3;
+      return Math.max(1, Math.ceil(n / per));
+    };
+    var tierVal = function (t) {
+      var v = (cfg.tierValue || {})[t];
+      return isFinite(Number(v)) ? Number(v) : 0.75;
+    };
+
     for (i = 0; i < order.length; i++) {
       p = order[i];
       var pe = pods[p].people;
-      if (isOn(cfg, "N03") && pe.length) {
-        /* Unknown counts as NOT new — a blank start date must never make a pod look worse, or the
-           way to a better score becomes leaving fields empty. It raises an Attention row instead. */
-        var settledEnough = 0;
-        for (j = 0; j < pe.length; j++) if (pe[j].tier !== "new") settledEnough++;
-        var mix = settledEnough / pe.length, wantMix = Number(cfg.mixShare);
-        charge(pods[p], "N03", wantMix > 0 ? Math.min(1, mix / wantMix) : 1, wOf(cfg, "N03"));
+      if (!pe.length) continue;
+
+      /* Experience. Every person carries a value; the pod scores the average. Ali's night rule
+         — "cant be 100% if even one of them is inexperienced" — falls out of this rather than
+         being special-cased, and it applies to a pod for exactly the same reason. The LIST keeps
+         the plain question: is anybody here past their first weeks? */
+      if (isOn(cfg, "N03")) {
+        var sum = 0, anyBeyond = false;
+        for (j = 0; j < pe.length; j++) {
+          sum += tierVal(pe[j].tier);
+          if (pe[j].tier !== "new") anyBeyond = true;
+        }
+        charge(pods[p], "N03", sum / pe.length, anyBeyond, wOf(cfg, "N03"));
       }
-      if (isOn(cfg, "N04") && pe.length && prevP) {
+
+      /* Continuity. Share of the pod that was in it yesterday, against the share we ask for. */
+      if (isOn(cfg, "N04") && prevP) {
         var kept = 0;
         for (j = 0; j < pe.length; j++) if ((prevP[p] || []).indexOf(pe[j].id) !== -1) kept++;
-        /* Full marks at keepShare and above, proportional below it — so a pod that held on to two
-           of three and a pod that held none are no longer the same answer. keepShare keeps its
-           meaning: it is the point at which a pod is doing as well as anybody asks. */
-        var share = kept / pe.length, want = Number(cfg.keepShare);
-        charge(pods[p], "N04", want > 0 ? Math.min(1, share / want) : 1, wOf(cfg, "N04"));
-      } else if (isOn(cfg, "N04") && pe.length) {
+        var want = Math.max(1, Math.ceil(pe.length * Number(cfg.keepShare)));
+        charge(pods[p], "N04", Math.min(1, kept / want), kept >= want, wOf(cfg, "N04"));
+      } else if (isOn(cfg, "N04")) {
         pods[p].dropped.push("N04");
-        charge(pods[p], "N04", true, wOf(cfg, "N04"));
       }
     }
 
@@ -370,29 +428,34 @@
       return ra - rb || order.indexOf(a) - order.indexOf(b);
     });
 
-    /* Relative pod aims — rules 2 and 3. Supply is counted across the whole day shift, not per
-       pod, because a person in the wrong pod is supply that a move could reach. */
+    /* The skills. Supply is counted across the whole day shift, because a person in the wrong pod
+       is supply a move can reach — that is what makes `unfixable` and the donor line meaningful. */
     for (r = 0; r < REGISTER.length; r++) {
       var reg = REGISTER[r];
       if (reg.scope !== "pod" || reg.kind !== "aim" || !reg.rel || !isOn(cfg, reg.id)) continue;
-      var has = traitFn(reg.trait), want = reg.pods || order;
-      var supply = 0, holds = [], missAll = [];
+      var has = traitFn(reg.trait), want2 = reg.pods || order;
+      var supply = 0, holds = [], missAll = [], countIn = {};
       for (i = 0; i < order.length; i++) {
-        var lst = pods[order[i]].people, n = 0;
-        for (j = 0; j < lst.length; j++) if (has(S(lst[j].id))) n++;
-        supply += n;
-        if (want.indexOf(order[i]) === -1) continue;
-        if (n > 0) holds.push(order[i]);
+        var lst = pods[order[i]].people, nHere = 0;
+        for (j = 0; j < lst.length; j++) if (has(S(lst[j].id))) nHere++;
+        countIn[order[i]] = nHere;
+        supply += nHere;
+        if (want2.indexOf(order[i]) === -1) continue;
+        if (nHere > 0) holds.push(order[i]);
         else if (lst.length) missAll.push(order[i]);
-        if (n > 1) (capacity[reg.id] = capacity[reg.id] || []).push({ pod: order[i], spare: n - 1 });
+        if (nHere > 1) (capacity[reg.id] = capacity[reg.id] || []).push({ pod: order[i], spare: nHere - 1 });
       }
       var spare = Math.max(0, supply - holds.length);
       var ordered = rank.filter(function (x) { return missAll.indexOf(x) !== -1; });
-      for (i = 0; i < holds.length; i++) charge(pods[holds[i]], reg.id, true, wOf(cfg, reg.id));
-      for (i = 0; i < ordered.length; i++) {
-        if (i < spare) charge(pods[ordered[i]], reg.id, false, wOf(cfg, reg.id));
-        else { pods[ordered[i]].dropped.push(reg.id); charge(pods[ordered[i]], reg.id, true, wOf(cfg, reg.id)); }
+      for (i = 0; i < order.length; i++) {
+        p = order[i];
+        if (want2.indexOf(p) === -1 || !pods[p].people.length) continue;
+        /* Airway and transfer scale with the size of the pod; the phone and an ACCP are one each,
+           because two phone-trained people in a pod is not twice the phone. */
+        var wantN = (reg.id === "R04" || reg.id === "N01") ? coverNeed(pods[p].people.length) : 1;
+        charge(pods[p], reg.id, Math.min(1, countIn[p] / wantN), countIn[p] > 0, wOf(cfg, reg.id));
       }
+      for (i = spare; i < ordered.length; i++) pods[ordered[i]].unfixable.push(reg.id);
     }
 
     /* Day and week aims. Same denominator, one level up, so a day that is fine pod by pod and
@@ -422,36 +485,46 @@
     var night = null;
     if (ctx.nightCounts) {
       var nIds = ctx.nightCounts || [], nj;
-      night = { pod: "N", got: 0, app: 0, met: [], missed: [], part: [], dropped: [], broken: [], people: [] };
+      night = { pod: "N", got: 0, app: 0, met: [], missed: [], part: [], dropped: [], unfixable: [], broken: [], people: [] };
       for (nj = 0; nj < nIds.length; nj++) {
         var np = S(nIds[nj]);
         night.people.push({ id: nIds[nj], tier: tierOf(np, iso, cfg, fs), name: np && np.name, grade: np && np.grade,
           airway: !!(np && np.airway), transfer: !!(np && np.transfer), accp: !!(np && np.grade === "ACCP") });
       }
       night.broken = nightBroken.slice();
+      if (isOn(cfg, "N03") && night.people.length) {
+        var nSum = 0, nAny = false;
+        for (nj = 0; nj < night.people.length; nj++) {
+          nSum += tierVal(night.people[nj].tier);
+          if (night.people[nj].tier !== "new") nAny = true;
+        }
+        charge(night, "N03", nSum / night.people.length, nAny, wOf(cfg, "N03"));
+      }
+      if (isOn(cfg, "R04") && night.people.length) {
+        /* The night team wants airway cover in proportion to its size, exactly as a pod does. */
+        var nAirC = 0;
+        for (nj = 0; nj < night.people.length; nj++) if (night.people[nj].airway) nAirC++;
+        charge(night, "R04", Math.min(1, nAirC / coverNeed(night.people.length)), nAirC > 0, wOf(cfg, "R04"));
+      }
       if (isOn(cfg, "R14")) {
         /* Only asked when there are two to split. One airway-trained on a night team is not a
            spread problem, it is the whole of what the night has. */
         var nAir = 0;
         for (nj = 0; nj < night.people.length; nj++) if (night.people[nj].airway) nAir++;
-        if (nAir >= 2) charge(night, "R14", !aimFail.R14, wOf(cfg, "R14"));
+        if (nAir >= 2) charge(night, "R14", aimFail.R14 ? 0 : 1, !aimFail.R14, wOf(cfg, "R14"));
         else night.dropped.push("R14");
-      }
-      if (isOn(cfg, "N03") && night.people.length) {
-        var nMix = 0;
-        for (nj = 0; nj < night.people.length; nj++) if (night.people[nj].tier !== "new") nMix++;
-        charge(night, "N03", Number(cfg.mixShare) > 0 ? Math.min(1, (nMix / night.people.length) / Number(cfg.mixShare)) : 1, wOf(cfg, "N03"));
       }
       if (isOn(cfg, "N04") && night.people.length && ctx.prevNightCounts && ctx.prevNightCounts.length) {
         var nKept = 0;
         for (nj = 0; nj < night.people.length; nj++) if (ctx.prevNightCounts.indexOf(night.people[nj].id) !== -1) nKept++;
         var nShare = nKept / night.people.length, nWant = Number(cfg.keepShare);
-        charge(night, "N04", nWant > 0 ? Math.min(1, nShare / nWant) : 1, wOf(cfg, "N04"));
+        charge(night, "N04", nWant > 0 ? Math.min(1, nShare / nWant) : 1, nShare >= nWant, wOf(cfg, "N04"));
       } else if (isOn(cfg, "N04") && night.people.length) night.dropped.push("N04");
       night.pct = night.app ? Math.max(0, Math.min(100, Math.round(night.got / night.app * 100))) : (night.people.length ? null : 0);
       night.isBroken = night.broken.length > 0;
       night.assessed = night.met.length + night.missed.length;
       night.possible = night.assessed + night.dropped.length;
+      night.ceiling = night.app ? Math.max(0, Math.min(100, Math.round((night.app - unfixableWeight(night)) / night.app * 100))) : null;
     }
 
     var got = dGot, app = dApp;
@@ -468,15 +541,39 @@
          is answered by saying so rather than by bending the arithmetic. */
       pd.assessed = pd.met.length + pd.missed.length;
       pd.possible = pd.assessed + pd.dropped.length;
+      /* THE POD'S CEILING TODAY. Ali, 26.08.15: "use a dash to show the maximum for that pod - max
+         doesnt need to be 100 there as fewer needs." This is the other half of rule 2 and the thing
+         that makes an honest number readable: the score says what the pod HAS, and the dash on the
+         ring says the best it could have been with the people who were actually on. A pod at 40
+         against a ceiling of 40 has nothing to answer for; a pod at 40 against a ceiling of 100 has
+         everything to answer for; and the two used to be indistinguishable.
+
+         Everything except the requirements no move could reach is assumed winnable, which is what
+         "ceiling" means — not a prediction, a limit. */
+      pd.ceiling = pd.app ? Math.max(0, Math.min(100, Math.round((pd.app - unfixableWeight(pd)) / pd.app * 100))) : null;
       got += pd.got; app += pd.app;
     }
+    /* A DAY WITH A BROKEN POD IS NOT A HUNDRED PER CENT DAY. Ali, 26.08.15: "a day cant be 100% if
+       no LD A - impossible for most days but dont say its perfect when its not!" The day score was
+       built from the day-wide aims plus the pod aims, and pod GATES were left out of it entirely —
+       so Pod A could have nobody on a long day, draw its own red ring saying exactly that, and the
+       day beside it could still read 100. A gate is a gate at every level: if any pod or the night
+       team is broken, the day is broken, and it says so instead of a number. */
+    var podBroken = [];
+    for (i = 0; i < order.length; i++) if (pods[order[i]].broken.length) podBroken.push(order[i]);
+    if (night && night.broken.length) podBroken.push("N");
     var dayPct = app ? Math.max(0, Math.min(100, Math.round(got / app * 100))) : null;
+    var dCeilTop = dApp - 0, dCeilLost = 0;
     var dAssessed = 0, dPossible = 0;
     for (i = 0; i < order.length; i++) { dAssessed += pods[order[i]].assessed; dPossible += pods[order[i]].possible; }
     dAssessed += dayMet.length + dayMissed.length; dPossible += dayMet.length + dayMissed.length;
+    for (i = 0; i < order.length; i++) dCeilLost += unfixableWeight(pods[order[i]]);
+    var dayCeiling = app ? Math.max(0, Math.min(100, Math.round((app - dCeilLost) / app * 100))) : null;
 
     return {
-      pods: pods, day: { pct: dayPct, got: got, app: app, met: dayMet, missed: dayMissed, broken: dayBroken, assessed: dAssessed, possible: dPossible },
+      pods: pods, day: { pct: dayPct, got: got, app: app, met: dayMet, missed: dayMissed, broken: dayBroken,
+             podBroken: podBroken, isBroken: (dayBroken.length + podBroken.length) > 0,
+             ceiling: dayCeiling, assessed: dAssessed, possible: dPossible },
       night: night, capacity: capacity, unknowns: unknowns, register: REGISTER, cfg: cfg,
       empty: app === 0
     };
@@ -492,15 +589,29 @@
        between 0 and 1, and a fraction is banked as part of the weight. Anything genuinely binary —
        a pod either holds an airway-trained person or it does not — stays binary and passes 1 or 0,
        so nothing here makes a yes/no requirement mushy. */
-    function charge(podSc, id, met, wt) {
-      var f = (met === true) ? 1 : (met === false ? 0 : Number(met));
+    /* How much of a pod's weight is out of reach today: an unfixable requirement is held at the
+       value it actually scored, everything else is assumed winnable. That difference IS the dash
+       on the ring. */
+    function unfixableWeight(podSc) {
+      var t = 0, q, id, w, f;
+      for (q = 0; q < (podSc.unfixable || []).length; q++) {
+        id = podSc.unfixable[q]; w = wOf(cfg, id); f = 0;
+        for (var z = 0; z < (podSc.part || []).length; z++) if (podSc.part[z].id === id) f = podSc.part[z].f;
+        if (podSc.met.indexOf(id) !== -1 && f === 0) f = 1;
+        t += w * (1 - f);
+      }
+      return t;
+    }
+    function charge(podSc, id, val, has, wt) {
+      var f = Number(val);
       if (!isFinite(f)) f = 0;
       f = Math.max(0, Math.min(1, f));
       podSc.app += wt;
       podSc.got += wt * f;
-      if (f >= 1) { if (podSc.dropped.indexOf(id) === -1) podSc.met.push(id); }
-      else if (f <= 0) podSc.missed.push(id);
-      else { podSc.part.push({ id: id, f: f }); podSc.missed.push(id); }
+      /* THE LIST IS BINARY AND STAYS BINARY. `has` decides the tick or the cross; `f` only ever
+         moves the ring. A requirement can read met and still score 0.5 — that is the point. */
+      if (has) podSc.met.push(id); else podSc.missed.push(id);
+      if (f > 0 && f < 1) podSc.part.push({ id: id, f: f });
     }
   }
 
