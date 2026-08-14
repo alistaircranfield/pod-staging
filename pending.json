@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T23:24:15.350228+00:00",
- "build": "d3677a7",
+ "generated": "2026-08-14T23:33:39.841650+00:00",
+ "build": "d447ab4",
  "liveBuild": "35abf4e",
- "count": 227,
+ "count": 229,
  "changes": [
+  {
+   "sha": "d447ab4",
+   "who": "alistaircranfield",
+   "when": "2026-08-15T00:33:28+01:00",
+   "msg": "Scroll stays put on Fix and manual moves; cache buster -25"
+  },
+  {
+   "sha": "4c5e528",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T23:24:15Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "d3677a7",
    "who": "alistaircranfield",
