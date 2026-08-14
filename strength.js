@@ -211,6 +211,12 @@
   function tierOf(person, onDate, cfg, firstSeen) {
     cfg = cfgOf(cfg);
     if (!person) return "unknown";
+    /* A STANDING SLOT HAS NO TIME ON THE UNIT, because it is not a person — it is a line on the
+       rota that somebody different fills each time. Counted as settled rather than unknown so it
+       never drags a pod's experience mix down, and never appears in the list of people to go and
+       ask about. Ali, 26.08.15, on the locum and neurology registrar rows: "their attnetion things
+       are annoying." */
+    if (person.placeholder) return "settled";
     if (person.returner) return "settled";
     if (cfg.substantive.indexOf(person.grade) !== -1 && !person.start) return "settled";
     var d = daysOn(person, onDate, firstSeen);
