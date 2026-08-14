@@ -254,6 +254,14 @@
       }
     }
 
+    /* A YESTERDAY THAT WAS NEVER ALLOCATED IS NOT A YESTERDAY. prevCounts arriving as five empty
+       lists is not "the pod lost all its people" — it is a day nobody has filled in yet, and
+       charging every pod for it made continuity fire on all five pods of the first day held.
+       Found on staging 26.08.14 on Monday 10 Aug, whose predecessor is outside the stored range. */
+    var prevHeld = 0;
+    if (prevP) for (i = 0; i < order.length; i++) prevHeld += (prevP[order[i]] || []).length;
+    if (!prevHeld) prevP = null;
+
     var pods = {}, capacity = {}, unknowns = [];
     for (i = 0; i < order.length; i++) {
       p = order[i];
