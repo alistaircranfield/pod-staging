@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T22:15:30.469537+00:00",
- "build": "4ab4966",
+ "generated": "2026-08-14T22:22:37.055834+00:00",
+ "build": "a761368",
  "liveBuild": "35abf4e",
- "count": 209,
+ "count": 211,
  "changes": [
+  {
+   "sha": "a761368",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T23:22:26+01:00",
+   "msg": "Phone weight down; a scarce person parked where they are worth least is still available"
+  },
+  {
+   "sha": "27c3895",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T22:15:30Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "4ab4966",
    "who": "alistaircranfield",
