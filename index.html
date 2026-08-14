@@ -1265,7 +1265,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
 </div>
 
 <script src="core.js?v=20260810-04"></script>
-<script src="strength.js?v=20260814-13"></script>
+<script src="strength.js?v=20260814-17"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -3736,7 +3736,7 @@ function afterChangeCard(di, headline){
     const n = plan.changes.length;
     if (scNow && scFix && scNow.day.pct != null && scFix.day.pct != null)
       box.append(el("div", { class: "ccrings" }, ring(scNow.day.pct),
-        el("span", { class: "ccarrow" }, "→"), ring(scFix.day.pct)));
+        el("span", { class: "ccarrow" }, "\u2192"), ring(scFix.day.pct)));
     box.append(el("div", { class: "cc-sub" },
       n === 1 ? "One move, and everyone else stays put" : n + " moves, and everyone else stays put"));
     const list = el("div", { class: "fixlist" });
@@ -4575,7 +4575,7 @@ function strengthNightDial(dateISO){
   var wrap = el("div", { class: "strpod" }, btn);
   var d = rec.nightDelta;
   if (d && !nd.isBroken) wrap.append(el("span", { class: "strdelta " + (d > 0 ? "up" : "down") },
-    (d > 0 ? "+" : "−") + String(Math.abs(d))));
+    (d > 0 ? "\u25b2" : "\u25bc") + String(Math.abs(d))));
   var parts = [], i;
   for (i = 0; i < nd.broken.length; i++) parts.push(Strength.shortOf(nd.broken[i]));
   if (parts.length) wrap.append(el("span", { class: "strwhy" }, parts.join(" · ")));
@@ -4602,8 +4602,12 @@ function strengthDial(dateISO, p){
 
      It says only that a number moved and by how much — never who moved, never why anybody is or is
      not on the day (hard rule 6). */
+  /* ARROWS, NOT SIGNS. Ali, 26.08.15: "when showing changes dont use = and - Use up and down
+     arros." A plus and a minus in a small pill are two short horizontal marks that have to be read;
+     an arrow is a direction and is understood before it is read. It still says only that a number
+     moved and by how much — never who moved, never why anybody is or is not on the day. */
   if (d && !pd.isBroken) wrap.append(el("span", { class: "strdelta " + (d > 0 ? "up" : "down") },
-    (d > 0 ? "+" : "−") + String(Math.abs(d))));
+    (d > 0 ? "\u25b2" : "\u25bc") + String(Math.abs(d))));
   var why = strengthWhy(rec.sc, p);
   if (why) wrap.append(el("span", { class: "strwhy" }, why));
   return wrap;
@@ -4626,7 +4630,7 @@ function strengthDayDial(dateISO){
     onclick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); strengthDayDialog(dateISO); } });
   var wrap = el("div", { class: "strpod strday" }, btn);
   if (dd && !d.isBroken) wrap.append(el("span", { class: "strdelta " + (dd > 0 ? "up" : "down") },
-    (dd > 0 ? "+" : "−") + String(Math.abs(dd))));
+    (dd > 0 ? "\u25b2" : "\u25bc") + String(Math.abs(dd))));
   return wrap;
 }
 /* What the day ring opens: the day-wide aims, then one row per pod and one for the night team, each
@@ -5932,7 +5936,18 @@ function renderDrift(rows){
   box.innerHTML = "";
   // Only people who could hold the phone, and only once they have enough long days for the figure
   // to mean anything — under five and it is noise, not unfairness.
-  const eligible = rows.filter(r => canHoldPhone(r.s) && r.c.ldAvail >= 5)
+  /* ── AND ONLY PEOPLE WHO ARE STILL HERE ──────────────────────────────────────────────────
+     Ali, 26.08.15: "All historic, why showing as behind on phone." Five of the eight names on this
+     list had already left the unit. The list was built from anyone who CAN hold the phone and has
+     enough long days behind them — both true of somebody who finished in March — and then it told
+     the reader that "auto-fill will pick them first when they are next on a long day", which for
+     those five is never.
+
+     That is worse than clutter: the whole point of this panel is that drift is only fixable while
+     there is still time, so a list padded with people it is already too late for buries the ones it
+     is not. `isActiveOn` is the board's own test for still being here, and it is the one that
+     should always have been applied. */
+  const eligible = rows.filter(r => canHoldPhone(r.s) && isActiveOn(r.s, todayISO()) && r.c.ldAvail >= 5)
     .map(r => ({ s: r.s, rate: r.c.phone / r.c.ldAvail, held: r.c.phone, of: r.c.ldAvail }));
   if (eligible.length < 4) return;
   const sorted = [...eligible].sort((a,b) => a.rate - b.rate);
@@ -7042,7 +7057,16 @@ function planDayFix(di){
         q = PODS[qi]; A = d.pods[q].assign;
         for (ai = 0; ai < A.length; ai++) {
           var a = A[ai];
-          if (!a.id || !countsIn(a.id) || a.id === d.phone) continue;
+          /* THE PHONE HOLDER MAY CHANGE POD. THE PHONE GOES WITH THEM.
+             This was "never move the phone holder", and on Monday 17 August it cost the unit its
+             airway cover: Nabeel Chaudhry held the phone AND was one of only three airway-trained
+             people on, and he was sitting in Pod E — so he was pinned, and Pods A and D went
+             without. The invariant was written to stop the phone being handed to somebody else
+             mid-fix, which is a real thing to prevent; it was never meant to nail the person to a
+             column. Moving them does not reassign the phone, and where the holder stands is
+             already scored (R06, phone holder where there is most cover), so the objective can
+             judge it rather than a blanket refusal. */
+          if (!a.id || !countsIn(a.id)) continue;
           for (pi = 0; pi < PODS.length; pi++) {
             pp = PODS[pi]; if (pp === q) continue;
             if (wouldBeThirdPod(a.id, pp)) continue;
@@ -7059,7 +7083,7 @@ function planDayFix(di){
             B = d.pods[pp].assign;
             for (bi = 0; bi < B.length; bi++) {
               var b = B[bi];
-              if (!b.id || !countsIn(b.id) || b.id === d.phone) continue;
+              if (!b.id || !countsIn(b.id)) continue;
               if (b.shift !== a.shift) continue;
               if (wouldBeThirdPod(b.id, q)) continue;
               out.push({ kind: "swap", fn: (function (q, pp, ida, idb) { return function (dd) {
