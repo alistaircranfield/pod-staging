@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T18:22:34.814202+00:00",
- "build": "5f089e2",
+ "generated": "2026-08-14T18:23:09.946752+00:00",
+ "build": "d306ca8",
  "liveBuild": "35abf4e",
- "count": 179,
+ "count": 181,
  "changes": [
+  {
+   "sha": "d306ca8",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T19:22:59+01:00",
+   "msg": "strength.js is now the register and one evaluator: gates, aims, achievability"
+  },
+  {
+   "sha": "5a936ac",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T18:22:34Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "5f089e2",
    "who": "alistaircranfield",
