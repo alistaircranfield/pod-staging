@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-11T11:21:30.857935+00:00",
- "build": "4caba26",
- "liveBuild": "c8b7a7e",
- "count": 159,
+ "generated": "2026-08-14T14:04:28.366335+00:00",
+ "build": "e13a0aa",
+ "liveBuild": "35abf4e",
+ "count": 161,
  "changes": [
+  {
+   "sha": "e13a0aa",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T15:04:20+01:00",
+   "msg": "Add strength.js \u2014 pod strength scoring (3 experience tiers, per-pod floors)"
+  },
+  {
+   "sha": "742a250",
+   "who": "github-actions[bot]",
+   "when": "2026-08-11T11:21:30Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "4caba26",
    "who": "alistaircranfield",
