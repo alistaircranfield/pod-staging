@@ -1319,7 +1319,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
 </div>
 
 <script src="core.js?v=20260810-04"></script>
-<script src="strength.js?v=20260814-20"></script>
+<script src="strength.js?v=20260814-21"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -6097,9 +6097,16 @@ function logRotaEntries(){
 function logUndo(state, e){
   const d = (typeof logDet === "function" ? logDet(e) : null) || {};
   const who = d.subj; if (!who) return false;
+  /* NOT EVERY "FROM" IS A POD. The log records night groups ("A & B", "C, D & E") and the bench in
+     the same field, because from the log's point of view they are all places somebody was. The
+     first version of this treated anything that was not A–E as unreadable and gave up, which threw
+     away the whole day: one "Cathryn Latham off the rota, from the bench" at the end of Friday made
+     every earlier go on that day unreconstructable. So a place that is not a pod is simply OUTSIDE
+     the map — the person leaves it or joins it, and the walk carries on. */
+  const pod = p => PODS.indexOf(p) !== -1;
   const pull = () => { for (const p of PODS) { const i = (state[p] || []).indexOf(who); if (i >= 0) { state[p].splice(i, 1); return true; } } return false; };
-  if (d.act === "move") { if (!PODS.includes(d.to) || !PODS.includes(d.from)) return false; pull(); state[d.from].push(who); return true; }
-  if (d.act === "off")  { if (!PODS.includes(d.from)) return false; state[d.from].push(who); return true; }
+  if (d.act === "move") { if (pod(d.to)) pull(); if (pod(d.from)) state[d.from].push(who); return true; }
+  if (d.act === "off")  { if (pod(d.from)) state[d.from].push(who); return true; }
   if (d.act === "on")   { pull(); return true; }
   return d.act === "shift";        // a shift change moves nobody between pods
 }
