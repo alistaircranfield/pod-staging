@@ -1684,6 +1684,11 @@ try {
 const READ_URL = _rk || "__READ_URL__";
 const SAVE_URL = _sk || "__SAVE_URL__";
 const HOSTED = window.__POD_DEMO !== true && /^https:\/\//.test(READ_URL) && /^https:\/\//.test(SAVE_URL);
+/* READING AND SAVING ARE SEPARATE CAPABILITIES. HOSTED means "can read AND can save", which is
+   the right test for the save path and the wrong one for the load path: staging ships read keys
+   only, so HOSTED was false and the board loaded empty — a missing save key looking exactly like
+   a broken rota. READABLE is the load-path test. Found on staging 26.08.14. */
+const READABLE = window.__POD_DEMO !== true && /^https:\/\//.test(READ_URL);
 const relayUrl = () => HOSTED ? SAVE_URL : ((data && data.relayUrl) || "");
 const SELF_FETCHABLE = /^https?:$/.test(location.protocol);
 // Opened as a local file (e.g. a OneDrive-synced copy): save straight to that file via the
@@ -1701,11 +1706,7 @@ const TESTMODE = (typeof window !== "undefined" && window.__POD_TEST === true);
 const TEST_KEY = "podTestData";
 const DEMO_KEY = "podDemoData";
 async function readSelf(){
-  /* READING MUST NOT DEPEND ON BEING ABLE TO WRITE. HOSTED demands both a read and a save
-     URL, which is right for saving and wrong here: staging carries read keys only, so HOSTED
-     was false and this returned null without ever asking the network — an empty board that
-     looked like a broken rota rather than a missing save key. Found on staging 26.08.14. */
-  if (HOSTED || /^https:\/\//.test(READ_URL)) {
+  if (READABLE) {
     try {
       const r = await fetch(READ_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}", cache: "no-store" });
       if (!r.ok) return null;
@@ -1847,7 +1848,7 @@ document.addEventListener("visibilitychange", async () => {
   else if (!VIEW_ONLY && away > 5 * 60 * 1000) { try { location.reload(); } catch(e){} }
 });
 // Hosted mode calls a cloud flow for every refresh, so poll less often to stay well within limits.
-setInterval(() => { if (!document.hidden) syncLatest(); }, HOSTED ? 180000 : 60000);
+setInterval(() => { if (!document.hidden) syncLatest(); }, READABLE ? 180000 : 60000);
 let idleTimer = null;
 function resetIdle(){
   if (!EDIT_MODE) return;
@@ -2336,7 +2337,7 @@ function showLoadFailure(){
   w.style.display = "flex";
 }
 async function startUp(){
-  if (HOSTED) {
+  if (READABLE) {
     /* Code-only host: pull the live rota straight from SharePoint. No data is stored in this page.
        The read goes through a Power Automate flow that occasionally cold-starts or drops a request.
        One attempt, then the brand-new-file welcome card, meant a single blip looked like a broken
