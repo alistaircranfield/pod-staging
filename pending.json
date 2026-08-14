@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T20:37:45.772657+00:00",
- "build": "b243484",
+ "generated": "2026-08-14T20:40:08.602376+00:00",
+ "build": "e4d5fb2",
  "liveBuild": "35abf4e",
- "count": 201,
+ "count": 203,
  "changes": [
+  {
+   "sha": "e4d5fb2",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T21:40:00+01:00",
+   "msg": "Day ring in the date column; the taken-off card redrawn; a slot is not a person"
+  },
+  {
+   "sha": "70ca801",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T20:37:45Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "b243484",
    "who": "alistaircranfield",
