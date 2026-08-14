@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T15:24:31.194482+00:00",
- "build": "a7f36c3",
+ "generated": "2026-08-14T16:44:39.583570+00:00",
+ "build": "0ffb541",
  "liveBuild": "35abf4e",
- "count": 175,
+ "count": 177,
  "changes": [
+  {
+   "sha": "0ffb541",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T17:44:29+01:00",
+   "msg": "Startup read gate: READABLE separated from HOSTED so a read-key-only build loads"
+  },
+  {
+   "sha": "f778158",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T15:24:31Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "a7f36c3",
    "who": "alistaircranfield",
