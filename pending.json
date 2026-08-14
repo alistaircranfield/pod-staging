@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T22:31:53.738477+00:00",
- "build": "cdb2920",
+ "generated": "2026-08-14T22:51:36.687332+00:00",
+ "build": "6114cae",
  "liveBuild": "35abf4e",
- "count": 215,
+ "count": 217,
  "changes": [
+  {
+   "sha": "6114cae",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T23:51:27+01:00",
+   "msg": "What happened: one card per rota day, one block per person's go"
+  },
+  {
+   "sha": "d49e529",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T22:31:53Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "cdb2920",
    "who": "alistaircranfield",
