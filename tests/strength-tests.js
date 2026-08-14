@@ -192,6 +192,13 @@
     var churned = S.scoreDay(mkCtx({ A: [a1, a2], B: [b1], C: [], D: [], E: [] },
       { prev: { A: [], B: [a1.id, a2.id, b1.id], C: [], D: [], E: [] } }));
     has(churned.pods.A.missed, "N04", "a pod rebuilt from scratch overnight does not");
+    /* An empty yesterday is not a yesterday. Five empty lists mean nobody has filled that day in,
+       not that every pod lost everybody — and treating them as the latter made continuity fail on
+       all five pods of the first day the board holds. */
+    var emptyPrev = S.scoreDay(mkCtx({ A: [a1, a2], B: [b1], C: [], D: [], E: [] },
+      { prev: { A: [], B: [], C: [], D: [], E: [] } }));
+    has(emptyPrev.pods.A.dropped, "N04", "a previous day nobody allocated drops continuity");
+    hasnt(emptyPrev.pods.A.missed, "N04", "rather than charging every pod for it");
     var firstDay = S.scoreDay(mkCtx({ A: [a1, a2], B: [b1], C: [], D: [], E: [] }));
     has(firstDay.pods.A.dropped, "N04", "with no yesterday held, continuity leaves the denominator");
     hasnt(firstDay.pods.A.missed, "N04", "rather than charging a pod for a day that does not exist");
