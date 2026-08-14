@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+—<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -849,60 +849,62 @@ button.strdial:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .poddot.bench{background:var(--hair);color:var(--muted)}
 .strhead{font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:1rem 0 0}
 /* ── WHAT HAPPENED ────────────────────────────────────────────────────────────────────────
-   One card per rota day; inside it one block per person's go. The pod letters are the board's own
-   pastel circles so a move reads without a word being parsed. */
-.story{display:flex;flex-direction:column;gap:.6rem}
-.stcard{background:#fff;border:0.5px solid var(--line);border-radius:12px;overflow:hidden}
-.sthead{display:flex;align-items:baseline;gap:.7rem;padding:.75rem .9rem .6rem;border-bottom:0.5px solid var(--hair)}
-.stttl{flex:1;font-size:.95rem;font-weight:600;color:var(--ink)}
-.stsub{display:block;font-size:.72rem;font-weight:400;color:var(--muted);margin-top:.1rem}
-.stdelta{flex:none;text-align:right;white-space:nowrap}
-.stdelta b{display:block;font-size:.78rem;font-weight:800}
-.stdelta.big b{font-size:.88rem}
-.stdelta b.up{color:#4c8a2f}.stdelta b.down{color:#cf3d3d}.stdelta b.flat{color:var(--muted)}
-.stdelta span{display:block;font-size:.65rem;color:var(--muted);font-variant-numeric:tabular-nums}
-.stsess+.stsess{border-top:0.5px solid var(--hair)}
-.stsess.sync{opacity:.62}
-.stopen{width:100%;border:0;background:transparent;text-align:left;padding:.65rem .9rem;cursor:pointer;
-  font:inherit;display:flex;gap:.6rem;align-items:flex-start}
-.stav{flex:none;width:27px;height:27px;border-radius:50%;background:var(--accent-bg);color:var(--accent);
-  font-size:.63rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;margin-top:1px}
-.stav.sync{background:var(--hair);color:var(--muted)}
-.stbody{flex:1;min-width:0}
-.stwho{font-size:.86rem;font-weight:600;color:var(--ink)}
-.sttag{font-size:.6rem;font-weight:700;padding:.05rem .4rem;border-radius:9px;margin-left:.35rem;vertical-align:1px}
+   One line per rota day, closed. Everything else is behind a triangle, because the question
+   somebody arrives with is "did anything go wrong yesterday" and the rest is a follow-up. */
+.story{display:flex;flex-direction:column}
+.strow+.strow{border-top:0.5px solid var(--hair)}
+.stday{width:100%;border:0;background:transparent;font:inherit;text-align:left;cursor:pointer;
+  padding:.6rem .8rem;display:flex;align-items:center;gap:.55rem}
+.stday:hover{background:#fcfcfb}
+.stcv{flex:none;width:9px;color:#c9cbd0;font-size:.6rem}
+.stcv.sm{font-size:.55rem;color:#d5d7db}
+.stdate{flex:none;width:5.4rem;font-size:.82rem;font-weight:600;color:var(--ink)}
+.stwho{flex:1;min-width:0;font-size:.73rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stdelta{flex:none;text-align:right;min-width:4.6rem;white-space:nowrap}
+.stdelta b{font-size:.78rem;font-weight:800}
+.stdelta b.up{color:#4c8a2f}.stdelta b.down{color:#cf3d3d}.stdelta b.flat{color:#b0b4bb}
+.stdelta span{font-size:.66rem;color:#b0b4bb;margin-left:.35rem;font-variant-numeric:tabular-nums}
+.sttag{font-size:.55rem;font-weight:700;padding:.05rem .3rem;border-radius:8px;margin-left:.3rem;vertical-align:1px}
 .sttag.fix{background:var(--accent-bg);color:var(--accent)}
-.sttag.none{background:var(--hair);color:var(--muted)}
-.sttm{font-size:.7rem;color:var(--muted);margin-top:.05rem}
-.stmove{display:flex;align-items:center;gap:.45rem;padding:.15rem 0}
-.stnm{flex:1;min-width:0;font-size:.78rem;color:var(--ink)}
-.sthop{display:block;font-size:.65rem;color:var(--muted)}
-.stno{font-size:.7rem;color:var(--muted)}
-.starr{color:#c9cbd0;font-size:.65rem}
-.stchip{flex:none;width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;
-  justify-content:center;font-size:.62rem;font-weight:800}
+.sttag.none{background:var(--hair);color:#a8acb3}
+.stopen{background:#fcfcfb;border-top:0.5px solid var(--hair)}
+.stgo+.stgo{border-top:0.5px solid #f4f4f2}
+.stgo.sync{opacity:.6}
+.stgobtn{width:100%;border:0;background:transparent;font:inherit;text-align:left;cursor:pointer;
+  padding:.45rem .8rem .45rem 1.9rem;display:flex;align-items:center;gap:.55rem}
+.stgow{flex:1;min-width:0;font-size:.76rem;color:var(--muted)}
+.stgow b{font-size:.78rem;font-weight:600;color:var(--ink)}
+.stgot{margin-left:.4rem;font-size:.66rem;color:#b0b4bb}
+.stpane{padding:.1rem .8rem .7rem 2.5rem}
+.stmove{display:flex;align-items:center;gap:.4rem;padding:.12rem 0}
+.stnm{flex:1;min-width:0;font-size:.74rem;color:#3d3d3a}
+.sthop{display:block;font-size:.62rem;color:#b0b4bb}
+.stno{font-size:.68rem;color:#a8acb3}
+.starr{color:#d5d7db;font-size:.6rem}
+.stchip{flex:none;width:19px;height:19px;border-radius:50%;display:inline-flex;align-items:center;
+  justify-content:center;font-size:.58rem;font-weight:800}
 .stchip.podA{background:var(--podA);color:var(--podAb)}
 .stchip.podB{background:var(--podB);color:var(--podBb)}
 .stchip.podC{background:var(--podC);color:var(--podCb)}
 .stchip.podD{background:var(--podD);color:var(--podDb)}
 .stchip.podE{background:var(--podE);color:var(--podEb)}
-.stchip.none{background:var(--hair);color:var(--muted)}
-.stcv{flex:none;color:#c9cbd0;font-size:.65rem;margin-top:.2rem}
-.stpane{padding:0 .9rem .8rem 3.1rem}
-.stgrids{display:grid;grid-template-columns:1fr 1fr;gap:.55rem}
-.stgl{font-size:.58rem;font-weight:800;letter-spacing:.06em;color:var(--muted);margin-bottom:.25rem}
-.stgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:.22rem}
-.stcol{border-radius:7px;padding:.3rem .25rem;min-height:46px}
+.stchip.none{background:var(--hair);color:#b0b4bb}
+.stgrids{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.5rem}
+.stgl{font-size:.53rem;font-weight:800;letter-spacing:.06em;color:#b0b4bb;margin-bottom:.2rem}
+.stgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:.2rem}
+.stcol{border-radius:6px;padding:.25rem .2rem;min-height:42px}
 .stcol.podA{background:var(--podA)}.stcol.podB{background:var(--podB)}.stcol.podC{background:var(--podC)}
 .stcol.podD{background:var(--podD)}.stcol.podE{background:var(--podE)}
-.stcol div{font-size:.62rem;line-height:1.55;color:#9a9ea6}
+.stcol div{font-size:.58rem;line-height:1.5;color:#a8acb3}
 .stcol div.hot{color:var(--ink);font-weight:600}
-.stcolh{font-size:.55rem;font-weight:800;color:var(--muted)!important;margin-bottom:.1rem}
-.stnogrid{font-size:.72rem;color:var(--muted)}
-/* On a phone the two grids stack rather than squeezing five columns into half a screen. */
-@media (max-width:640px){ .stgrids{grid-template-columns:1fr} .stpane{padding-left:.9rem} }
+.stcolh{font-size:.5rem;font-weight:800;color:#b0b4bb!important}
+.stfoot{display:flex;align-items:center;gap:.3rem;padding:.55rem .8rem;font-size:.68rem;color:var(--muted);
+  border-top:0.5px solid var(--hair)}
+.stsw{margin-left:auto;display:inline-flex;align-items:center;gap:.3rem;cursor:pointer}
+.stsw input{width:13px;height:13px}
+@media (max-width:640px){ .stgrids{grid-template-columns:1fr} .stpane{padding-left:1.2rem} .stdate{width:4.6rem} }
 
-/* THE REGISTER, on the rota team's page. Rows rather than a table: at 390px a five-column table
+/* THE REGISTER, on the rota team's page./* THE REGISTER, on the rota team's page. Rows rather than a table: at 390px a five-column table
    of twenty-four requirements is unreadable, and the id, the name and the weight are the only
    three things anybody needs on a line. */
 .regtbl{border-top:1px solid var(--hair)}
@@ -1319,7 +1321,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
 </div>
 
 <script src="core.js?v=20260810-04"></script>
-<script src="strength.js?v=20260814-21"></script>
+<script src="strength.js?v=20260814-22"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -6214,74 +6216,121 @@ function logViewToggle(){
   return seg;
 }
 /* ── DRAWING IT ────────────────────────────────────────────────────────────────────────────
-   One card per rota day, newest day first. Inside it, one block per go, in the order they
-   happened, each opening onto the pods before and after that go. */
-const LOG_DAYS_SHOWN = 14;
+   Ali, 26.08.15, with a screenshot of the first attempt: "unusably busy viaully rehitngk and make
+   it less complex. what needs showing what cna be expanded etc."
+
+   The first attempt drew everything at once — every go, every move, every score — and four days
+   filled a screen. Closed, fourteen fit in the space three used.
+
+   THREE LEVELS, AND THE TOP ONE ANSWERS THE ONLY QUESTION SOMEBODY ARRIVES WITH.
+     a day        the date, who touched it, and whether it got better or worse. Nothing else, because
+                  "did anything go wrong yesterday" is the question and the rest is a follow-up.
+     a go         who, when, how many, and what THEY did to the number.
+     the pods     before and after, for that go.
+
+   FOUR THINGS THE FIRST VERSION GOT WRONG, all visible in that screenshot:
+     · the score was printed twice on every row — once for the day, once for the go — and on a
+       one-go day they are always the same number, so half the figures on screen carried nothing.
+       The go's score is hidden when it would only repeat the day's.
+     · sync-only days had full cards. Tuesday 25 August was a card for one automatic move worth
+       zero. Those days are dropped, with a count of how many, and a switch to bring them back —
+       hidden, never silently discarded.
+     · "1 go · 1 people" was ungrammatical and said less than the names beside it.
+     · a shift change was drawn as a move between pods, and a chain that started outside the pods
+       read "—→off, then —→D". Neither is a pod move and neither gets pod circles now. */
+const LOG_DAYS_SHOWN = 21;
+let logShowSync = false;
 function logStoryBlock(){
   const wrap = el("div", { class: "story" });
-  const days = [...new Set(logRotaEntries().map(e => e.on))].sort().reverse().slice(0, LOG_DAYS_SHOWN);
-  if (!days.length) return el("div", { class: "empty" }, "No rota changes recorded yet.");
-  for (const iso of days) {
+  const all = [...new Set(logRotaEntries().map(e => e.on))].sort().reverse();
+  const stories = [];
+  let hidden = 0;
+  for (const iso of all) {
+    if (stories.length >= LOG_DAYS_SHOWN) break;
     const st = logDayStory(iso);
     if (!st) continue;
-    const first = st.sessions[0], last = st.sessions[st.sessions.length - 1];
-    const dFrom = first && first.from, dTo = last && last.to;
-    const card = el("div", { class: "stcard" });
-    const head = el("div", { class: "sthead" },
-      el("span", { class: "stttl" }, DAYNAMES[dayIndexOf(iso)] + " " + fmtDate(iso),
-        el("span", { class: "stsub" }, st.sessions.length + (st.sessions.length === 1 ? " go · " : " goes · ")
-          + [...new Set(st.sessions.map(x => x.who))].length + " people")));
-    if (dFrom != null && dTo != null) head.append(logDelta(dFrom, dTo, true));
-    card.append(head);
-    for (const s of st.sessions) card.append(logSessionBlock(s, iso));
-    wrap.append(card);
+    /* A day only the sync touched, where nothing moved, is not something that happened. */
+    const onlySync = st.sessions.every(x => x.sync);
+    const moved = st.sessions.some(x => x.from != null && x.from !== x.to);
+    if (onlySync && !moved && !logShowSync) { hidden++; continue; }
+    stories.push(st);
   }
+  if (!stories.length) return el("div", { class: "empty" }, "No rota changes recorded yet.");
+  for (const st of stories) wrap.append(logDayRow(st));
+  const foot = el("div", { class: "stfoot" },
+    el("span", {}, stories.length + " days"),
+    hidden ? el("span", {}, " · " + hidden + " where only the sync ran and nothing changed") : null);
+  const sw = el("label", { class: "stsw" },
+    el("input", { type: "checkbox", onchange: e => { logShowSync = e.target.checked; renderLog(); } }), "show sync");
+  if (logShowSync) sw.querySelector("input").checked = true;
+  foot.append(sw);
+  wrap.append(foot);
   return wrap;
 }
 function dayIndexOf(iso){ const d = new Date(iso); return isNaN(d) ? 0 : (d.getUTCDay() + 6) % 7; }
-function logDelta(from, to, big){
+function logDelta(from, to){
+  if (from == null || to == null) return el("span", { class: "stdelta" });
   const flat = from === to, up = to >= from;
-  return el("span", { class: "stdelta" + (big ? " big" : "") },
+  return el("span", { class: "stdelta" },
     el("b", { class: flat ? "flat" : (up ? "up" : "down") }, flat ? "—" : (up ? "▲" : "▼") + Math.abs(to - from)),
-    el("span", {}, from + " → " + to));
+    el("span", {}, from + "→" + to));
 }
-function logSessionBlock(s, iso){
-  const blk = el("div", { class: "stsess" + (s.sync ? " sync" : "") });
-  const initials = (s.who || "?").split(" ").filter(Boolean).map(x => x[0]).slice(0, 2).join("");
-  const noop = s.moves.length && s.moves.every(m => m.noop);
-  const body = el("div", { class: "stbody" },
-    el("div", { class: "stwho" }, s.who,
-      s.fix ? el("span", { class: "sttag fix" }, "Fix this day") : null,
-      noop ? el("span", { class: "sttag none" }, "no effect") : null),
-    el("div", { class: "sttm" }, s.tm + " · " + s.moves.length + (s.moves.length === 1 ? " change" : " changes")));
+function logDayRow(st){
+  const first = st.sessions[0], last = st.sessions[st.sessions.length - 1];
+  const names = [...new Set(st.sessions.filter(x => !x.sync).map(x => x.who))];
+  const row = el("div", { class: "strow" });
+  const body = el("div", { class: "stopen" });
+  body.style.display = "none";
+  const cv = el("span", { class: "stcv" }, "▸");
+  const btn = el("button", { class: "stday", type: "button" }, cv,
+    el("span", { class: "stdate" }, DAYNAMES[dayIndexOf(st.iso)].slice(0, 3) + " " + fmtDate(st.iso)),
+    el("span", { class: "stwho" }, names.length ? names.join(", ") : "sync only",
+      st.sessions.some(x => x.fix) ? el("span", { class: "sttag fix" }, "FIX") : null),
+    logDelta(first && first.from, last && last.to));
+  btn.onclick = () => { const open = body.style.display !== "none";
+    body.style.display = open ? "none" : "block"; cv.textContent = open ? "▸" : "▾";
+    if (!open && !body.childElementCount) for (const s of st.sessions) body.append(logGoRow(s, st));
+  };
+  row.append(btn, body);
+  return row;
+}
+function logGoRow(s, st){
+  const box = el("div", { class: "stgo" + (s.sync ? " sync" : "") });
+  const pane = el("div", { class: "stpane" });
+  pane.style.display = "none";
+  const cv = el("span", { class: "stcv sm" }, "▸");
+  const noop = s.moves.length && s.moves.every(m => m.noop) || (s.from != null && s.from === s.to && s.moves.length);
+  /* Only shown when it says something the day's own figure does not. */
+  const sameAsDay = st.sessions.length === 1;
+  const btn = el("button", { class: "stgobtn", type: "button" }, cv,
+    el("span", { class: "stgow" }, el("b", {}, s.who),
+      s.fix ? el("span", { class: "sttag fix" }, "FIX") : null,
+      noop ? el("span", { class: "sttag none" }, "NO EFFECT") : null,
+      el("span", { class: "stgot" }, s.tm.split(" – ")[0] + " · " + s.moves.length)),
+    sameAsDay ? el("span", { class: "stdelta" }) : logDelta(s.from, s.to));
+  btn.onclick = () => { const open = pane.style.display !== "none";
+    pane.style.display = open ? "none" : "block"; cv.textContent = open ? "▸" : "▾";
+    if (!open && !pane.childElementCount) logFillPane(pane, s);
+  };
+  box.append(btn, pane);
+  return box;
+}
+function logFillPane(pane, s){
   for (const m of s.moves) {
     const row = el("div", { class: "stmove" },
       el("span", { class: "stnm" }, m.short, m.chain ? el("span", { class: "sthop" }, m.chain) : null));
-    if (m.noop) row.append(el("span", { class: "stno" }, "no change"), logPodChip(m.from));
-    else if (m.act === "off") row.append(logPodChip(m.from), el("span", { class: "starr" }, "→"), logPodChip(null));
-    else if (m.act === "on") row.append(logPodChip(null), el("span", { class: "starr" }, "→"), logPodChip(m.to));
-    else if (m.act === "shift") row.append(el("span", { class: "stno" }, (m.from || "") + " → " + (m.to || "")));
+    /* A shift change and a bench arrival are not moves between pods and are not drawn as ones. */
+    if (m.act === "shift") row.append(el("span", { class: "stno" }, (m.from || "?") + " → " + (m.to || "?")));
+    else if (m.noop) row.append(el("span", { class: "stno" }, "no change"));
     else row.append(logPodChip(m.from), el("span", { class: "starr" }, "→"), logPodChip(m.to));
-    body.append(row);
+    pane.append(row);
   }
-  const btn = el("button", { class: "stopen", type: "button" },
-    el("span", { class: "stav" + (s.sync ? " sync" : "") }, s.sync ? "◷" : initials), body);
-  if (s.from != null && s.to != null) btn.append(logDelta(s.from, s.to));
-  btn.append(el("span", { class: "stcv" }, "▾"));
-  const pane = el("div", { class: "stpane" });
-  pane.style.display = "none";
-  if (s.before && s.after) pane.append(
-    el("div", { class: "stgrids" },
-      el("div", {}, el("div", { class: "stgl" }, "Before" + (s.from != null ? " " + s.from + "%" : "")), logPodGrid(s.before, s.moves)),
-      el("div", {}, el("div", { class: "stgl" }, "After" + (s.to != null ? " " + s.to + "%" : "")), logPodGrid(s.after, s.moves))));
-  else pane.append(el("div", { class: "stnogrid" }, "The pods cannot be rebuilt for this one — the entries predate the fields it needs."));
-  btn.onclick = () => { const open = pane.style.display !== "none";
-    pane.style.display = open ? "none" : "block"; btn.querySelector(".stcv").textContent = open ? "▾" : "▴"; };
-  blk.append(btn, pane);
-  return blk;
+  if (s.before && s.after) pane.append(el("div", { class: "stgrids" },
+    el("div", {}, el("div", { class: "stgl" }, "Before"), logPodGrid(s.before, s.moves)),
+    el("div", {}, el("div", { class: "stgl" }, "After"), logPodGrid(s.after, s.moves))));
 }
 function logPodChip(p){
-  if (!p || !PODS.includes(p)) return el("span", { class: "stchip none", title: "off the day" }, "·");
+  if (!p || !PODS.includes(p)) return el("span", { class: "stchip none", title: "not in a pod" }, "·");
   return el("span", { class: "stchip pod" + p, title: "Pod " + p }, p);
 }
 function logPodGrid(state, moves){
