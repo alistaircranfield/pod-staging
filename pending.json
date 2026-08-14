@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T23:36:44.509582+00:00",
- "build": "0f9ac77",
+ "generated": "2026-08-14T23:38:39.970260+00:00",
+ "build": "e9a1b98",
  "liveBuild": "35abf4e",
- "count": 231,
+ "count": 233,
  "changes": [
+  {
+   "sha": "e9a1b98",
+   "who": "alistaircranfield",
+   "when": "2026-08-15T00:38:29+01:00",
+   "msg": "Bump strength.js cache buster to -26 past the broken cached copy"
+  },
+  {
+   "sha": "fa38371",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T23:36:44Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "0f9ac77",
    "who": "alistaircranfield",
