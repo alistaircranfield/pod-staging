@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T14:50:38.740618+00:00",
- "build": "a327d52",
+ "generated": "2026-08-14T15:19:51.648974+00:00",
+ "build": "09d0c8e",
  "liveBuild": "35abf4e",
- "count": 169,
+ "count": 171,
  "changes": [
+  {
+   "sha": "09d0c8e",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T16:19:40+01:00",
+   "msg": "Cap the ring badge at the pod floor; add shown/arc/spare helpers"
+  },
+  {
+   "sha": "7db82d9",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T14:50:38Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "a327d52",
    "who": "alistaircranfield",
