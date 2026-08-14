@@ -22,11 +22,20 @@
  *     a GATE: break it and the pod is broken, full stop, no percentage. The percentage is of
  *     the AIMS, and only the aims that were genuinely in question.
  *
- *  2. WHAT CANNOT BE DONE LEAVES THE DENOMINATOR.  On 13 Aug only three airway-trained people
- *     were on the day shift for four pods that want one. A requirement that could not have been
- *     met is not a fault of a pod; scoring it as one is what made the board say "nothing can be
- *     moved to fix this automatically" and invited 42 minutes of hand-shuffling. Supply is
- *     counted first, and only the shortfall that a move could actually have closed is charged.
+ *  2. WHAT CANNOT BE DONE IS AWARDED, NOT CHARGED AND NOT REMOVED.  On 13 Aug only three
+ *     airway-trained people were on the day shift for four pods that want one. A requirement the
+ *     day could not supply is not a fault of a pod; scoring it as one is what made the board say
+ *     "nothing can be moved to fix this automatically" and invited 42 minutes of hand-shuffling.
+ *
+ *     It was first built to leave the DENOMINATOR, which was wrong in a way only the real board
+ *     showed: on a thin day three of a pod's five aims drop out, the pod is judged on the two that
+ *     are left, and one bad answer halves it. Ali, 26.08.15, on a staffed pod reading zero: "all
+ *     new · pod broken up score of 0 when 2 people on - total codswallop." He is right — a pod with
+ *     two people in it, doing as well as the day allowed on three of five requirements, is not
+ *     nothing. So an unmeetable requirement now stays in the denominator and is AWARDED: the pod
+ *     did as well as it could, which is what full marks mean. Pods that could have done better are
+ *     still the only ones charged, so the comparison between pods is unchanged — but the scale
+ *     stops collapsing to two points on exactly the days somebody needs to read it.
  *
  *  3. WHERE SUPPLY IS SHORT, THE WEAKEST POD CARRIES THE MISS.  Two ACCPs both in Pod A: four
  *     pods lack one and only one of them could have been helped. Smearing the miss across four
@@ -65,7 +74,11 @@
     { id: "R01", scope: "pod",  kind: "gate", label: "Headcount at or above the minimum", from: "check", short: "under minimum" },
     { id: "R02", scope: "pod",  kind: "gate", label: "Somebody on a long day", from: "check", short: "no long day" },
     { id: "R04", scope: "pod",  kind: "aim",  label: "Airway-trained in the pod", rel: true, pods: ["A","B","C","D"], trait: "airway", short: "no airway" },
-    { id: "N01", scope: "pod",  kind: "aim",  label: "Transfer-trained in the pod", rel: true, trait: "transfer", short: "no transfer" },
+    /* A–D, not E. Ali, 26.08.15: "no transfer on E not important." Pod E is a smaller pod by
+       design — its own minimum is 1 against 2 — and asking a pod of one or two for a
+       transfer-trained person is the "E is always the weakest" fault the old per-pod floors had,
+       arriving through a different door. Same list as R04, for the same reason. */
+    { id: "N01", scope: "pod",  kind: "aim",  label: "Transfer-trained in the pod", rel: true, pods: ["A","B","C","D"], trait: "transfer", short: "no transfer" },
     { id: "N02", scope: "pod",  kind: "aim",  label: "An ACCP in the pod", rel: true, trait: "accp", short: "no ACCP" },
     { id: "N03", scope: "pod",  kind: "aim",  label: "Not everybody in their first weeks", short: "all new" },
     { id: "N04", scope: "pod",  kind: "aim",  label: "Keeps its people from yesterday", short: "pod broken up" },
@@ -118,7 +131,30 @@
      * (83 of 227 consecutive-day pairs), so this starts at a half and is meant to be argued with. */
     keepShare: 0.5,
 
-    /* N03. A pod fails if every countable person in it is inside newDays. An UNKNOWN tier never
+    /* CONTINUITY COMPARES LIKE DAYS. Ali, 26.08.15, on seeing "pod broken up" across most of
+     * Monday and Tuesday on the real board: "doesnt need to carry over weekend that importantly."
+     * The unit re-forms its pods around the weekend — a Monday is built from a different set of
+     * people than the Sunday before it — so measuring Monday against Sunday charged every pod for
+     * a turnover nobody could have avoided and nobody wanted avoided. That is the crying-wolf
+     * fault: a term that fires on most days is one people stop reading, and it was burying the two
+     * signals this whole exercise exists to raise (no transfer, no ACCP).
+     *
+     * So a weekday is compared with the weekday before it and a weekend day with the weekend day
+     * before it; across the Fri→Sat and Sun→Mon seams the requirement DROPS OUT rather than fails,
+     * exactly as an unmeetable one does. Set true and it goes back to comparing every consecutive
+     * pair — the churn is real and somebody may want to see it. */
+    continuityAcrossWeekend: false,
+
+    /* N03, the experience mix. Full marks once this share of a pod is past its first weeks,
+     * proportional below — the same shape as keepShare, and for the same reason: "everybody new or
+     * not everybody new" is one bit of information about a thing that has four or five gradations,
+     * and a scale built from bits lands on 0, 25, 33, 50, 67, 75 and 100 and nowhere else (Ali,
+     * 26.08.15: "not real spectrum %"). Half is deliberately undemanding: the aim is that a pod is
+     * not carried entirely by people in their first weeks, not that newcomers are spread thin.
+     */
+    mixShare: 0.5,
+
+    /* An UNKNOWN tier never
      * counts as new: punishing a pod for a blank field is how Gutierrez would have been scored,
      * and a blank is a thing to go and fill in, not a thing to charge somebody for. It raises an
      * Attention row instead. */
@@ -262,10 +298,19 @@
     if (prevP) for (i = 0; i < order.length; i++) prevHeld += (prevP[order[i]] || []).length;
     if (!prevHeld) prevP = null;
 
+    /* Same seam rule as above, decided here so there is one copy of it. getUTCDay because an ISO
+       date string parses as UTC midnight, and a local-time reading turns a Monday into a Sunday
+       west of Greenwich — the board is read in three timezones (see the render suite). */
+    if (prevP && cfg.continuityAcrossWeekend !== true) {
+      var t = new Date(iso), y = new Date(new Date(iso).getTime() - 86400000);
+      var wknd = function (d) { var n = d.getUTCDay(); return n === 0 || n === 6; };
+      if (!isNaN(t) && wknd(t) !== wknd(y)) prevP = null;
+    }
+
     var pods = {}, capacity = {}, unknowns = [];
     for (i = 0; i < order.length; i++) {
       p = order[i];
-      pods[p] = { pod: p, got: 0, app: 0, met: [], missed: [], dropped: [], broken: broken[p], people: [] };
+      pods[p] = { pod: p, got: 0, app: 0, met: [], missed: [], part: [], dropped: [], broken: broken[p], people: [] };
       var ids = P[p] || [];
       for (j = 0; j < ids.length; j++) {
         var per = S(ids[j]), t = tierOf(per, iso, cfg, fs);
@@ -281,16 +326,24 @@
       p = order[i];
       var pe = pods[p].people;
       if (isOn(cfg, "N03") && pe.length) {
-        var anySettledEnough = false;
-        for (j = 0; j < pe.length; j++) if (pe[j].tier !== "new") anySettledEnough = true;
-        charge(pods[p], "N03", anySettledEnough, wOf(cfg, "N03"));
+        /* Unknown counts as NOT new — a blank start date must never make a pod look worse, or the
+           way to a better score becomes leaving fields empty. It raises an Attention row instead. */
+        var settledEnough = 0;
+        for (j = 0; j < pe.length; j++) if (pe[j].tier !== "new") settledEnough++;
+        var mix = settledEnough / pe.length, wantMix = Number(cfg.mixShare);
+        charge(pods[p], "N03", wantMix > 0 ? Math.min(1, mix / wantMix) : 1, wOf(cfg, "N03"));
       }
       if (isOn(cfg, "N04") && pe.length && prevP) {
         var kept = 0;
         for (j = 0; j < pe.length; j++) if ((prevP[p] || []).indexOf(pe[j].id) !== -1) kept++;
-        charge(pods[p], "N04", kept >= Math.ceil(pe.length * Number(cfg.keepShare)), wOf(cfg, "N04"));
+        /* Full marks at keepShare and above, proportional below it — so a pod that held on to two
+           of three and a pod that held none are no longer the same answer. keepShare keeps its
+           meaning: it is the point at which a pod is doing as well as anybody asks. */
+        var share = kept / pe.length, want = Number(cfg.keepShare);
+        charge(pods[p], "N04", want > 0 ? Math.min(1, share / want) : 1, wOf(cfg, "N04"));
       } else if (isOn(cfg, "N04") && pe.length) {
         pods[p].dropped.push("N04");
+        charge(pods[p], "N04", true, wOf(cfg, "N04"));
       }
     }
 
@@ -320,7 +373,7 @@
       for (i = 0; i < holds.length; i++) charge(pods[holds[i]], reg.id, true, wOf(cfg, reg.id));
       for (i = 0; i < ordered.length; i++) {
         if (i < spare) charge(pods[ordered[i]], reg.id, false, wOf(cfg, reg.id));
-        else pods[ordered[i]].dropped.push(reg.id);
+        else { pods[ordered[i]].dropped.push(reg.id); charge(pods[ordered[i]], reg.id, true, wOf(cfg, reg.id)); }
       }
     }
 
@@ -341,7 +394,10 @@
     var got = dGot, app = dApp;
     for (i = 0; i < order.length; i++) {
       var pd = pods[order[i]];
-      pd.pct = pd.app ? Math.round(pd.got / pd.app * 100) : null;
+      /* Never below zero and never above a hundred. got is a sum of clamped fractions so it cannot
+         escape on its own, but the floor is stated here because this is the number people read, and
+         Ali, 26.08.15: "cant be a minus number, the bottom must be a zero when no people on." */
+      pd.pct = pd.app ? Math.max(0, Math.min(100, Math.round(pd.got / pd.app * 100))) : (pd.people.length ? null : 0);
       pd.isBroken = pd.broken.length > 0;
       got += pd.got; app += pd.app;
     }
@@ -353,9 +409,26 @@
       empty: app === 0
     };
 
+    /* PART MARKS, WHERE THE THING BEING ASKED IS ITSELF A PROPORTION. Ali, 26.08.15: "scores seem
+       very stage 100 or 75. not real spectrum %." He is right, and the cause is arithmetic: four or
+       five yes/no aims can only ever land on 0, 25, 33, 50, 67, 75, 80 or 100, so pods that are
+       genuinely different distances from right draw the identical ring.
+
+       The fix is not to invent more requirements. It is to stop throwing away information the
+       evaluator already has: continuity is a SHARE of a pod that stayed put, and rounding it to a
+       yes or a no at the halfway mark discards everything either side. `met` may now be a fraction
+       between 0 and 1, and a fraction is banked as part of the weight. Anything genuinely binary —
+       a pod either holds an airway-trained person or it does not — stays binary and passes 1 or 0,
+       so nothing here makes a yes/no requirement mushy. */
     function charge(podSc, id, met, wt) {
+      var f = (met === true) ? 1 : (met === false ? 0 : Number(met));
+      if (!isFinite(f)) f = 0;
+      f = Math.max(0, Math.min(1, f));
       podSc.app += wt;
-      if (met) { podSc.got += wt; podSc.met.push(id); } else podSc.missed.push(id);
+      podSc.got += wt * f;
+      if (f >= 1) { if (podSc.dropped.indexOf(id) === -1) podSc.met.push(id); }
+      else if (f <= 0) podSc.missed.push(id);
+      else { podSc.part.push({ id: id, f: f }); podSc.missed.push(id); }
     }
   }
 
