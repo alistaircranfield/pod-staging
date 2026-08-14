@@ -797,7 +797,10 @@ button.strdial:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .strring .ra{stroke:var(--strarc);stroke-linecap:round;transform:rotate(-90deg);transform-origin:50% 50%}
 .strring text{text-anchor:middle;font-family:inherit}
 .strring .rn{font-size:14px;font-weight:700;fill:var(--strnum)}
-.strring .rf{font-size:7.5px;font-weight:600;fill:var(--muted)}
+/* A BROKEN POD IS NOT A LOW ONE. It draws a full red ring with an exclamation rather than a number,
+   because a hard rule is a gate and a gate has no percentage — see the header of strength.js. */
+.strring .rx{font-size:17px;font-weight:800;fill:#B3302F}
+.strdial.broken{--strarc:#E24B4A;--strnum:#B3302F}
 .strdelta{flex:none;font-size:.66rem;font-weight:700;padding:.05rem .35rem;border-radius:999px;white-space:nowrap}
 .strdelta.up{background:#eef7f1;color:#2f7a52}
 .strdelta.down{background:#fdf1f1;color:#B3302F}
@@ -810,12 +813,34 @@ button.strdial:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   justify-content:center;font-size:.7rem;font-weight:700}
 .strrule.met .rmk{background:#eef7f1;color:#2f7a52}
 .strrule.unmet .rmk{background:#fdf1f1;color:#B3302F}
+/* Not a failure and not a pass: a requirement the day could not have met, out of the denominator.
+   Grey so it reads as absent rather than as a third kind of verdict. */
+.strrule.na{color:var(--muted)}
+.strrule.na .rmk{background:#f2f1ee;color:var(--muted)}
 .strrule .rlb{flex:1 1 auto;min-width:0}
 .strrule .rsk{display:block;font-size:.66rem;color:var(--muted);letter-spacing:.03em}
 .strrule .rwt{flex:none;font-size:.8rem;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
 .strrule.tot{border-top:1.5px solid var(--line);font-weight:700}
 .strrule.tot .rwt{color:var(--ink)}
+/* The day's number, before and after the fix. Two numbers and an arrow: what pressing the button
+   is worth, in the same unit the rings are drawn in. */
+.fixscore{display:flex;align-items:baseline;gap:.5rem;font-size:1.15rem;font-weight:800;margin:.5rem 0 .2rem;
+  font-variant-numeric:tabular-nums}
+.fixscore span{font-size:.9rem;font-weight:600;color:var(--muted)}
 .strhead{font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:1rem 0 0}
+/* THE REGISTER, on the rota team's page. Rows rather than a table: at 390px a five-column table
+   of twenty-four requirements is unreadable, and the id, the name and the weight are the only
+   three things anybody needs on a line. */
+.regtbl{border-top:1px solid var(--hair)}
+.regrow{display:flex;align-items:center;gap:.6rem;padding:.45rem .15rem;border-bottom:1px solid var(--hair)}
+.regrow.off{opacity:.5}
+.regrow .regid{flex:none;width:2.6rem;font-size:.7rem;font-weight:800;letter-spacing:.04em;color:var(--muted);
+  font-variant-numeric:tabular-nums}
+.regrow .reglb{flex:1 1 auto;min-width:0;font-size:.85rem;line-height:1.3}
+.regrow .regsub{display:block;font-size:.66rem;color:var(--muted);letter-spacing:.03em}
+.regrow .regw{flex:none;font-size:.8rem;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+/* A gate is not an aim with a large number. It reads as a word, so nobody can try to tune it. */
+.regrow.gate .regw{font-size:.66rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
 /* The day meter is its own row spanning the table, so it sits above the pods on the phone (where
    every cell is a stacked card) and across the top of the day on a laptop. */
 tr.strrow td.strmeter{padding:.3rem .55rem .45rem;background:transparent;border:0}
@@ -1220,7 +1245,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
 </div>
 
 <script src="core.js?v=20260810-04"></script>
-<script src="strength.js?v=20260814-03"></script>
+<script src="strength.js?v=20260814-04"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -2246,6 +2271,10 @@ function loadData(d){
   }
   data.pendingSkills = data.pendingSkills || [];
   data.sorted = data.sorted || {};   // which Attention rows somebody has dealt with (12 Aug)
+  /* A newly imported week can move somebody's first rostered shift earlier, which moves their tier,
+     which moves a pod score. Thrown away on every load rather than patched, because the map costs
+     one walk of 385 roster days and a stale one is wrong silently. */
+  STR_FS = null; STR_SEEN = {}; STR_DAY = {};
   migratePendingSkills();
   for (const wk of Object.values(data.weeks)) {
     if (!("roster" in wk)) wk.roster = null;
@@ -3312,7 +3341,7 @@ function renderWeek(){
        the strength off that one path is what makes it impossible for the dials to fall behind
        the board. Every day is ticked, not just the one on screen, so a delta always means
        "since the last redraw". */
-    strengthTick(day, dateISO);
+    strengthTick(day, dateISO, vis, wk, di);
     /* The five-bar day meter USED TO BE APPENDED HERE and is not any more. Ali, 26.08.14: "the
        front view needs to stay as it is". A row of bars above every day was furniture on the one
        screen that must stay exactly as clinicians already read it. The shape itself is not lost —
@@ -3556,8 +3585,11 @@ function spreadNote(day){
    planner that already exists, and its only judgement is which button leads.
 
      something broken   →  Apply leads. Airway cover, phone training, phone supervision, a pod with
-                           no long day — these are the things that actually make a day unsafe, and
-                           none of them are visible in a head-count.
+                           no long day — none of them visible in a head-count, and all of them
+                           things somebody will otherwise come and move by hand. (The board does not
+                           claim to cover safety: Ali, 26.08.15, "the consequence is consultants get
+                           annoyed, we cover the safety aspects." What it measures is how much
+                           hand-correction a day will provoke, which is a claim it can stand behind.)
      only aims left     →  Done leads, evening up is the quiet secondary. "dont move people for the
                            sake if it otherwise will annoy" — get this backwards and everyone taps
                            the top button on reflex, including on the days it matters.
@@ -3574,6 +3606,15 @@ function afterChangeCard(di, headline){
   const spread = spreadNote(day);
   let plan = { changes: [], unresolved: [] };
   try { plan = planDayFix(di); } catch (e) {}
+  /* WHAT THE FIX IS WORTH, as one number. Ali, 26.08.15: "keep the fix this day to give best
+     outcome bit". A list of moves says what would happen; it does not say whether it is worth
+     pressing. Scored on a COPY through the same evaluator the rings use, so the card and the board
+     can never disagree about the same day. */
+  let scNow = null, scFix = null;
+  try {
+    scNow = strengthScoreOf(day, addDays(currentWeekKey, di), di, wk);
+    if (plan.fixed) scFix = strengthScoreOf(plan.fixed, addDays(currentWeekKey, di), di, wk);
+  } catch (e) {}
 
   const bg  = el("div", { class: "dlg-bg" });
   const box = el("div", { class: "dlg" });
@@ -3595,6 +3636,11 @@ function afterChangeCard(di, headline){
     box.append(el("button", { class: "btn sheetbtn", onclick: shut }, "Done"));
   } else if (plan.changes.length) {
     box.append(el("div", { class: "cc-sub" }, "The fewest changes that clear it — everyone else stays put"));
+    if (scNow && scFix && scNow.day.pct != null && scFix.day.pct != null)
+      box.append(el("div", { class: "fixscore" },
+        el("b", { style: "color:" + Strength.colourOf(scNow.day.pct) }, scNow.day.pct + "%"),
+        el("span", {}, "→"),
+        el("b", { style: "color:" + Strength.colourOf(scFix.day.pct) }, scFix.day.pct + "%")));
     const list = el("div", { class: "fixlist" });
     plan.changes.forEach(c => list.append(fixChangeRow(c)));
     box.append(list);
@@ -4130,230 +4176,266 @@ function cycleShift(day, id, pool){
   markDirty(); renderWeek();
 }
 /* ================= POD STRENGTH ON THE BOARD =================
-   THE MATHS IS NOT HERE. strength.js holds one copy of it, and the replay harness and the unit
-   tests require that same file — a second implementation in this page is exactly the drift that
-   file exists to prevent. Everything below reads the scores and draws them.
+   THE MATHS IS NOT HERE. strength.js holds the register — 24 requirements — and the one evaluator
+   that reads it. The unit tests require() that same file. A second implementation in this page is
+   exactly the drift that file exists to prevent, so everything below reads scores and draws them.
+
+   GATES DO NOT SCORE, AIMS DO. A pod that breaks a hard rule is BROKEN, not low: it draws a solid
+   red ring with no number, because averaging "no long day" together with "no ACCP" is how the
+   first attempt came out reading 86-100% on every pod including Thursday's Pod C.
 
    HARD RULE 6. A pod's score is built only from the people who ARE in the pod and what they can
-   do. Somebody not on the day simply is not in the list, no field here carries or infers a
-   reason, and the delta chip says only that a number moved. */
-var STR_SEEN = {};   // dateISO -> { A: pts, ... } as the board last drew it
-var STR_DAY  = {};   // dateISO -> { ds: dayScore, delta: { A: n, ... } }
+   do. Somebody not on the day simply is not in the list, no field here carries or infers a reason,
+   no code path separates one kind of absence from another, and the delta chip says only that a
+   number moved. */
+var STR_SEEN = {};   // dateISO -> { pods: { A: pct }, day: pct } as the board last drew it
+var STR_DAY  = {};   // dateISO -> { sc, delta: { A: n }, dayDelta: n }
+var STR_FS   = null; // id -> first rostered date, built once per load
 
-/* Hard rule 1: the defaults in strength.js are a starting point. What the board actually scores
-   with is whatever Settings has written into the store. */
+/* Hard rule 1: the register's defaults are a starting point. What the board actually scores with
+   is whatever the rota team has written into the store from Setup. */
 function strengthCfg(){
   var over = (data && data.strengthCfg) || null;
   if (window.Strength && Strength.cfgOf) return Strength.cfgOf(over);
   return over || {};
 }
-/* Called for EVERY day on every redraw, not just the day on screen, so a delta always means
-   "since the board was last drawn" rather than "since you last looked at this particular day".
-   The snapshot is taken here, after the comparison, which is why a change shows its delta once
-   and then settles. */
-function strengthTick(day, dateISO){
-  if (!window.Strength || !data) return null;
-  var ds = Strength.dayScore(day, Strength.indexStaff(data.staff), dateISO, strengthCfg());
-  var seen = STR_SEEN[dateISO], now = {}, delta = {}, i, p, sc;
-  for (i = 0; i < PODS.length; i++) {
-    p = PODS[i]; sc = ds.pods[p];
-    if (!sc) continue;
-    now[p] = sc.pts;
-    if (seen && seen[p] != null && seen[p] !== sc.pts) delta[p] = sc.pts - seen[p];
+/* TIME ON THE UNIT COMES FROM TWO PLACES AND THIS IS THE SECOND. A stated start date covers 44 of
+   87 people; the Optima roster in the store runs back to 18 Aug 2025, and first-appearance in it
+   takes that to 83 of 87. Measured 26.08.14: the first rostered shift is never earlier than a
+   stated start (0 of 40) and rounding into three tiers, the two measures disagree about exactly
+   one person. Built once — it walks 385 roster days — and thrown away whenever a new copy of the
+   rota lands, because a newly imported week can move somebody's first shift earlier. */
+function strFirstSeen(){
+  if (STR_FS) return STR_FS;
+  var fs = {}, k, d, id, w, r;
+  if (data && data.weeks) for (k in data.weeks) {
+    w = data.weeks[k]; if (!w || !w.roster) continue;
+    for (d in w.roster) { r = w.roster[d]; for (id in r) if (!fs[id] || d < fs[id]) fs[id] = d; }
   }
+  STR_FS = fs;
+  return fs;
+}
+/* "Countable" belongs to the board, not to strength.js — supernumeraries and neuro regs are a rule
+   about this unit, and the evaluator should not have to know about either. */
+function strCounts(day){
+  var o = {}, i, p;
+  for (i = 0; i < PODS.length; i++) {
+    p = PODS[i];
+    o[p] = (((day.pods && day.pods[p] && day.pods[p].assign) || [])
+      .filter(function (a) { return a.id && countsInNumbers(a.id); })
+      .map(function (a) { return a.id; }));
+  }
+  return o;
+}
+/* Called for EVERY day on every redraw, not just the day on screen, so a delta always means "since
+   the board was last drawn" rather than "since you last looked at this particular day". The
+   snapshot is taken here, after the comparison, which is why a change shows its delta once and
+   then settles. The issues passed in are the VISIBLE ones: an issue somebody has accepted has been
+   looked at and waved through, and it should not go on dragging the score down afterwards. */
+function strengthTick(day, dateISO, issues, wk, di){
+  if (!window.Strength || !data) return null;
+  var prev = null;
+  if (di > 0 && wk && wk.days) prev = wk.days[di - 1];
+  else if (data.weeks) { var pw = data.weeks[addDays(currentWeekKey, -7)]; if (pw && pw.days) prev = pw.days[6]; }
+  var sc = Strength.scoreDay({
+    day: day, dateISO: dateISO, byId: Strength.indexStaff(data.staff),
+    firstSeen: strFirstSeen(), counts: strCounts(day),
+    prevCounts: prev ? strCounts(prev) : null,
+    issues: issues || [], cfg: strengthCfg() });
+  var seen = STR_SEEN[dateISO], delta = {}, now = { pods: {}, day: sc.day.pct }, i, p, pd;
+  for (i = 0; i < PODS.length; i++) {
+    p = PODS[i]; pd = sc.pods[p];
+    now.pods[p] = pd ? pd.pct : null;
+    if (seen && seen.pods[p] != null && pd && pd.pct != null && seen.pods[p] !== pd.pct)
+      delta[p] = pd.pct - seen.pods[p];
+  }
+  var dd = (seen && seen.day != null && sc.day.pct != null && seen.day !== sc.day.pct) ? sc.day.pct - seen.day : 0;
   STR_SEEN[dateISO] = now;
-  STR_DAY[dateISO] = { ds: ds, delta: delta };
+  STR_DAY[dateISO] = { sc: sc, delta: delta, dayDelta: dd };
   return STR_DAY[dateISO];
 }
-/* The line a dial carries. Gaps first, because a gap names the thing to fix and a bare number
-   names nobody. Then the headroom above the floor, which the capped ring can no longer show and
-   which is the other fact somebody can act on. */
-function strengthWhy(sc){
-  if (!sc) return "";
-  /* GAPS, AND WHAT THE RING CANNOT SHOW. It used to fall through to "meets its floor", which is
-     project rule 2 — a sentence restating what the green ring has already said, and that stays
-     gone. A pod with nothing missing and no headroom says nothing at all. */
-  var parts = (sc.gaps && sc.gaps.length) ? sc.gaps.slice() : [];
-  /* THE HEADROOM THE RING NO LONGER SHOWS. Capping the badge at the floor means a pod 7 clear of
-     what it needs and a pod exactly on it draw the identical full ring — and that difference is
-     the whole hoarding signal (13 Aug: three transfer-trained in Pod A, none in Pod C). It moves
-     here, as a bare figure. Not a sentence explaining the ring, which would be project rule 2:
-     a number the ring cannot show, which is the one thing this line is for. */
-  var over = Strength.spare(sc);
-  if (over > 0) parts.push("+" + over + " spare");
+/* THE DONOR SENTENCE, WHICH IS THE WHOLE POINT. Surplus is capacity, not score: a pod is not better
+   for holding three transfer-trained people, and on 13 Aug Pod A held exactly that while Pod C held
+   none and nothing on the board said so. Named against the pod that is MISSING the thing, because
+   that is where somebody is standing when they need to know. */
+function strDonorNote(sc, id, exceptPod){
+  var lst = Strength.donors(sc, id), i, out = [];
+  for (i = 0; i < lst.length; i++) if (lst[i].pod !== exceptPod) out.push("Pod " + lst[i].pod + " has " + lst[i].spare + " spare");
+  return out.join(", ");
+}
+/* The line under a dial. Only what is missing and only what can be moved — never a sentence
+   restating what the ring already said, which is project rule 2. */
+function strengthWhy(sc, p){
+  var pd = sc.pods[p], parts = [], i;
+  if (!pd) return "";
+  for (i = 0; i < pd.broken.length; i++) parts.push(Strength.shortOf(pd.broken[i]));
+  for (i = 0; i < pd.missed.length; i++) parts.push(Strength.shortOf(pd.missed[i]));
   return parts.join(" · ");
 }
-/* GATED ON EDIT MODE, AT THE SOURCE. Ali, 26.08.14: "the front view needs to stay as it is. when
-   press edit there can be some minimal things that come up to help with changes." A viewer sees
-   the board exactly as it was before any of this existed; the dial and its delta chip appear only
-   once somebody has pressed Edit, because that is the moment they are a working aid rather than a
-   dashboard. The gate is here rather than at the call site so no future caller can bypass it. */
-/* THE RING. Ali, 26.08.14: "theyre the same thing essentially… Strength needs to display the rule
-   breaches when clicked." A score in a circle was a second opinion sitting beside the rules; a
-   ring is how far round this pod has got towards what THIS pod needs, and tapping it is the way
-   into the rules underneath. Weighted, not proportional to the biggest pod: a pod at or above its
-   own level draws a FULL ring, so Pod E on 3 against a floor of 3 reads as finished rather than
-   as 37% of Pod A. Nothing is drawn past full, and — Ali, 26.08.14, on a Pod A reading "15 of 8":
-   "stupid 300%, there must be a maximum figure" — nothing is NUMBERED past full either. */
-function strengthRingSVG(sc){
-  var floor = Number(sc.floor);
-  if (!isFinite(floor)) floor = 0;
-  /* Both the arc and the centre number are CAPPED at the floor, and strength.js owns both rules so
-     there is one copy of each. The uncapped total is not lost: it is on the reason line as
-     headroom, and in full in the rules panel this ring opens. */
-  var frac = Strength.arc(sc);
-  var shown = Strength.shown(sc);
-  /* pathLength 100 makes the dash array a percentage whatever the radius is, so the geometry can
-     be retuned without recomputing a circumference. */
-  var arc = Math.round(frac * 1000) / 10;
+/* THE RING. Ali, 26.08.15: "At rest number when moved signed delta." A percentage in the middle,
+   the arc drawn to it, and the colour taken straight off the number as a continuous ramp rather
+   than three buckets — 69 and 71 must not look like different kinds of thing. There is no
+   denominator on the face any more: the old "8 of 8" was a floor reverse-engineered from what a
+   pod had historically run at, and Ali threw it out ("why is pod E out of 3"). What the number is
+   OUT OF is in the panel behind it, where the arithmetic belongs. */
+function strengthRingSVG(pd){
+  if (pd.isBroken)
+    return '<svg class="strring" viewBox="0 0 40 40" width="38" height="38" focusable="false" aria-hidden="true">'
+      + '<circle class="rt" cx="20" cy="20" r="15.9155" pathLength="100"></circle>'
+      + '<circle class="ra" cx="20" cy="20" r="15.9155" pathLength="100" stroke-dasharray="100 100" style="stroke:#E24B4A"></circle>'
+      + '<text class="rx" x="20" y="25">!</text></svg>';
+  var pct = pd.pct, col = Strength.colourOf(pct);
+  var arc = pct == null ? 0 : Math.max(0, Math.min(100, pct));
+  /* pathLength 100 makes the dash array a percentage whatever the radius is, so the geometry can be
+     retuned without recomputing a circumference. */
   return '<svg class="strring" viewBox="0 0 40 40" width="38" height="38" focusable="false" aria-hidden="true">'
     + '<circle class="rt" cx="20" cy="20" r="15.9155" pathLength="100"></circle>'
-    + (arc > 0 ? '<circle class="ra" cx="20" cy="20" r="15.9155" pathLength="100" stroke-dasharray="' + arc + ' 100"></circle>' : '')
-    + '<text class="rn" x="20" y="19.5">' + esc(String(shown)) + '</text>'
-    + '<text class="rf" x="20" y="28">of ' + esc(String(floor)) + '</text>'
+    + (arc > 0 ? '<circle class="ra" cx="20" cy="20" r="15.9155" pathLength="100" stroke-dasharray="' + arc + ' 100" style="stroke:' + col + '"></circle>' : '')
+    + '<text class="rn" x="20" y="24.5" style="fill:' + col + '">' + esc(pct == null ? "–" : String(pct)) + '</text>'
     + '</svg>';
 }
-/* Tier points are LOOKED UP from the config, never recalculated — strength.js owns the maths and
-   this page owns the drawing, and the moment that stops being true they drift. */
-var STR_TIERPTS = { "new": "newPts", settling: "settlePts", established: "estPts", unknown: "unknownPts" };
-var STR_TIERLAB = { "new": "new", settling: "settling", established: "established", unknown: "no start date" };
-/* The four per-pod requirements, answered for one pod on one day out of the podScore the board
-   already holds. Each carries the cost Settings gives it — a rule switched off is not asked. */
-function strengthRuleRows(sc, cfg){
-  var rows = [], people = sc.people || [];
-  var n = function(k){ var v = Number(cfg[k]); return isFinite(v) ? v : 0; };
-  var on = function(k){ return cfg[k] !== false; };
-  if (on("reqAirway"))
-    rows.push({ label: "Airway in the pod", met: sc.airway > 0, weight: n("reqAirwayPts") });
-  if (on("reqTransfer"))
-    rows.push({ label: "Transfer-trained in the pod", met: sc.transfer > 0, weight: n("reqTransferPts") });
-  var wk = n("newWeeks") || 3;
-  if (on("reqNotAllNew"))
-    rows.push({ label: "Not everybody inside " + wk + " weeks",
-                met: !(people.length && sc.newcomers === people.length), weight: n("reqNotAllNewPts") });
-  if (on("reqNewMentor")) {
-    var est = 0, i;
-    for (i = 0; i < people.length; i++) if (people[i].tier === "established") est++;
-    rows.push({ label: "Established beside anyone inside " + wk + " weeks",
-                met: !(sc.newcomers && !est), weight: n("reqNewMentorPts") });
-  }
-  return rows;
-}
-/* WHAT THE RING OPENS. The board's own modal, not a new one. Every line is a rule with an answer;
-   every person is their tier, what that tier is worth and what they add. Somebody with no start
-   date is listed with the 0 they are actually counted as, rather than quietly left out — a person
-   the score cannot see is exactly the thing that has to be visible.
-   HARD RULE 6: only the people who ARE in the pod appear, and only what they can do. Nobody who
-   is not on the day is named, counted, hinted at or explained anywhere on this panel. */
+var STR_TIERLAB = { "new": "first weeks", mid: "under a year", settled: "a year or more", unknown: "no start date" };
+/* WHAT THE RING OPENS — every point accounted for. The board's own modal, not a new one. Four kinds
+   of line, in the order somebody needs them: what is broken, what was missed and who could fill it,
+   what could not be done today at all, and who is actually in the pod.
+
+   A requirement that could not have been met is shown as a DASH, not a cross, and it is out of the
+   denominator: on 13 Aug three airway-trained people were on for four pods that want one, and
+   marking two pods wrong for arithmetic they could not beat is what made the board say nothing can
+   be done and sent everybody off to shuffle by hand.
+
+   HARD RULE 6: only the people who ARE in the pod appear, and only what they can do. Nobody absent
+   is named, counted, hinted at or explained anywhere on this panel. */
 function strengthRulesDialog(dateISO, p){
   var rec = STR_DAY[dateISO];
-  if (!rec || !rec.ds || !rec.ds.pods || !rec.ds.pods[p]) return;
+  if (!rec || !rec.sc || !rec.sc.pods || !rec.sc.pods[p]) return;
   var m = $("#modal"); if (!m) return;
-  var sc = rec.ds.pods[p], cfg = strengthCfg(), i;
-  var sgn = function(v){ return (v > 0 ? "+" : "") + String(v); };
-  var mark = function(met){ return el("span", { class: "rmk" }, met ? "✓" : "✕"); };
+  var sc = rec.sc, pd = sc.pods[p], i;
+  var mark = function(k){ return el("span", { class: "rmk" }, k); };
+  var line = function(cls, glyph, label, sub, right){
+    return el("div", { class: "strrule " + cls }, mark(glyph),
+      el("span", { class: "rlb" }, label, sub ? el("span", { class: "rsk" }, sub) : null),
+      el("span", { class: "rwt" }, right || ""));
+  };
   m.innerHTML = "";
   m.append(el("h3", {}, "Pod " + p + " · " + fmtDate(dateISO)));
-  var rules = strengthRuleRows(sc, cfg);
-  for (i = 0; i < rules.length; i++)
-    m.append(el("div", { class: "strrule " + (rules[i].met ? "met" : "unmet") },
-      mark(rules[i].met),
-      el("span", { class: "rlb" }, rules[i].label),
-      el("span", { class: "rwt" }, sgn(rules[i].weight))));
-  var people = sc.people || [];
+  for (i = 0; i < pd.broken.length; i++)
+    m.append(line("unmet", "✕", Strength.labelOf(pd.broken[i]), "", "must"));
+  for (i = 0; i < pd.missed.length; i++)
+    m.append(line("unmet", "✕", Strength.labelOf(pd.missed[i]),
+      strDonorNote(sc, pd.missed[i], p), "0 of " + Strength.wOf(sc.cfg, pd.missed[i])));
+  for (i = 0; i < pd.met.length; i++)
+    m.append(line("met", "✓", Strength.labelOf(pd.met[i]), "",
+      Strength.wOf(sc.cfg, pd.met[i]) + " of " + Strength.wOf(sc.cfg, pd.met[i])));
+  for (i = 0; i < pd.dropped.length; i++)
+    m.append(line("na", "–", Strength.labelOf(pd.dropped[i]), "none spare on the day shift", "n/a"));
   m.append(el("div", { class: "strhead" }, "In the pod"));
-  if (!people.length) m.append(el("div", { class: "strrule unmet" }, mark(false), el("span", { class: "rlb" }, "empty")));
-  for (i = 0; i < people.length; i++) {
-    var pe = people[i], s = (typeof staffById === "function") ? staffById(pe.id) : null;
-    var tp = Number(cfg[STR_TIERPTS[pe.tier]]);
-    if (!isFinite(tp)) tp = 0;
-    var known = pe.tier !== "unknown";
-    m.append(el("div", { class: "strrule " + (known ? "met" : "unmet") },
-      mark(known),
-      el("span", { class: "rlb" }, (s && s.name) || String(pe.id),
-        el("span", { class: "rsk" },
-          (STR_TIERLAB[pe.tier] || pe.tier) + " " + sgn(tp)
-          + ((pe.skills && pe.skills.length) ? " · " + pe.skills.join(" · ") : ""))),
-      el("span", { class: "rwt" }, sgn(pe.pts))));
+  if (!pd.people.length) m.append(line("unmet", "✕", "empty", "", ""));
+  for (i = 0; i < pd.people.length; i++) {
+    var pe = pd.people[i], sk = [];
+    if (pe.airway) sk.push("airway");
+    if (pe.transfer) sk.push("transfer");
+    if (pe.accp) sk.push("ACCP");
+    m.append(line(pe.tier === "unknown" ? "unmet" : "met", pe.tier === "unknown" ? "?" : "✓",
+      pe.name || pe.id,
+      (STR_TIERLAB[pe.tier] || pe.tier) + (sk.length ? " · " + sk.join(" · ") : ""),
+      pe.grade || ""));
   }
-  m.append(el("div", { class: "strrule tot " + (sc.meets ? "met" : "unmet") },
-    mark(sc.meets),
-    el("span", { class: "rlb" }, "Pod " + p + " level"),
-    el("span", { class: "rwt" }, sc.pts + " of " + sc.floor)));
+  m.append(el("div", { class: "strrule tot " + (pd.isBroken ? "unmet" : "met") },
+    mark(pd.isBroken ? "✕" : "✓"),
+    el("span", { class: "rlb" }, "Pod " + p),
+    el("span", { class: "rwt" }, pd.isBroken ? "broken" : (pd.pct + "% · " + pd.got + " of " + pd.app))));
   m.append(el("div", { class: "modalbtns" }, el("button", { class: "btn", onclick: closeModal }, "Close")));
   $("#modalBg").style.display = "flex";
 }
-/* GATED ON EDIT MODE, AT THE SOURCE — see the note above strengthWhy. A viewer sees the board
-   exactly as it was before any of this existed. */
+/* One date, asked once. The board already owns a modal; a date is not worth a second one. Resolves
+   to the ISO date or null, so a caller can be written as "if they gave me one, use it". */
+function askDate(title, cur){
+  return new Promise(function (resolve) {
+    var m = $("#modal"); if (!m) { resolve(null); return; }
+    var inp = el("input", { type: "date", value: cur || "", style: "width:100%;margin:.6rem 0" });
+    var done = function (v) { closeModal(); resolve(v); };
+    m.innerHTML = "";
+    m.append(el("h3", {}, title), inp,
+      el("div", { class: "modalbtns" },
+        el("button", { class: "btn sec", onclick: function () { done(null); } }, "Cancel"),
+        el("button", { class: "btn", onclick: function () { done(inp.value || null); } }, "Save")));
+    $("#modalBg").style.display = "flex";
+    setTimeout(function () { try { inp.focus(); } catch (e) {} }, 40);
+  });
+}
+/* GATED ON EDIT MODE, AT THE SOURCE. Ali, 26.08.14: "the front view needs to stay as it is. when
+   press edit there can be some minimal things that come up to help with changes", and 26.08.15:
+   "A, doesnt need to show when not editing". So a viewer sees the board exactly as it was before
+   any of this existed — which also leaves the pod corner to the consultant initials — and the ring
+   appears only once somebody has pressed Edit. The gate is here rather than at the call site so no
+   future caller can bypass it. */
 function strengthDial(dateISO, p){
   if (!canEdit()) return null;
   var rec = STR_DAY[dateISO];
-  if (!rec || !rec.ds || !rec.ds.pods || !rec.ds.pods[p]) return null;
-  var sc = rec.ds.pods[p], d = rec.delta[p];
-  /* The tooltip and the screen-reader label say what the ring says, capped the same way — a badge
-     reading "8 of 8" whose tooltip says "15 of 8" is the confusion, twice. The true total lives in
-     the rules panel, one tap away. */
-  var shown = Strength.shown(sc);
-  var btn = el("button", { class: "strdial " + Strength.band(sc), type: "button",
-    title: "Pod " + p + " · " + shown + " of " + sc.floor,
-    "aria-label": "Pod " + p + " " + shown + " of " + sc.floor,
-    html: strengthRingSVG(sc),
+  if (!rec || !rec.sc || !rec.sc.pods || !rec.sc.pods[p]) return null;
+  var pd = rec.sc.pods[p], d = rec.delta[p];
+  if (!pd.app && !pd.isBroken) return null;
+  var lab = pd.isBroken ? ("Pod " + p + " broken") : ("Pod " + p + " " + pd.pct + " per cent");
+  var btn = el("button", { class: "strdial " + (pd.isBroken ? "broken" : Strength.band(pd.pct)), type: "button",
+    title: lab, "aria-label": lab, html: strengthRingSVG(pd),
     /* stopPropagation because the pod cell is a drop zone and a tap-to-place target — opening the
-       rules must not also count as picking the pod. */
+       arithmetic must not also count as picking the pod. */
     onclick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); strengthRulesDialog(dateISO, p); } });
   var wrap = el("div", { class: "strpod" }, btn);
+  /* THE SIGNED DELTA. Ali chose this over a ghost arc: a change of three points has to be legible,
+     and an arc creeping by three pixels is not. It says only that a number moved and by how much —
+     never who moved, never why anybody is or is not on the day (hard rule 6). */
   if (d) wrap.append(el("span", { class: "strdelta " + (d > 0 ? "up" : "down") },
-    (d > 0 ? "▲" : "▼") + String(Math.abs(d))));
-  /* Only when there is something to say — an empty span still costs a flex gap and a basis. */
-  var why = strengthWhy(sc);
+    (d > 0 ? "+" : "−") + String(Math.abs(d))));
+  var why = strengthWhy(rec.sc, p);
   if (why) wrap.append(el("span", { class: "strwhy" }, why));
   return wrap;
 }
-/* Five bars against the tallest thing on the day — a pod's score, or its floor where the floor
-   is higher — so a day where everything is thin reads as a low row rather than as five
-   full-height bars that say nothing. */
-/* Takes a dayScore rather than a date, so the Setup page can draw a day it has just scored itself
-   without going through STR_DAY — which belongs to the board's redraw cycle and whose snapshots
-   drive the delta chips. A second reader poking at it would eat those deltas. */
-function strengthShape(ds){
-  if (!ds || ds.empty) return null;
-  var top = 1, i, p, sc, h, worst = null;
+/* The day, as one number and five bars. Not on the board — Ali, 26.08.14: "the front view needs to
+   stay as it is" — this is what Setup draws, and what the fix card compares against. */
+function strengthShape(sc){
+  if (!sc || sc.empty) return null;
+  var bars = el("div", { class: "strm-bars" }), i, p, pd, h;
   for (i = 0; i < PODS.length; i++) {
-    sc = ds.pods[PODS[i]]; if (!sc) continue;
-    if (sc.pts > top) top = sc.pts;
-    if (sc.floor > top) top = sc.floor;
-    /* Named from the shortfalls themselves, not from ds.weakest: on the "min" and "avg" day
-       scores weakest is the LOWEST pod, which is not always the one furthest below its own
-       floor, and the sentence is about the floor. */
-    if (ds.worstShort > 0 && worst === null && sc.short === ds.worstShort) worst = sc.pod;
-  }
-  var bars = el("div", { class: "strm-bars" });
-  for (i = 0; i < PODS.length; i++) {
-    p = PODS[i]; sc = ds.pods[p];
-    h = sc ? Math.max(6, Math.min(100, Math.round(sc.pts / top * 100))) : 6;
+    p = PODS[i]; pd = sc.pods[p];
+    h = (pd && pd.pct != null) ? Math.max(6, pd.pct) : 6;
     bars.append(el("div", { class: "strm-col" },
       el("div", { class: "strm-slot" },
-        el("i", { class: "strm-fill " + (sc ? Strength.band(sc) : "unknown"),
-                  style: "height:" + h + "%",
-                  title: sc ? (sc.pts + " · floor " + sc.floor) : "" })),
+        el("i", { class: "strm-fill " + (pd && pd.isBroken ? "bare" : Strength.band(pd ? pd.pct : null)),
+                  style: "height:" + h + "%;background:" + (pd && pd.isBroken ? "#E24B4A" : Strength.colourOf(pd ? pd.pct : null)),
+                  title: pd ? (pd.isBroken ? "broken" : pd.pct + "%") : "" })),
       el("span", {}, p)));
   }
-  var say = (ds.worstShort > 0 && worst)
-    ? "Pod " + worst + " is " + ds.worstShort + " below its floor"
-    : "every pod meets its floor";
+  var brk = [], q;
+  for (i = 0; i < PODS.length; i++) { q = PODS[i]; if (sc.pods[q] && sc.pods[q].isBroken) brk.push(q); }
+  var say = brk.length ? ("Pod " + brk.join(", ") + " broken") : (sc.day.missed.length + " of " + (sc.day.met.length + sc.day.missed.length) + " day aims missed");
   return el("div", { class: "strm-wrap" },
-    el("span", { class: "strm-score" }, String(ds.score)),
+    el("span", { class: "strm-score", style: "color:" + Strength.colourOf(sc.day.pct) }, sc.day.pct + "%"),
     bars,
     el("span", { class: "strm-say" }, say));
 }
-/* The day row form. NOTHING ON THE BOARD CALLS THIS ANY MORE — renderWeek used to append it above
-   every day and no longer does (see the note there). Kept, not deleted: the shape is the same one
-   Setup › Pod strength draws, and the day-row form is the thing to reach for if the day meter is
-   ever wanted back inside the table. */
+/* Scores an arbitrary day — a proposed fix, a Setup preview — WITHOUT touching STR_SEEN or
+   STR_DAY. Those belong to the board's redraw cycle and drive the delta chips; a second reader
+   poking at them would eat a delta somebody was about to see. */
+function strengthScoreOf(day, dateISO, di, wk){
+  if (!window.Strength || !data) return null;
+  var prev = null;
+  if (di > 0 && wk && wk.days) prev = wk.days[di - 1];
+  else if (data.weeks) { var pw = data.weeks[addDays(currentWeekKey, -7)]; if (pw && pw.days) prev = pw.days[6]; }
+  var issues = checkDay(day, dateISO, di, wk).filter(function (i) { return !i.empty && !isAccepted(wk, di, i.msg); });
+  return Strength.scoreDay({
+    day: day, dateISO: dateISO, byId: Strength.indexStaff(data.staff),
+    firstSeen: strFirstSeen(), counts: strCounts(day),
+    prevCounts: prev ? strCounts(prev) : null, issues: issues, cfg: strengthCfg() });
+}
+/* Kept for the day-row form, which nothing on the board calls any more (see the note in renderWeek).
+   The shape is the one Setup draws, and this is the thing to reach for if the day meter is ever
+   wanted back inside the table. */
 function strengthMeterRow(dateISO){
   var rec = STR_DAY[dateISO];
   if (!rec) return null;
-  var wrap = strengthShape(rec.ds);
+  var wrap = strengthShape(rec.sc);
   if (!wrap) return null;
   return el("tr", { class: "strrow" }, el("td", { class: "strmeter", colspan: "9" }, wrap));
 }
@@ -7309,7 +7391,7 @@ async function applyDuePendingSkills(silent){
    somebody is what the row was asking for). The row must still grey rather than vanish, so the
    title is copied into the store when it is pressed and drawn from there for its three days. */
 const SORTED_GREY_DAYS = 3;
-const LIVE_KINDS = ["clash", "ghost", "unver", "dup", "cover"];
+const LIVE_KINDS = ["clash", "ghost", "unver", "dup", "cover", "noexp", "retn"];
 function sortedOf(id){ return (data && data.sorted && data.sorted[id]) || null; }
 /* Rows that summarise a SET — the clashes, the ghosts — carry a signature of that set in their id,
    so quieting today's three clashes cannot also quiet tomorrow's fourth. A new fact is a new row. */
@@ -7348,6 +7430,61 @@ function rawAttention(){
       sortLabel: "Checked",
       onSort: () => { s.verified = true; logEntry("Checked new starter: " + s.name); },
       go: () => switchTab("staff") });
+  }
+
+  /* ── DATA THE SCORE IS BLIND TO ────────────────────────────────────────────────────────────
+     Ali, 26.08.15: "if people missing data flag in attention and allow it to be resolved in mnimal
+     clicks." Pod scoring reads how long somebody has been on the unit, and it gets that from a
+     stated start date or, failing that, their first shift in the roster history. Where it has
+     NEITHER it holds them at unknown and charges nobody for it — a blank field must never make a
+     pod look worse, because then the fix for a bad score is to leave fields blank. Instead the
+     blank comes here and asks.
+
+     BOTH ROWS ARE SELF-MAINTAINING. Neither is a to-do list somebody has to prune: the condition
+     is recomputed from the data every time this page draws, so answering makes the row false, and
+     a new arrival with the same gap raises their own.
+
+     HARD RULE 6: these ask how long somebody has been HERE. There is no field, no button and no
+     phrasing anywhere on them that touches on why anybody is or is not on a day. */
+  if (window.Strength) {
+    const scfg = strengthCfg(), sfs = strFirstSeen(), sToday = todayISO();
+    const editThen = async (fn) => {
+      if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
+      fn(); markDirty(); saveFile(true); renderAll();
+    };
+    for (const s of data.staff.filter(x => x.active !== false && x.grade !== "CON" && !x.adhoc)) {
+      const tier = Strength.tierOf(s, sToday, scfg, sfs);
+      if (tier === "unknown") {
+        out.push({ kind: "noexp", id: "noexp:" + s.id, n: 1,
+          title: s.name + " has no time on the unit",
+          body: "No start date, and no shift in the roster history to take one from"
+              + (s.grade ? " (" + s.grade + ")" : "") + ". Pod scoring holds them at unknown rather than guessing.",
+          actLabel: "Set a start date",
+          act: () => askDate("When did " + s.name + " start?", s.start || "").then(d => {
+            if (!d) return;
+            editThen(() => { s.start = d; logEntry("Start date set for " + s.name + ": " + fmtDate(d)); });
+          }),
+          act2Label: "Been here before",
+          act2: () => editThen(() => { s.returner = true; logEntry(s.name + " marked as having worked here before"); }),
+          go: () => switchTab("staff") });
+      }
+      /* A RETURNER LOOKS EXACTLY LIKE A NEW STARTER and nothing writes the field, which is the one
+         gap that keeps the experience weight capped. It cannot be derived — but it can be
+         SUSPECTED, from the roster itself: somebody whose first shift on this unit predates their
+         current start date by more than a year has been here before. That is a question worth
+         asking and never an answer worth assuming, so it is a row with two buttons and no default. */
+      if (!s.returner && tier === "new" && s.start && sfs[s.id] &&
+          (new Date(s.start) - new Date(sfs[s.id])) > Number(scfg.settleDays) * 86400000) {
+        out.push({ kind: "retn", id: "retn:" + s.id, n: 1,
+          title: "Has " + s.name + " worked here before?",
+          body: "Started " + fmtDate(s.start) + ", but the roster has them on a shift as far back as "
+              + fmtDate(sfs[s.id]) + ". If they are back for another block they are not a new starter.",
+          actLabel: "Yes, been here before",
+          act: () => editThen(() => { s.returner = true; logEntry(s.name + " marked as having worked here before"); }),
+          sortLabel: "No",
+          go: () => switchTab("staff") });
+      }
+    }
   }
 
   /* Two records for one person is not a tidiness problem: the rules live on one of them while the
@@ -7631,6 +7768,10 @@ function renderAttention(){
          does the work — one row, two intentions, neither stealing the other. */
       if (it.act) row.append(el("button", { class: "btn attnact", onclick: e => { e.stopPropagation(); it.act(); } },
         it.actLabel || "Fix"));
+      /* A second doer, for rows where there are genuinely two right answers and making somebody
+         choose one of them in a modal first would be a click spent on nothing. */
+      if (it.act2) row.append(el("button", { class: "btn sec attnact", onclick: e => { e.stopPropagation(); it.act2(); } },
+        it.act2Label || "Or"));
       row.append(el("button", { class: "btn sec attnsort", onclick: e => { e.stopPropagation(); markSorted(it.id); } },
         it.sortLabel || "Sorted"));
     }
@@ -7841,74 +7982,15 @@ function renderSettings(){
   }
   box.append(grid);
 
-  /* ---- THE PER-POD REQUIREMENTS ------------------------------------------------------------
-     Ali, 26.08.14: "theyre the same thing essentially". Pod strength stopped being a signal of
-     its own the moment he said that, so its four requirements are RULES and they live here, in
-     the same grid as the rest of the rules, rather than on a scoring screen of their own. The
-     pod levels came with them for the same reason — a floor is what a pod needs, which is a rule
-     and not a setting on a dashboard.
+  /* ---- THE PER-POD REQUIREMENTS ARE NOT HERE ANY MORE (26.08.15) ---------------------------
+     There were four of them, each a switch and a cost, sitting in this grid beside the rule
+     numbers — plus five "pod levels", floors reverse-engineered from what each pod had
+     historically run at. Ali threw the floors out ("why is pod E out of 3") and the four
+     requirements have been absorbed into a register of twenty-four, which is the whole point of
+     a register: one list, or it is not one system.
 
-     HARD RULE 1 — each one switches on and off and carries a cost, both from here, by whoever is
-     editing. Nothing about them needs a code edit, repo access or me. The costs ship at 0 (see
-     strength.js): a rule at 0 names the breach without moving the number, and what a breach is
-     worth is a decision to make on the real board.
-
-     HARD RULE 6 — every one of these reads what somebody CAN DO. None of them records, asks or
-     implies anything about a person who is not on the day. */
-  box.append(h("Per-pod requirements"));
-  const scfg = strengthCfg();
-  const setStrCfg = patch => { data.strengthCfg = Object.assign({}, data.strengthCfg || {}, patch); };
-  const reqs = [["reqAirway", "reqAirwayPts", "airway in the pod"],
-    ["reqTransfer", "reqTransferPts", "transfer-trained in the pod"],
-    ["reqNotAllNew", "reqNotAllNewPts", "not everybody inside the first weeks"],
-    ["reqNewMentor", "reqNewMentorPts", "established beside anyone inside the first weeks"]];
-  const rgrid = el("div", { style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.55rem" });
-  for (const [onK, ptsK, label] of reqs) {
-    const isOn = scfg[onK] !== false;
-    const wt = Number(scfg[ptsK]);
-    const inp = el("input", { type: "number", value: String(isFinite(wt) ? wt : 0),
-      style: "font-size:1.35rem;font-weight:600;width:100%;border:0;background:transparent;padding:0" });
-    inp.disabled = !isOn;
-    inp.onchange = () => {
-      const v = Number(inp.value), was = isFinite(wt) ? wt : 0;
-      if (inp.value === "" || !isFinite(v)) { inp.value = String(was); return; }
-      const patch = {}; patch[ptsK] = v; setStrCfg(patch);
-      save("Rule: " + label + " changed from " + was + " to " + v);
-      renderAll(); renderSettings();
-    };
-    const cb = el("input", { type: "checkbox", title: label });
-    cb.checked = isOn;
-    cb.onchange = () => {
-      const patch = {}; patch[onK] = cb.checked; setStrCfg(patch);
-      save("Rule: " + label + (cb.checked ? " on" : " off"));
-      renderAll(); renderSettings();
-    };
-    rgrid.append(el("div", { style: "background:var(--hair);border-radius:10px;padding:.6rem .75rem" + (isOn ? "" : ";opacity:.55") },
-      el("div", { style: "display:flex;align-items:baseline;gap:.4rem" }, inp, cb),
-      el("div", { style: "font-size:.76rem;color:var(--muted);line-height:1.35;margin-top:.15rem" }, label)));
-  }
-  box.append(rgrid);
-
-  /* One level per pod, because a pod is judged against what THAT pod needs. Scoring E against
-     A–D made E the weakest pod on almost every day, which is a signal that only ever says "E". */
-  const flgrid = el("div", { style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.55rem;margin-top:.55rem" });
-  for (const p of PODS) {
-    const was = (scfg.floors || {})[p];
-    const inp = el("input", { type: "number", value: String(was == null ? "" : was),
-      style: "font-size:1.35rem;font-weight:600;width:100%;border:0;background:transparent;padding:0" });
-    inp.onchange = () => {
-      const v = Number(inp.value);
-      if (inp.value === "" || !isFinite(v)) { inp.value = String(was == null ? "" : was); return; }
-      const fl = Object.assign({}, scfg.floors || {}); fl[p] = v;
-      setStrCfg({ floors: fl });
-      save("Rule: Pod " + p + " level changed from " + was + " to " + v);
-      renderAll(); renderSettings();
-    };
-    flgrid.append(el("div", { style: "background:var(--hair);border-radius:10px;padding:.6rem .75rem" },
-      el("div", { style: "display:flex;align-items:baseline;gap:.2rem" }, inp),
-      el("div", { style: "font-size:.76rem;color:var(--muted);line-height:1.35;margin-top:.15rem" }, "Pod " + p + " level")));
-  }
-  box.append(flgrid);
+     They live on Setup › Pod strength. Two editors for one stored number is how they drift, and
+     the tile below is the way in. */
 
   /* ---- WHO CAN ALLOW A PASSWORD RESET ------------------------------------------------------
      Full addresses only here, behind the shield. The lock screen shows them masked, because
@@ -7977,11 +8059,22 @@ function renderSettings(){
    HARD RULE 6 — nothing here records or hints at why anybody is not on. A pod is scored from the
    people who ARE in it and what they can do. Somebody not on a day is simply not in the list, and
    no field, label or log line on this page can be read backwards to a reason. */
+/* ── THE REGISTER, ON THE ROTA TEAM'S PAGE ──────────────────────────────────────────────────
+   Ali, 26.08.15: "This can live in the background on a page in rota team but the front end for
+   public when editing mush be little ring diagram in each corner." So the whole list lives here
+   and nowhere near the board. Twenty-four rows, drawn FROM strength.js rather than typed out
+   again — a register the page could disagree with is not a register.
+
+   HARD RULE 1: every weight and every switch on this page is the real thing the evaluator reads.
+   Nothing here needs a code edit, repo access or me.
+
+   GATES CANNOT BE SWITCHED OFF and carry no weight. They are not aims with a big number: a pod
+   below its minimum or without a long day is broken, and a percentage of broken is not a thing.
+   They are listed because a rule nobody can see is a rule nobody can argue with. */
 function renderStrengthPage(box){
   const save = msg => { logEntry(msg, "manual"); markDirty(); saveFile(true); };
-  /* renderAll first so renderWeek re-ticks every day with the new numbers, then this page again so
-     the bars above are drawn from the same pass rather than from the previous one. */
   const redraw = () => { renderAll(); renderSettings(); };
+  function setStr(patch){ data.strengthCfg = Object.assign({}, data.strengthCfg || {}, patch); }
   box.append(el("button", { class: "btn sec", style: "font-size:.78rem;padding:.25rem .7rem;margin-bottom:.9rem",
     onclick: () => { settingsPage = null; renderSettings(); } }, "‹ Settings"));
   const h = t => el("div", { class: "sectlab", style: "margin:1.2rem 0 .5rem" }, t);
@@ -8000,34 +8093,57 @@ function renderStrengthPage(box){
   for (let di = 0; di < 7; di++) {
     const dateISO = addDays(wkKey, di);
     const day = wk && wk.days && wk.days[di];
-    const ds = (day && window.Strength)
-      ? Strength.dayScore(day, Strength.indexStaff(data.staff), dateISO, sc0) : null;
+    let sc = null;
+    try { if (day) sc = strengthScoreOf(day, dateISO, di, wk); } catch (e) {}
     dayList.append(el("div", { style: "display:flex;align-items:center;gap:.9rem;padding:.5rem 0;border-top:1px solid var(--hair)" },
       el("div", { style: "width:8rem;flex:none;font-size:.78rem;color:var(--muted)" },
         DAYNAMES[di] + " " + fmtDate(dateISO)),
-      strengthShape(ds) || el("span", { style: "font-size:.78rem;color:var(--muted)" }, "—")));
+      strengthShape(sc) || el("span", { style: "font-size:.78rem;color:var(--muted)" }, "—")));
   }
   box.append(dayList);
 
-  /* Three ways of turning five pod scores into one day number, side by side so they can be
-     compared on the real board rather than argued about from a mockup. */
-  const msel = el("select", { style: "font-size:.9rem" });
-  for (const [v, l] of [["floor","worst shortfall"],["min","lowest pod"],["avg","mean pod"]]) {
-    const o = el("option", { value: v }, l);
-    if (v === sc0.mode) o.selected = true;
-    msel.append(o);
+  box.append(h("The register"));
+  const scopeLab = { pod: "pod", day: "day", week: "week" };
+  const tbl = el("div", { class: "regtbl" });
+  for (const r of Strength.REGISTER) {
+    const isGate = r.kind === "gate";
+    const on = Strength.isOn(sc0, r.id);
+    const row = el("div", { class: "regrow" + (isGate ? " gate" : "") + (on ? "" : " off") });
+    row.append(el("span", { class: "regid" }, r.id),
+      el("span", { class: "reglb" }, r.label,
+        el("span", { class: "regsub" }, scopeLab[r.scope] + (r.rel ? " · drops below supply" : "") + (isGate ? " · gate" : ""))));
+    if (isGate) {
+      row.append(el("span", { class: "regw" }, "must"));
+    } else {
+      const wt = Strength.wOf(sc0, r.id);
+      const inp = el("input", { type: "number", value: String(wt), min: "0",
+        style: "width:3.2rem;font-size:1rem;font-weight:700;border:0;background:transparent;padding:0;text-align:right" });
+      inp.disabled = !on;
+      inp.onchange = () => {
+        const v = Number(inp.value);
+        if (inp.value === "" || !isFinite(v) || v < 0) { inp.value = String(wt); return; }
+        setStr({ w: Object.assign({}, sc0.w || {}, { [r.id]: v }) });
+        save("Requirement " + r.id + " (" + r.label + ") weight changed from " + wt + " to " + v);
+        redraw();
+      };
+      const cb = el("input", { type: "checkbox", title: r.label });
+      cb.checked = on;
+      cb.onchange = () => {
+        setStr({ off: Object.assign({}, sc0.off || {}, { [r.id]: !cb.checked }) });
+        save("Requirement " + r.id + " (" + r.label + ") turned " + (cb.checked ? "on" : "off"));
+        redraw();
+      };
+      row.append(el("span", { class: "regw" }, inp), cb);
+    }
+    tbl.append(row);
   }
-  msel.onchange = () => {
-    const was = sc0.mode;
-    setStr({ mode: msel.value });
-    save("Setting: day score changed from " + was + " to " + msel.value);
-    redraw();
-  };
-  box.append(el("label", { style: "display:inline-flex;align-items:center;gap:.5rem;margin-top:.9rem;font-size:.8rem;color:var(--muted)" },
-    "Day score", msel));
+  box.append(tbl);
 
-  /* Same tile as the pod rules on the main settings screen, minus the "never below zero" guard
-     those have. */
+  /* THE THREE NUMBERS BEHIND THE REQUIREMENTS THEMSELVES, as opposed to what a breach is worth.
+     The tier boundaries are here because they are a choice and not a measurement: 24 of the 87
+     sit within a week of one, and rotational intakes arrive together, so a whole cohort crosses
+     a boundary on the same morning. */
+  box.append(h("How long counts as new"));
   const stile = (label, unit, val, apply) => {
     const inp = el("input", { type: "number", value: String(val),
       style: "font-size:1.35rem;font-weight:600;width:100%;border:0;background:transparent;padding:0" });
@@ -8041,17 +8157,9 @@ function renderStrengthPage(box){
         unit ? el("span", { style: "font-size:.9rem;color:var(--muted)" }, unit) : null),
       el("div", { style: "font-size:.76rem;color:var(--muted);line-height:1.35;margin-top:.15rem" }, label));
   };
-  function setStr(patch){ data.strengthCfg = Object.assign({}, data.strengthCfg || {}, patch); }
-
-  /* THE POD LEVELS ARE NOT HERE ANY MORE (26.08.14). What a pod needs is a rule, so it sits with
-     the rules on Settings › Pod rules, beside the four per-pod requirements. Two editors for one
-     stored number is how they drift; there is one, and it is the one that reads as a rule. */
-
-  box.append(h("What each thing is worth"));
-  const snums = [["newWeeks","new below this many weeks","wks"],["settleWeeks","settling below this many weeks","wks"],
-    ["newPts","new is worth",""],["settlePts","settling is worth",""],["estPts","established is worth",""],
-    ["airwayPts","airway trained is worth",""],["transferPts","transfer trained is worth",""],
-    ["phonePts","phone holder is worth",""]];
+  const snums = [["newDays", "new below this many days on the unit", "days"],
+    ["settleDays", "settled at or above this many days", "days"],
+    ["keepShare", "share of a pod that should stay put day to day", ""]];
   const sgrid2 = el("div", { style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.55rem" });
   for (const [k, label, unit] of snums)
     sgrid2.append(stile(label, unit, sc0[k], (v, lb) => {
