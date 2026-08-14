@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T14:04:28.366335+00:00",
- "build": "e13a0aa",
+ "generated": "2026-08-14T14:05:05.127596+00:00",
+ "build": "e775a8a",
  "liveBuild": "35abf4e",
- "count": 161,
+ "count": 163,
  "changes": [
+  {
+   "sha": "e775a8a",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T15:04:56+01:00",
+   "msg": "Add v11.html \u2014 read-only v1.1 review page (pod dial, day shape, mode/change/log toggles)"
+  },
+  {
+   "sha": "165ac05",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T14:04:28Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "e13a0aa",
    "who": "alistaircranfield",
