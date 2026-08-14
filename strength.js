@@ -145,7 +145,7 @@
        multiple of 20 (Ali: "still suspicious of algorithm with all the 100s and 80s and muliples
        of 10"). These are a proposal and the weakest part of the model — the override counter is
        what should set them, and it has only just started collecting. Editable from Setup. */
-    w: { R04: 3, N01: 2, N05: 2, N02: 1, N03: 3, N04: 1,
+    w: { R04: 3, N01: 2, N05: 1, N02: 1, N03: 3, N04: 1,
          R05: 1, R06: 1, R07: 1, R14: 1, R15: 1, R17: 1, R18: 1, R19: 1, R20: 1 },
 
     /* WHAT ONE PERSON IS WORTH TO A POD'S EXPERIENCE. Ali, 26.08.15: "nights even with 5 and 3
@@ -488,6 +488,26 @@
       }
       var spare = Math.max(0, supply - holds.length);
       var ordered = rank.filter(function (x) { return missAll.indexOf(x) !== -1; });
+      /* ── A SCARCE PERSON PARKED WHERE THEY ARE WORTH LEAST IS STILL AVAILABLE ────────────────
+         Ali, 26.08.15, looking at Monday 17 August: "looks wrong with Nabeel on E when there other
+         pods with no airway - whats caused this."
+
+         Three airway-trained were on. Pods B, C and E each held one, so `supply - holds.length`
+         came out at zero and Pods A and D were told nothing could be moved. But one of the three
+         was in POD E, which wants airway least of all the pods — moving them to A is not only
+         possible, it is the obvious thing to do, and the board said it could not be done.
+
+         So a pod is out of reach only if there is nowhere BETTER for the skill to come from: no
+         pod holding a spare, and no pod holding one that values it less than this pod does. The
+         weights that make E gentler must not also make E a place scarce people disappear into. */
+      var betterHome = function (forPod) {
+        var z, hp;
+        for (z = 0; z < holds.length; z++) {
+          hp = holds[z];
+          if (wFor(cfg, reg.id, hp) < wFor(cfg, reg.id, forPod)) return true;
+        }
+        return false;
+      };
       for (i = 0; i < order.length; i++) {
         p = order[i];
         if (want2.indexOf(p) === -1 || !pods[p].people.length) continue;
@@ -496,7 +516,8 @@
         var wantN = (reg.id === "R04" || reg.id === "N01") ? coverNeed(pods[p].people.length) : 1;
         charge(pods[p], reg.id, Math.min(1, countIn[p] / wantN), countIn[p] > 0, wFor(cfg, reg.id, p));
       }
-      for (i = spare; i < ordered.length; i++) pods[ordered[i]].unfixable.push(reg.id);
+      for (i = spare; i < ordered.length; i++)
+        if (!betterHome(ordered[i])) pods[ordered[i]].unfixable.push(reg.id);
     }
 
     /* Day and week aims. Same denominator, one level up, so a day that is fine pod by pod and
