@@ -1321,7 +1321,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
 </div>
 
 <script src="core.js?v=20260810-04"></script>
-<script src="strength.js?v=20260814-24"></script>
+<script src="strength.js?v=20260814-25"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -3374,22 +3374,46 @@ function idListEditor(container, dateISO, arr, filter, addLabel, day){
    the window and the board's own scroller, because on a laptop the table scrolls sideways inside
    its wrapper and on a phone the whole document scrolls. */
 function withScrollKept(fn){
+  /* THE SELECTOR LIST WAS THE BUG, AND IT TOOK THREE GOES. Ali, 26.08.15, after this was supposedly
+     fixed: "still annoying when press fix jumps to top page again", "making changes on after any
+     change", "infuriating. especiall when moving manually, keep the page in same position."
+
+     The board does not scroll the window on a laptop — it scrolls `.rota-wrap`, which is the one
+     container the original list did not name. So the code faithfully saved and restored a scroll
+     position that was always zero while the real scroller was rebuilt underneath it. Every element
+     that could hold a scroll offset is captured now, and the position is put back three times: at
+     once, on the next frame after layout, and once more a moment later, because several renderers
+     run in sequence after a change and any of them can reset it. */
   var w = (typeof window !== "undefined") ? window : null;
-  var box = document.querySelector(".tablewrap, .boardwrap, #boardScroll, main") || null;
+  var SEL = ".rota-wrap, .tablewrap, .boardwrap, #boardScroll, #main, main, .page";
   var y = w ? (w.scrollY || w.pageYOffset || 0) : 0, x = w ? (w.scrollX || w.pageXOffset || 0) : 0;
-  var by = box ? box.scrollTop : 0, bx = box ? box.scrollLeft : 0;
+  var saved = [];
+  try {
+    var list = document.querySelectorAll(SEL), i;
+    for (i = 0; i < list.length; i++)
+      if (list[i].scrollTop || list[i].scrollLeft) saved.push([list[i], list[i].scrollTop, list[i].scrollLeft]);
+  } catch (e) {}
   try { fn(); } finally {
     var put = function () {
       try { if (w && (y || x)) w.scrollTo(x, y); } catch (e) {}
+      /* Matched by POSITION IN THE DOCUMENT, not by holding the node: the whole point is that the
+         node was thrown away and rebuilt, so the reference we saved is no longer on the page. */
       try {
-        var b = document.querySelector(".tablewrap, .boardwrap, #boardScroll, main");
-        if (b && (by || bx)) { b.scrollTop = by; b.scrollLeft = bx; }
+        var now = document.querySelectorAll(SEL), k, n;
+        for (k = 0; k < saved.length; k++) {
+          n = saved[k][0];
+          if (!n.isConnected) { for (var q = 0; q < now.length; q++) if (now[q].className === n.className) { n = now[q]; break; } }
+          if (n && n.isConnected) { n.scrollTop = saved[k][1]; n.scrollLeft = saved[k][2]; }
+        }
       } catch (e) {}
     };
     put();
     if (w && w.requestAnimationFrame) w.requestAnimationFrame(put);
+    if (w) w.setTimeout(put, 140);
   }
 }
+/* EVERY REDRAW, not just the week. A manual move ends in renderWeek; Fix this day, an undo and a
+   sync landing all end in renderAll, which redraws ten panels — and the board is one of them. */
 function renderWeek(){ withScrollKept(renderWeekInner); }
 function renderWeekInner(){
   if (!data) return;
@@ -9532,7 +9556,8 @@ function resolveSyncClash(i, how){
   markDirty(); renderAll();
   toast(how === "take" ? "Changed to Optima's version: " + c.allocate : "Kept " + (c.app || "blank") + " — Optima won't override it");
 }
-function renderAll(){ fillStartDates(); recomputeHistoric(); renderWeek(); renderAutoNotice(); renderStaffGate(); renderFairGate(); renderImportGate(); renderLogGate(); renderOverridesGate(); renderTeamGate(); renderSyncReview(); updateTeamBadge(); }
+function renderAll(){ withScrollKept(renderAllInner); }
+function renderAllInner(){ fillStartDates(); recomputeHistoric(); renderWeek(); renderAutoNotice(); renderStaffGate(); renderFairGate(); renderImportGate(); renderLogGate(); renderOverridesGate(); renderTeamGate(); renderSyncReview(); updateTeamBadge(); }
 const PAGE_TITLES = { rota: "Pod Allocator", mine: "My shifts", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", settings: "Settings", help: "How it works", team: "Needs attention", feedback: "Trial feedback" };
 const TEAM_TABS = ["team", "import", "staff", "fair", "log", "settings", "feedback"];
 function switchTab(tab){
