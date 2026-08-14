@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T22:51:36.687332+00:00",
- "build": "6114cae",
+ "generated": "2026-08-14T22:56:50.881989+00:00",
+ "build": "ba1dd92",
  "liveBuild": "35abf4e",
- "count": 217,
+ "count": 219,
  "changes": [
+  {
+   "sha": "ba1dd92",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T23:56:42+01:00",
+   "msg": "A place that is not a pod is outside the map, not an unreadable entry"
+  },
+  {
+   "sha": "b1f6134",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T22:51:37Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "6114cae",
    "who": "alistaircranfield",
