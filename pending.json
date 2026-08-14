@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T18:47:37.714786+00:00",
- "build": "e50da3e",
+ "generated": "2026-08-14T18:48:56.182377+00:00",
+ "build": "140ecb2",
  "liveBuild": "35abf4e",
- "count": 193,
+ "count": 195,
  "changes": [
+  {
+   "sha": "140ecb2",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T19:48:46+01:00",
+   "msg": "No delta on a broken pod; the grey line carries only what a move would fix"
+  },
+  {
+   "sha": "7f8d236",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T18:47:37Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "e50da3e",
    "who": "alistaircranfield",
