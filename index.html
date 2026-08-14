@@ -1,4 +1,4 @@
-—<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -848,6 +848,60 @@ button.strdial:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .poddot.podE{background:var(--podE);color:var(--podEb)}
 .poddot.bench{background:var(--hair);color:var(--muted)}
 .strhead{font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:1rem 0 0}
+/* ── WHAT HAPPENED ────────────────────────────────────────────────────────────────────────
+   One card per rota day; inside it one block per person's go. The pod letters are the board's own
+   pastel circles so a move reads without a word being parsed. */
+.story{display:flex;flex-direction:column;gap:.6rem}
+.stcard{background:#fff;border:0.5px solid var(--line);border-radius:12px;overflow:hidden}
+.sthead{display:flex;align-items:baseline;gap:.7rem;padding:.75rem .9rem .6rem;border-bottom:0.5px solid var(--hair)}
+.stttl{flex:1;font-size:.95rem;font-weight:600;color:var(--ink)}
+.stsub{display:block;font-size:.72rem;font-weight:400;color:var(--muted);margin-top:.1rem}
+.stdelta{flex:none;text-align:right;white-space:nowrap}
+.stdelta b{display:block;font-size:.78rem;font-weight:800}
+.stdelta.big b{font-size:.88rem}
+.stdelta b.up{color:#4c8a2f}.stdelta b.down{color:#cf3d3d}.stdelta b.flat{color:var(--muted)}
+.stdelta span{display:block;font-size:.65rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.stsess+.stsess{border-top:0.5px solid var(--hair)}
+.stsess.sync{opacity:.62}
+.stopen{width:100%;border:0;background:transparent;text-align:left;padding:.65rem .9rem;cursor:pointer;
+  font:inherit;display:flex;gap:.6rem;align-items:flex-start}
+.stav{flex:none;width:27px;height:27px;border-radius:50%;background:var(--accent-bg);color:var(--accent);
+  font-size:.63rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;margin-top:1px}
+.stav.sync{background:var(--hair);color:var(--muted)}
+.stbody{flex:1;min-width:0}
+.stwho{font-size:.86rem;font-weight:600;color:var(--ink)}
+.sttag{font-size:.6rem;font-weight:700;padding:.05rem .4rem;border-radius:9px;margin-left:.35rem;vertical-align:1px}
+.sttag.fix{background:var(--accent-bg);color:var(--accent)}
+.sttag.none{background:var(--hair);color:var(--muted)}
+.sttm{font-size:.7rem;color:var(--muted);margin-top:.05rem}
+.stmove{display:flex;align-items:center;gap:.45rem;padding:.15rem 0}
+.stnm{flex:1;min-width:0;font-size:.78rem;color:var(--ink)}
+.sthop{display:block;font-size:.65rem;color:var(--muted)}
+.stno{font-size:.7rem;color:var(--muted)}
+.starr{color:#c9cbd0;font-size:.65rem}
+.stchip{flex:none;width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;
+  justify-content:center;font-size:.62rem;font-weight:800}
+.stchip.podA{background:var(--podA);color:var(--podAb)}
+.stchip.podB{background:var(--podB);color:var(--podBb)}
+.stchip.podC{background:var(--podC);color:var(--podCb)}
+.stchip.podD{background:var(--podD);color:var(--podDb)}
+.stchip.podE{background:var(--podE);color:var(--podEb)}
+.stchip.none{background:var(--hair);color:var(--muted)}
+.stcv{flex:none;color:#c9cbd0;font-size:.65rem;margin-top:.2rem}
+.stpane{padding:0 .9rem .8rem 3.1rem}
+.stgrids{display:grid;grid-template-columns:1fr 1fr;gap:.55rem}
+.stgl{font-size:.58rem;font-weight:800;letter-spacing:.06em;color:var(--muted);margin-bottom:.25rem}
+.stgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:.22rem}
+.stcol{border-radius:7px;padding:.3rem .25rem;min-height:46px}
+.stcol.podA{background:var(--podA)}.stcol.podB{background:var(--podB)}.stcol.podC{background:var(--podC)}
+.stcol.podD{background:var(--podD)}.stcol.podE{background:var(--podE)}
+.stcol div{font-size:.62rem;line-height:1.55;color:#9a9ea6}
+.stcol div.hot{color:var(--ink);font-weight:600}
+.stcolh{font-size:.55rem;font-weight:800;color:var(--muted)!important;margin-bottom:.1rem}
+.stnogrid{font-size:.72rem;color:var(--muted)}
+/* On a phone the two grids stack rather than squeezing five columns into half a screen. */
+@media (max-width:640px){ .stgrids{grid-template-columns:1fr} .stpane{padding-left:.9rem} }
+
 /* THE REGISTER, on the rota team's page. Rows rather than a table: at 390px a five-column table
    of twenty-four requirements is unreadable, and the id, the name and the weight are the only
    three things anybody needs on a line. */
@@ -1265,7 +1319,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
 </div>
 
 <script src="core.js?v=20260810-04"></script>
-<script src="strength.js?v=20260814-19"></script>
+<script src="strength.js?v=20260814-20"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -3746,7 +3800,25 @@ function afterChangeCard(di, headline){
         shut(); applyFixedDay(di, plan.fixed, plan.changes);
         toast("Fixed " + DAYNAMES[di].slice(0,3) + " — Undo reverses it");
       } }, n === 1 ? "Make this move" : "Make these " + n + " moves");
-    const done = el("button", { class: "btn sec sheetbtn plain", onclick: shut }, "Leave the day as it is");
+    /* ── WHAT THE BOARD SUGGESTED AND WHAT HAPPENED INSTEAD ──────────────────────────────────
+       Ali, 26.08.15: "i want to know if changes were done by the auto fix suggestion some how too"
+       and "or if that was ignored and manual done."
+
+       Applying a plan was already logged; DECLINING one was not, so the log could never tell the
+       difference between "the board said nothing" and "the board said something and it was not
+       taken". That second case is the most valuable line in the whole log — it is the algorithm
+       and somebody who knows the unit disagreeing, in public, which is the only real evidence
+       there will ever be about whether the weights are right.
+
+       Recorded as a fact about the BOARD, never about the person: what was suggested, how many
+       moves, and that it was not taken. No judgement, and nothing that reads as a record of who
+       ignored the computer. */
+    const done = el("button", { class: "btn sec sheetbtn plain", onclick: () => {
+        try { logEntry("Fix this day suggested " + plan.changes.length + " change"
+          + (plan.changes.length > 1 ? "s" : "") + " — not taken", "manual", dateOfDi(di), null,
+          { act: "fixno", n: plan.changes.length }); markDirty(); } catch (e) {}
+        shut();
+      } }, "Leave the day as it is");
     if (hard.length) box.append(apply, done);
     else { done.className = "btn sheetbtn"; apply.className = "btn sec sheetbtn plain";
            box.append(done, apply); }
@@ -5986,12 +6058,129 @@ function renderDrift(rows){
     x.s.name, el("b", {}, Math.round(x.rate * 100) + "%")));
   box.append(list);
 }
+/* ================= WHAT HAPPENED =================
+   Ali, 26.08.15, on the first attempt at this: "no, more detail than they shuffled around. hwat
+   happened and why", then "each person changin is something i want to know not all merged in like
+   nicj had a go daniella had a go. i want to know what ech one did", and "if somebody moves a to b
+   to c just show as move a to c".
+
+   Three rules, and the second and third pull against each other, which is the whole design:
+
+     ONE CARD PER ROTA DAY. Not per entry and not per person — because the thing that made the raw
+     log unreadable is one person being passed between pods by SEVERAL people. On Friday 14 August
+     Muhammad Ali went E→A→B by Nabeel Chaudhry, B→C by Nicholas Coffin and C→D by Daniela Santos:
+     four entries, three people, 42 minutes, one person ending up one pod over. No grouping by
+     person would ever have joined that up.
+
+     ONE BLOCK PER GO, INSIDE THE DAY. Merging the day into a single before-and-after hid the thing
+     worth seeing: Nabeel +5, Nick −2, Daniela +14. Nick's single move made the day worse, and that
+     is invisible in a net. Each person's turn gets its own moves, its own score movement and its
+     own before-and-after.
+
+     COLLAPSE ONLY WITHIN A GO. A→B→C by one person in one sitting is A→C with the hops named
+     underneath. It never merges across people, because then the ▲ and ▼ per person disappear.
+
+   NOTHING NEW IS RECORDED FOR ANY OF THIS. The entries already carry who, a timestamp, the rota
+   day they affect and a structured from/to; the sessions, the collapse and the pod grids are all
+   derived. Hard rule 6 is untouched — the log has never recorded why anybody came off a day, and
+   this view cannot show what was never stored. "Off" is "off", for everybody, always. */
+const LOG_ACTS = ["move", "off", "on", "shift"];
+function logRotaEntries(){
+  return ((data && data.log) || []).filter(e => {
+    const d = (typeof logDet === "function" ? logDet(e) : null) || {};
+    return e && e.on && LOG_ACTS.indexOf(d.act) !== -1;
+  });
+}
+/* Undo one entry against a pod map. Used to walk BACKWARDS from the day as it stands now, which is
+   the only state we can be certain of — replaying forwards would need a starting point nobody
+   stored. An entry we cannot invert stops the walk rather than guessing. */
+function logUndo(state, e){
+  const d = (typeof logDet === "function" ? logDet(e) : null) || {};
+  const who = d.subj; if (!who) return false;
+  const pull = () => { for (const p of PODS) { const i = (state[p] || []).indexOf(who); if (i >= 0) { state[p].splice(i, 1); return true; } } return false; };
+  if (d.act === "move") { if (!PODS.includes(d.to) || !PODS.includes(d.from)) return false; pull(); state[d.from].push(who); return true; }
+  if (d.act === "off")  { if (!PODS.includes(d.from)) return false; state[d.from].push(who); return true; }
+  if (d.act === "on")   { pull(); return true; }
+  return d.act === "shift";        // a shift change moves nobody between pods
+}
+function logPodState(day){
+  const o = {};
+  for (const p of PODS) o[p] = ((day && day.pods && day.pods[p] && day.pods[p].assign) || [])
+    .filter(a => a.id && countsInNumbers(a.id)).map(a => (staffById(a.id) || {}).name || a.id);
+  return o;
+}
+const logShort = n => String(n || "").split(" ").filter(Boolean).slice(-1)[0] || n;
+/* Everything that happened to one rota day, split into goes. */
+function logDayStory(iso){
+  const es = logRotaEntries().filter(e => e.on === iso).sort((a, b) => String(a.t) < String(b.t) ? -1 : 1);
+  if (!es.length) return null;
+  const day = (function(){ for (const k in (data.weeks || {})) { const w = data.weeks[k];
+      if (!w || !w.days) continue; for (let i = 0; i < 7; i++) if (addDays(k, i) === iso) return { w, i, day: w.days[i] }; }
+    return null; })();
+  /* Sessions: a new one whenever the person changes. */
+  const sess = [];
+  for (const e of es) {
+    const w = e.who || "?";
+    const last = sess[sess.length - 1];
+    if (last && last.who === w) last.es.push(e); else sess.push({ who: w, es: [e] });
+  }
+  /* Walk back from the day as it is now, so each session gets a real before and after. */
+  let state = day ? logPodState(day.day) : null;
+  let ok = !!state;
+  for (let k = sess.length - 1; k >= 0; k--) {
+    sess[k].after = ok && state ? JSON.parse(JSON.stringify(state)) : null;
+    if (ok) for (let j = sess[k].es.length - 1; j >= 0; j--) if (!logUndo(state, sess[k].es[j])) { ok = false; break; }
+    sess[k].before = ok && state ? JSON.parse(JSON.stringify(state)) : null;
+  }
+  /* Collapse each go: first from, last to, hops kept. */
+  for (const s of sess) {
+    const byWho = {};
+    for (const e of s.es) {
+      const d = logDet(e) || {}; const n = d.subj; if (!n) continue;
+      if (!byWho[n]) byWho[n] = { n, from: d.from, to: d.to, act: d.act, hops: [] };
+      byWho[n].to = d.to; byWho[n].act = d.act;
+      byWho[n].hops.push((d.from || "—") + "→" + (d.to || "off"));
+    }
+    s.moves = Object.keys(byWho).map(n => {
+      const m = byWho[n];
+      m.noop = m.act === "move" && m.from === m.to;
+      m.chain = m.hops.length > 1 ? m.hops.join(", then ") : null;
+      m.short = logShort(n);
+      return m;
+    });
+    s.sync = (typeof logKind === "function" ? logKind(s.es[0]) : "manual") === "auto";
+    s.fix = s.es.some(e => (logDet(e) || {}).act === "fix") || /\bFixed\b/.test(s.es[0].msg || "");
+    s.tm = (s.es[0].t || "").slice(11, 16) + (s.es.length > 1 ? " – " + (s.es[s.es.length - 1].t || "").slice(11, 16) : "");
+    s.made = (s.es[0].t || "").slice(0, 10);
+    /* The score each go left behind, through the same evaluator the rings use. */
+    s.from = s.to = null;
+    if (day && s.before && s.after) {
+      try {
+        s.from = logScoreOf(day, s.before, iso); s.to = logScoreOf(day, s.after, iso);
+      } catch (err) {}
+    }
+  }
+  return { iso, day, sessions: sess };
+}
+/* Score a reconstructed arrangement. The names are turned back into ids because that is what the
+   evaluator counts; anybody the staff list no longer holds is skipped rather than guessed at. */
+function logScoreOf(dayRec, state, iso){
+  if (!window.Strength || !data) return null;
+  const idOf = nm => { const s = (data.staff || []).find(x => x.name === nm); return s ? s.id : null; };
+  const counts = {}; for (const p of PODS) counts[p] = (state[p] || []).map(idOf).filter(Boolean);
+  const prev = dayRec.i > 0 ? dayRec.w.days[dayRec.i - 1] : null;
+  const sc = Strength.scoreDay({ day: dayRec.day, dateISO: iso,
+    byId: Strength.indexStaff(data.staff), firstSeen: strFirstSeen(), counts: counts,
+    prevCounts: prev ? strCounts(prev) : null, issues: [], cfg: strengthCfg() });
+  return sc && sc.day ? sc.day.pct : null;
+}
 function renderLog(){
   const box = $("#logList");
   box.innerHTML = "";
   if (!data || !data.log.length) { box.append(el("div", { class: "empty" }, "No changes logged yet.")); return; }
 
   box.append(logViewToggle());
+  if (logView === "story") { box.append(logStoryBlock()); return; }
   if (logView === "raw") { box.append(rawLogBlock()); return; }
   const panel = logPanel(data.log, 400, renderLog);
   box.append(panel);
@@ -6009,13 +6198,94 @@ function renderLog(){
    English. Neither view adds a field and neither reveals one: the log has never recorded why
    anybody is not on (hard rule 6), so there is nothing in the raw records to expose. The
    existing rendering is untouched — the toggle is around it, not through it. */
-let logView = "cat";
+let logView = "story";
 function logViewToggle(){
   const seg = el("div", { class: "logvw" });
   const b = (v, label) => el("button", { class: v === logView ? "on" : "",
     onclick: () => { logView = v; renderLog(); } }, label);
-  seg.append(b("cat", "Categorised"), b("raw", "Raw"));
+  seg.append(b("story", "What happened"), b("cat", "Categorised"), b("raw", "Raw"));
   return seg;
+}
+/* ── DRAWING IT ────────────────────────────────────────────────────────────────────────────
+   One card per rota day, newest day first. Inside it, one block per go, in the order they
+   happened, each opening onto the pods before and after that go. */
+const LOG_DAYS_SHOWN = 14;
+function logStoryBlock(){
+  const wrap = el("div", { class: "story" });
+  const days = [...new Set(logRotaEntries().map(e => e.on))].sort().reverse().slice(0, LOG_DAYS_SHOWN);
+  if (!days.length) return el("div", { class: "empty" }, "No rota changes recorded yet.");
+  for (const iso of days) {
+    const st = logDayStory(iso);
+    if (!st) continue;
+    const first = st.sessions[0], last = st.sessions[st.sessions.length - 1];
+    const dFrom = first && first.from, dTo = last && last.to;
+    const card = el("div", { class: "stcard" });
+    const head = el("div", { class: "sthead" },
+      el("span", { class: "stttl" }, DAYNAMES[dayIndexOf(iso)] + " " + fmtDate(iso),
+        el("span", { class: "stsub" }, st.sessions.length + (st.sessions.length === 1 ? " go · " : " goes · ")
+          + [...new Set(st.sessions.map(x => x.who))].length + " people")));
+    if (dFrom != null && dTo != null) head.append(logDelta(dFrom, dTo, true));
+    card.append(head);
+    for (const s of st.sessions) card.append(logSessionBlock(s, iso));
+    wrap.append(card);
+  }
+  return wrap;
+}
+function dayIndexOf(iso){ const d = new Date(iso); return isNaN(d) ? 0 : (d.getUTCDay() + 6) % 7; }
+function logDelta(from, to, big){
+  const flat = from === to, up = to >= from;
+  return el("span", { class: "stdelta" + (big ? " big" : "") },
+    el("b", { class: flat ? "flat" : (up ? "up" : "down") }, flat ? "—" : (up ? "▲" : "▼") + Math.abs(to - from)),
+    el("span", {}, from + " → " + to));
+}
+function logSessionBlock(s, iso){
+  const blk = el("div", { class: "stsess" + (s.sync ? " sync" : "") });
+  const initials = (s.who || "?").split(" ").filter(Boolean).map(x => x[0]).slice(0, 2).join("");
+  const noop = s.moves.length && s.moves.every(m => m.noop);
+  const body = el("div", { class: "stbody" },
+    el("div", { class: "stwho" }, s.who,
+      s.fix ? el("span", { class: "sttag fix" }, "Fix this day") : null,
+      noop ? el("span", { class: "sttag none" }, "no effect") : null),
+    el("div", { class: "sttm" }, s.tm + " · " + s.moves.length + (s.moves.length === 1 ? " change" : " changes")));
+  for (const m of s.moves) {
+    const row = el("div", { class: "stmove" },
+      el("span", { class: "stnm" }, m.short, m.chain ? el("span", { class: "sthop" }, m.chain) : null));
+    if (m.noop) row.append(el("span", { class: "stno" }, "no change"), logPodChip(m.from));
+    else if (m.act === "off") row.append(logPodChip(m.from), el("span", { class: "starr" }, "→"), logPodChip(null));
+    else if (m.act === "on") row.append(logPodChip(null), el("span", { class: "starr" }, "→"), logPodChip(m.to));
+    else if (m.act === "shift") row.append(el("span", { class: "stno" }, (m.from || "") + " → " + (m.to || "")));
+    else row.append(logPodChip(m.from), el("span", { class: "starr" }, "→"), logPodChip(m.to));
+    body.append(row);
+  }
+  const btn = el("button", { class: "stopen", type: "button" },
+    el("span", { class: "stav" + (s.sync ? " sync" : "") }, s.sync ? "◷" : initials), body);
+  if (s.from != null && s.to != null) btn.append(logDelta(s.from, s.to));
+  btn.append(el("span", { class: "stcv" }, "▾"));
+  const pane = el("div", { class: "stpane" });
+  pane.style.display = "none";
+  if (s.before && s.after) pane.append(
+    el("div", { class: "stgrids" },
+      el("div", {}, el("div", { class: "stgl" }, "Before" + (s.from != null ? " " + s.from + "%" : "")), logPodGrid(s.before, s.moves)),
+      el("div", {}, el("div", { class: "stgl" }, "After" + (s.to != null ? " " + s.to + "%" : "")), logPodGrid(s.after, s.moves))));
+  else pane.append(el("div", { class: "stnogrid" }, "The pods cannot be rebuilt for this one — the entries predate the fields it needs."));
+  btn.onclick = () => { const open = pane.style.display !== "none";
+    pane.style.display = open ? "none" : "block"; btn.querySelector(".stcv").textContent = open ? "▾" : "▴"; };
+  blk.append(btn, pane);
+  return blk;
+}
+function logPodChip(p){
+  if (!p || !PODS.includes(p)) return el("span", { class: "stchip none", title: "off the day" }, "·");
+  return el("span", { class: "stchip pod" + p, title: "Pod " + p }, p);
+}
+function logPodGrid(state, moves){
+  const hot = {}; for (const m of moves) hot[m.short] = 1;
+  const g = el("div", { class: "stgrid" });
+  for (const p of PODS) {
+    const col = el("div", { class: "stcol pod" + p }, el("div", { class: "stcolh" }, p));
+    for (const n of (state[p] || [])) col.append(el("div", { class: hot[logShort(n)] ? "hot" : "" }, logShort(n)));
+    g.append(col);
+  }
+  return g;
 }
 function rawLogBlock(){
   const lines = ((data && data.log) || []).map(e => { try { return JSON.stringify(e); } catch(err){ return "{}"; } });
