@@ -65,7 +65,26 @@
      * substantive. Gutierrez (FY2) is the only such case as at 26.08.14. Scoring him
      * as Established would be the wrong direction, so unknowns are held at 0 and
      * surfaced rather than guessed. */
-    unknownPts: 0
+    unknownPts: 0,
+
+    /* THE FOUR PER-POD REQUIREMENTS, AS RULES. Ali, 26.08.14: "theyre the same thing
+     * essentially… Strength needs to display the rule breaches when clicked." Strength is not a
+     * second signal sitting beside the rules — it IS the rules, weighted. So each requirement is
+     * a switch and a cost, both editable from Settings › Pod rules (hard rule 1).
+     *
+     * THE COSTS SHIP AT 0 ON PURPOSE. Turning a named breach into points would silently retune
+     * every score the board has ever drawn, on the day this shipped, without anybody asking for
+     * it. What a breach is WORTH is Ali's call, made on the real board. A rule at 0 still names
+     * the thing to fix, which is the whole job of a rule; raise its cost and the ring moves.
+     *
+     * reqNewMentor is the only genuinely new maths here: somebody in their first weeks needs an
+     * established person in the same pod. The other three already existed as gap lines and are
+     * merely switchable now.
+     */
+    reqAirway: true, reqAirwayPts: 0,
+    reqTransfer: true, reqTransferPts: 0,
+    reqNotAllNew: true, reqNotAllNewPts: 0,
+    reqNewMentor: true, reqNewMentorPts: 0
   };
 
   function cfgOf(over) {
@@ -111,7 +130,7 @@
 
   function podScore(assign, staffById, onDate, pod, cfg) {
     cfg = cfgOf(cfg);
-    var pts = 0, people = [], gaps = [], nAir = 0, nTrans = 0, nNew = 0, i, p, s;
+    var pts = 0, people = [], gaps = [], nAir = 0, nTrans = 0, nNew = 0, nEst = 0, i, p, s;
     assign = assign || [];
     for (i = 0; i < assign.length; i++) {
       p = staffById[assign[i].id];
@@ -120,17 +139,30 @@
       if (p && p.airway) nAir++;
       if (p && p.transfer) nTrans++;
       if (s.tier === "new") nNew++;
+      if (s.tier === "established") nEst++;
       people.push({ id: assign[i].id, shift: assign[i].shift, pts: s.pts, tier: s.tier, skills: s.skills });
     }
     var floor = (cfg.floors && cfg.floors[pod] != null) ? cfg.floors[pod] : 8;
 
-    /* The reasons carried on the dial. These are what turn a number into an action —
-     * a bare score tells nobody which person to move. */
+    /* THE REQUIREMENTS. These are what turn a number into an action — a bare score tells nobody
+     * which person to move. Each line is a rule now: switchable, and carrying a cost that comes
+     * off the pod's score while the rule is unmet. Every cost ships at 0 (see DEFAULTS), so this
+     * block changes no number until somebody sets one from the front end. */
     if (!assign.length) gaps.push("empty");
     else {
-      if (!nAir) gaps.push("no airway");
-      if (!nTrans) gaps.push("no transfer");
-      if (nNew && nNew === assign.length) gaps.push(assign.length === 1 ? "only person is new" : "everybody new");
+      if (cfg.reqAirway !== false && !nAir) { gaps.push("no airway"); pts -= (Number(cfg.reqAirwayPts) || 0); }
+      if (cfg.reqTransfer !== false && !nTrans) { gaps.push("no transfer"); pts -= (Number(cfg.reqTransferPts) || 0); }
+      if (cfg.reqNotAllNew !== false && nNew && nNew === assign.length) {
+        gaps.push(assign.length === 1 ? "only person is new" : "everybody new");
+        pts -= (Number(cfg.reqNotAllNewPts) || 0);
+      }
+      /* A newcomer beside an established person is a pair; a newcomer beside another newcomer, a
+         settler or an unknown is on their own. Counted off the tiers already worked out above so
+         there is one definition of "established" and not two. */
+      if (cfg.reqNewMentor !== false && nNew && !nEst) {
+        gaps.push("new without established");
+        pts -= (Number(cfg.reqNewMentorPts) || 0);
+      }
     }
 
     return {
@@ -182,6 +214,46 @@
     return "bare";
   }
 
+  /* WHAT THE BADGE SHOWS, WHICH IS NOT WHAT THE POD SCORES. Ali, 26.08.14, on a Pod A reading
+   * "15 of 8": "stupid 300%, there must be a maximum figure." A ring cannot be three times full
+   * and a badge that reads 15 of 8 is asking the reader to do arithmetic the badge should have
+   * done. So the DISPLAYED figure is capped at the pod's own floor — a pod at or above what it
+   * needs reads "8 of 8", Pod E reads "3 of 3", and nothing ever exceeds its denominator.
+   *
+   * podScore().pts IS NOT TOUCHED. The allocator, the day score, the shortfall maths and the
+   * tests all read the true uncapped number, and the rules panel behind the ring still shows it.
+   * This is one line of display policy, kept here so there is one copy of it rather than a
+   * Math.min scattered through the page. */
+  function shown(podSc) {
+    if (!podSc) return 0;
+    var pts = Number(podSc.pts), floor = Number(podSc.floor);
+    if (!isFinite(pts)) pts = 0;
+    if (!isFinite(floor)) return pts;
+    return Math.min(pts, floor);
+  }
+
+  /* How far round the ring goes, 0 to 1. Same cap as shown(), from the same place, because a ring
+   * three-quarters drawn beside a number that reads full is worse than either alone. A pod on a
+   * negative score draws NO arc rather than an arc running backwards: below empty is empty. */
+  function arc(podSc) {
+    if (!podSc) return 0;
+    var pts = Number(podSc.pts), floor = Number(podSc.floor);
+    if (!isFinite(pts)) pts = 0;
+    if (!isFinite(floor) || floor <= 0) return 1;
+    return Math.max(0, Math.min(1, pts / floor));
+  }
+
+  /* The headroom the cap hides. A pod 7 clear of its floor and a pod exactly on it draw the same
+   * full ring, and that difference is how hoarding gets spotted — Pod A held three transfer-
+   * trained people on 13 Aug while Pod C held none. Returned as a number so the caller decides
+   * whether it is worth saying; 0 means there is nothing to say. */
+  function spare(podSc) {
+    if (!podSc) return 0;
+    var pts = Number(podSc.pts), floor = Number(podSc.floor);
+    if (!isFinite(pts) || !isFinite(floor)) return 0;
+    return Math.max(0, pts - floor);
+  }
+
   function indexStaff(staff) {
     var by = {}, i;
     staff = staff || [];
@@ -198,6 +270,9 @@
     podScore: podScore,
     dayScore: dayScore,
     band: band,
+    shown: shown,
+    arc: arc,
+    spare: spare,
     indexStaff: indexStaff
   };
 
