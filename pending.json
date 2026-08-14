@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T19:18:22.778877+00:00",
- "build": "54c76ad",
+ "generated": "2026-08-14T20:37:45.772657+00:00",
+ "build": "b243484",
  "liveBuild": "35abf4e",
- "count": 199,
+ "count": 201,
  "changes": [
+  {
+   "sha": "b243484",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T21:37:36+01:00",
+   "msg": "A standing slot is not a person and has no time on the unit"
+  },
+  {
+   "sha": "6811e72",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T19:18:22Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "54c76ad",
    "who": "alistaircranfield",
