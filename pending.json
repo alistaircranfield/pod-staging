@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T14:05:05.127596+00:00",
- "build": "e775a8a",
+ "generated": "2026-08-14T14:47:03.500239+00:00",
+ "build": "0b310db",
  "liveBuild": "35abf4e",
- "count": 163,
+ "count": 165,
  "changes": [
+  {
+   "sha": "0b310db",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T15:46:52+01:00",
+   "msg": "Pod strength: dial and deltas in edit mode only, full view on Setup > Pod strength, change log Categorised/Raw toggle"
+  },
+  {
+   "sha": "790a877",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T14:05:05Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "e775a8a",
    "who": "alistaircranfield",
