@@ -1701,7 +1701,11 @@ const TESTMODE = (typeof window !== "undefined" && window.__POD_TEST === true);
 const TEST_KEY = "podTestData";
 const DEMO_KEY = "podDemoData";
 async function readSelf(){
-  if (HOSTED) {
+  /* READING MUST NOT DEPEND ON BEING ABLE TO WRITE. HOSTED demands both a read and a save
+     URL, which is right for saving and wrong here: staging carries read keys only, so HOSTED
+     was false and this returned null without ever asking the network — an empty board that
+     looked like a broken rota rather than a missing save key. Found on staging 26.08.14. */
+  if (HOSTED || /^https:\/\//.test(READ_URL)) {
     try {
       const r = await fetch(READ_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}", cache: "no-store" });
       if (!r.ok) return null;
