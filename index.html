@@ -796,7 +796,12 @@ button.strdial:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .strring .rt{stroke:var(--hair)}
 .strring .ra{stroke:var(--strarc);stroke-linecap:round;transform:rotate(-90deg);transform-origin:50% 50%}
 .strring text{text-anchor:middle;font-family:inherit}
-.strring .rn{font-size:14px;font-weight:700;fill:var(--strnum)}
+/* BLACK, NOT THE RAMP COLOUR. Ali, 26.08.15: "make number inside ring black btw." The arc already
+   carries the colour; colouring the number too said the same thing twice and made a low score hard
+   to read against its own red. */
+.strring .rn{font-size:14px;font-weight:700;fill:var(--ink)}
+/* The ceiling mark: the best this pod could have done with who was on. */
+.strring .rc{stroke:var(--muted);stroke-width:2.2;stroke-linecap:round;opacity:.85}
 /* A BROKEN POD IS NOT A LOW ONE. It draws a full red ring with an exclamation rather than a number,
    because a hard rule is a gate and a gate has no percentage — see the header of strength.js. */
 .strring .rx{font-size:17px;font-weight:800;fill:#B3302F}
@@ -817,6 +822,7 @@ button.strdial:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .strrule.unmet .rmk{background:#fdf1f1;color:#B3302F}
 /* Not a failure and not a pass: a requirement the day could not have met, out of the denominator.
    Grey so it reads as absent rather than as a third kind of verdict. */
+.strrule.nofix .rsk{font-style:italic}
 .strrule.na{color:var(--muted)}
 .strrule.na .rmk{background:#f2f1ee;color:var(--muted)}
 .strrule .rlb{flex:1 1 auto;min-width:0}
@@ -1259,7 +1265,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
 </div>
 
 <script src="core.js?v=20260810-04"></script>
-<script src="strength.js?v=20260814-11"></script>
+<script src="strength.js?v=20260814-13"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -4430,12 +4436,27 @@ function strengthRingSVG(pd){
       + '<text class="rx" x="20" y="25">!</text></svg>';
   var pct = pd.pct, col = Strength.colourOf(pct);
   var arc = pct == null ? 0 : Math.max(0, Math.min(100, pct));
+  /* THE CEILING DASH. Ali, 26.08.15: "use a dash to show the maximum for that pod - max doesnt need
+     to be 100 there as fewer needs." A short mark on the track at the best this pod could have done
+     with the people who were actually on. It is what makes an honest score readable: 40 against a
+     dash at 40 is a pod with nothing to answer for; 40 against a dash at 80 is a pod with a great
+     deal to answer for, and until this the two drew the identical ring. Hidden at 100, where a mark
+     at the top of the track is noise. */
+  var ceil = (pd.ceiling == null) ? null : Math.max(0, Math.min(100, pd.ceiling));
+  var dash = "";
+  if (ceil != null && ceil < 100) {
+    var ang = (ceil / 100) * 2 * Math.PI - Math.PI / 2;
+    var r1 = 12.6, r2 = 19.2;
+    dash = '<line class="rc" x1="' + (20 + r1 * Math.cos(ang)).toFixed(2) + '" y1="' + (20 + r1 * Math.sin(ang)).toFixed(2)
+         + '" x2="' + (20 + r2 * Math.cos(ang)).toFixed(2) + '" y2="' + (20 + r2 * Math.sin(ang)).toFixed(2) + '"></line>';
+  }
   /* pathLength 100 makes the dash array a percentage whatever the radius is, so the geometry can be
      retuned without recomputing a circumference. */
   return '<svg class="strring" viewBox="0 0 40 40" width="38" height="38" focusable="false" aria-hidden="true">'
     + '<circle class="rt" cx="20" cy="20" r="15.9155" pathLength="100"></circle>'
     + (arc > 0 ? '<circle class="ra" cx="20" cy="20" r="15.9155" pathLength="100" stroke-dasharray="' + arc + ' 100" style="stroke:' + col + '"></circle>' : '')
-    + '<text class="rn" x="20" y="24.5" style="fill:' + col + '">' + esc(pct == null ? "–" : String(pct)) + '</text>'
+    + dash
+    + '<text class="rn" x="20" y="24.5">' + esc(pct == null ? "–" : String(pct)) + '</text>'
     + '</svg>';
 }
 var STR_TIERLAB = { "new": "first weeks", mid: "under a year", settled: "a year or more", unknown: "no start date" };
@@ -4468,10 +4489,15 @@ function strengthRulesDialog(dateISO, p){
   for (i = 0; i < pd.broken.length; i++)
     m.append(line("unmet", "✕", Strength.labelOf(pd.broken[i]), "", "must"));
   var partOf = function (id) { var k; for (k = 0; k < (pd.part || []).length; k++) if (pd.part[k].id === id) return pd.part[k].f; return null; };
+  /* EVERY SHORTFALL IS A CROSS, whether or not anything could have been done about it — the score
+     says what the pod HAS. What differs is the note beside it: a pod that could have been helped is
+     told who has a spare, and a pod that could not is told so plainly, so nobody goes hunting for a
+     move that does not exist. */
   for (i = 0; i < pd.missed.length; i++) {
     var f = partOf(pd.missed[i]), w = Strength.wOf(sc.cfg, pd.missed[i]);
-    m.append(line("unmet", f == null ? "✕" : "~", Strength.labelOf(pd.missed[i]),
-      strDonorNote(sc, pd.missed[i], p),
+    var unfix = (pd.unfixable || []).indexOf(pd.missed[i]) !== -1;
+    m.append(line("unmet" + (unfix ? " nofix" : ""), f == null ? "✕" : "~", Strength.labelOf(pd.missed[i]),
+      unfix ? "nothing on today could be moved" : strDonorNote(sc, pd.missed[i], p),
       (f == null ? "0" : (Math.round(f * w * 100) / 100)) + " of " + w));
   }
   for (i = 0; i < pd.met.length; i++)
@@ -4504,7 +4530,9 @@ function strengthRulesDialog(dateISO, p){
     mark(pd.isBroken ? "✕" : "✓"),
     el("span", { class: "rlb" }, (p === "N" ? "Night team" : "Pod " + p),
       pd.isBroken ? null : el("span", { class: "rsk" },
-        "of what was possible · " + pd.assessed + " of " + pd.possible + " assessed")),
+        pd.ceiling != null && pd.ceiling < 100
+          ? ("the most this pod could have been today is " + pd.ceiling + "%")
+          : (pd.assessed + " of " + pd.possible + " requirements"))),
     el("span", { class: "rwt" }, pd.isBroken ? "broken" : (pd.pct + "%"))));
   m.append(el("div", { class: "modalbtns" }, el("button", { class: "btn", onclick: closeModal }, "Close")));
   $("#modalBg").style.display = "flex";
@@ -4589,13 +4617,15 @@ function strengthDayDial(dateISO){
   var rec = STR_DAY[dateISO];
   if (!rec || !rec.sc || rec.sc.empty || rec.sc.day.pct == null) return null;
   var d = rec.sc.day, dd = rec.dayDelta;
-  var lab = "The day, " + d.pct + " per cent";
-  var btn = el("button", { class: "strdial " + Strength.band(d.pct), type: "button",
+  /* A DAY WITH A BROKEN POD IS NOT A PERCENTAGE. Ali, 26.08.15: "a day cant be 100% if no LD A —
+     impossible for most days but dont say its perfect when its not!" */
+  var lab = d.isBroken ? ("The day is broken — Pod " + d.podBroken.join(", ")) : ("The day, " + d.pct + " per cent");
+  var btn = el("button", { class: "strdial " + (d.isBroken ? "broken" : Strength.band(d.pct)), type: "button",
     title: lab, "aria-label": lab,
-    html: strengthRingSVG({ pct: d.pct, isBroken: false }),
+    html: strengthRingSVG({ pct: d.pct, ceiling: d.ceiling, isBroken: d.isBroken }),
     onclick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); strengthDayDialog(dateISO); } });
   var wrap = el("div", { class: "strpod strday" }, btn);
-  if (dd) wrap.append(el("span", { class: "strdelta " + (dd > 0 ? "up" : "down") },
+  if (dd && !d.isBroken) wrap.append(el("span", { class: "strdelta " + (dd > 0 ? "up" : "down") },
     (dd > 0 ? "+" : "−") + String(Math.abs(dd))));
   return wrap;
 }
@@ -4630,9 +4660,11 @@ function strengthDayDialog(dateISO){
   };
   for (i = 0; i < PODS.length; i++) row(PODS[i], "Pod " + PODS[i], sc.pods[PODS[i]]);
   if (sc.night) row("N", "Night team", sc.night);
-  m.append(el("div", { class: "strrule tot met" }, mark("✓"),
-    el("span", { class: "rlb" }, "The day", el("span", { class: "rsk" }, "of what was possible · " + sc.day.assessed + " of " + sc.day.possible + " assessed")),
-    el("span", { class: "rwt", style: "color:" + Strength.colourOf(sc.day.pct) }, sc.day.pct + "%")));
+  m.append(el("div", { class: "strrule tot " + (sc.day.isBroken ? "unmet" : "met") }, mark(sc.day.isBroken ? "✕" : "✓"),
+    el("span", { class: "rlb" }, "The day",
+      el("span", { class: "rsk" }, sc.day.isBroken ? ("Pod " + sc.day.podBroken.join(", ") + " broken")
+        : (sc.day.ceiling != null && sc.day.ceiling < 100 ? "the most today could have been is " + sc.day.ceiling + "%" : sc.day.assessed + " requirements"))),
+    el("span", { class: "rwt" }, sc.day.isBroken ? "broken" : sc.day.pct + "%")));
   m.append(el("div", { class: "modalbtns" }, el("button", { class: "btn", onclick: closeModal }, "Close")));
   $("#modalBg").style.display = "flex";
 }
@@ -8483,7 +8515,11 @@ function renderStrengthPage(box){
   };
   const snums = [["newDays", "new below this many days on the unit", "days"],
     ["settleDays", "settled at or above this many days", "days"],
-    ["keepShare", "share of a pod that should stay put day to day", ""]];
+    ["keepShare", "share of a pod that should stay put day to day", ""],
+    /* One airway-trained (and one transfer-trained) per this many people in a pod. The number Ali
+       was asked to rule on: at 3, a pod of two or three wants one and a pod of four to six wants
+       two. It is the single biggest driver of how far the ring spreads. */
+    ["coverPer", "one airway and one transfer per this many in a pod", "people"]];
   const sgrid2 = el("div", { style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.55rem" });
   for (const [k, label, unit] of snums)
     sgrid2.append(stile(label, unit, sc0[k], (v, lb) => {
