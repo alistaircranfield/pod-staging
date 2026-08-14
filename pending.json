@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T15:20:16.411478+00:00",
- "build": "f4ad54f",
+ "generated": "2026-08-14T15:24:31.194482+00:00",
+ "build": "a7f36c3",
  "liveBuild": "35abf4e",
- "count": 173,
+ "count": 175,
  "changes": [
+  {
+   "sha": "a7f36c3",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T16:24:23+01:00",
+   "msg": "Read the rota even without a save key - staging showed an empty board"
+  },
+  {
+   "sha": "09ba3ee",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T15:20:16Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "f4ad54f",
    "who": "alistaircranfield",
