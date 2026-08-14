@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CCU Pod Allocator — TEST</title>
+<title>CCU Pod Allocator</title>
 <link rel="stylesheet" href="core.css?v=20260810-04">
 <style>
 :root{
@@ -477,6 +477,25 @@ aside button .ic{position:relative}
 .attnrow .n{min-width:26px;height:26px;border-radius:8px;background:var(--red-bg);color:var(--red);font-size:.8rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .attnrow .tx b{display:block;font-size:.88rem;margin-bottom:.1rem}
 .attnrow .tx span{font-size:.78rem;color:var(--muted);line-height:1.5}
+/* A dealt-with row. Still there, plainly done — muted rather than hidden, because the question
+   this page answers is "did somebody deal with that?" and a row that vanishes answers it with
+   silence. It loses its hover and its pointer too: there is nothing left to press. */
+.attnrow.done{background:#fbfbfa;box-shadow:none;cursor:default}
+.attnrow.done:hover{border-color:rgba(29,31,36,.06)}
+.attnrow.done .n{background:#eef0ec;color:#5f7a54}
+.attnrow.done .tx b{color:var(--muted);font-weight:600}
+.attnsort{margin-left:auto;align-self:center;flex-shrink:0;font-size:.76rem;padding:.25rem .7rem;white-space:nowrap}
+.attnact+.attnsort{margin-left:.4rem}
+.attnwho{margin-left:auto;align-self:center;flex-shrink:0;font-size:.72rem;color:var(--muted);white-space:nowrap}
+/* On a phone the title and a 44pt-tall button will not share a line at 390px, so the button drops
+   under the text instead of squeezing it to three words a line. */
+@media (max-width:640px){
+  .attnrow{flex-wrap:wrap}
+  .attnsort,.attnact,.attnwho{margin-left:calc(26px + .7rem);align-self:flex-start;margin-top:.5rem}
+  /* 44px floor, measured rather than assumed: at 390px the button came out 34px tall, which is
+     under the touch target this project holds itself to (rule 14). */
+  .attnsort{min-height:44px;padding:.5rem .9rem}
+}
 .attnclear{text-align:center;padding:2.4rem 1rem;color:var(--muted)}
 .attnclear b{display:block;font-size:1rem;color:var(--ink);margin-bottom:.3rem}
 /* The change log is a five-column table, which is right on a laptop and impossible on a phone:
@@ -752,6 +771,52 @@ button.btn,.hbtn{white-space:nowrap}
   td.col-A,td.col-B,td.col-C,td.col-D,td.col-E{position:relative}
   td.col-A .conswrap,td.col-B .conswrap,td.col-C .conswrap,td.col-D .conswrap,td.col-E .conswrap{position:absolute;top:.62rem;right:.7rem;left:auto;margin:0;min-height:0;max-width:62%;justify-content:flex-end}
   td.col-A .conssel,td.col-B .conssel,td.col-C .conssel,td.col-D .conssel,td.col-E .conssel{font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:0;margin:0;line-height:1.1;text-align:right;appearance:none;-webkit-appearance:none;color:var(--muted);background:transparent;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
+/* ---- POD STRENGTH (14 Aug) --------------------------------------------------------------
+   A number in a ring, the ring coloured by band, and the line beside it saying what the number
+   is made of. No key and no legend anywhere (hard rule 2): a red 2 next to "no airway" is
+   already the whole message, and a green 11 next to "3 transfer-trained — 2 to spare" is too.
+   Nothing here reads or draws anything about somebody who is NOT on the day (hard rule 6) — a
+   score is built only from the people who are in the pod and what they can do. */
+.strpod{display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;margin:0 0 .4rem;min-width:0;max-width:100%}
+.strdial{flex:none;width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+  font-size:.74rem;font-weight:700;border:1.5px solid;background:#fff}
+.strdial.ok{border-color:#7fc99a;color:#2f7a52}
+.strdial.thin{border-color:#e6b84c;color:#8a6300}
+.strdial.bare{border-color:#E24B4A;color:#B3302F}
+.strdial.unknown{border-color:var(--hair);color:var(--muted)}
+.strdelta{flex:none;font-size:.66rem;font-weight:700;padding:.05rem .35rem;border-radius:999px;white-space:nowrap}
+.strdelta.up{background:#eef7f1;color:#2f7a52}
+.strdelta.down{background:#fdf1f1;color:#B3302F}
+.strwhy{flex:1 1 5.5rem;min-width:0;font-size:.66rem;line-height:1.25;color:var(--muted);overflow-wrap:anywhere}
+/* The day meter is its own row spanning the table, so it sits above the pods on the phone (where
+   every cell is a stacked card) and across the top of the day on a laptop. */
+tr.strrow td.strmeter{padding:.3rem .55rem .45rem;background:transparent;border:0}
+.strm-wrap{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}
+.strm-score{font-size:1.15rem;font-weight:700;line-height:1}
+.strm-bars{display:flex;align-items:flex-end;gap:.28rem}
+.strm-col{display:flex;flex-direction:column;align-items:center;gap:.15rem;width:14px}
+.strm-col span{font-size:.58rem;font-weight:700;color:var(--muted);letter-spacing:.04em}
+.strm-slot{width:100%;height:26px;display:flex;align-items:flex-end;background:var(--hair);border-radius:3px;overflow:hidden}
+.strm-fill{display:block;width:100%;border-radius:3px}
+.strm-fill.ok{background:#7fc99a}
+.strm-fill.thin{background:#e6b84c}
+.strm-fill.bare{background:#E24B4A}
+.strm-fill.unknown{background:var(--hair)}
+.strm-say{font-size:.72rem;color:var(--muted)}
+/* ---- CHANGE LOG: two ways of reading it -------------------------------------------------- */
+.logvw{display:inline-flex;gap:.2rem;background:var(--hair);border-radius:999px;padding:.15rem;margin:0 0 .8rem}
+.logvw button{border:0;background:transparent;font-size:.78rem;font-weight:600;color:var(--muted);padding:.28rem .8rem;border-radius:999px;cursor:pointer}
+.logvw button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(29,31,36,.12)}
+.logcat{display:inline-block;font-size:.6rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  padding:.05rem .35rem;border-radius:4px;margin-right:.35rem;background:var(--hair);color:var(--muted);vertical-align:1px}
+pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.7rem;line-height:1.5;
+  white-space:pre;overflow:auto;max-height:60vh;background:var(--hair);border-radius:10px;padding:.7rem .8rem}
+@media (max-width:820px){
+  /* The reflowed table draws every cell as a card; the meter is not a cell of the day, it is a
+     line above it, so it keeps the page background and no border. */
+  tr.strrow td.strmeter{border:0;background:transparent;border-radius:0;margin:0 0 .3rem;padding:.1rem .1rem .3rem}
+  .strwhy{flex:1 1 100%}
 }
 /* Small phones: tighten the header just enough to keep it on one line. */
 @media (max-width:440px){
@@ -1123,6 +1188,7 @@ button.btn,.hbtn{white-space:nowrap}
 </div>
 
 <script src="core.js?v=20260810-04"></script>
+<script src="strength.js?v=20260814-01"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -1214,6 +1280,10 @@ const SELF_NAME = (() => { try { const n = decodeURIComponent(location.pathname.
 const VIEW_ONLY = (() => { try { localStorage.getItem("_probe"); return false; } catch(e){ return true; } })();
 let EDIT_MODE = false;
 const canEdit = () => EDIT_MODE;
+/* Asked once per visit to the rota-team pages — see switchTab(). Declining "Who's editing?"
+   must not put the question up again on every tab click; leaving edit mode clears it so the
+   next visit arms again. */
+let teamEditTried = false;
 
 const $ = s => document.querySelector(s);
 const el = (tag, attrs={}, ...kids) => {
@@ -1770,6 +1840,7 @@ async function exitEdit(){
     updateSaveState("saved");
   }
   EDIT_MODE = false;
+  teamEditTried = false;   // the next walk into the rota-team pages arms editing again
   document.body.classList.add("viewmode");
   tapPick = null; tapPhone = null;
   renderAll();
@@ -1872,7 +1943,17 @@ let suppressDirty = false;
 function rotaSig(d){ try { const c = JSON.parse(JSON.stringify(d)); delete c.savedAt; delete c.savedBy; delete c.editLock; delete c.log; delete c.logSeen;
   try { (c.feedback || []).forEach(f => { delete f.read; }); } catch(e){} return JSON.stringify(c); } catch(e){ return "sig" + Math.random(); } }
 function markDirty(){
-  if (!EDIT_MODE || suppressDirty) return;
+  /* Returning silently here is how the Staff page lost Tom McKernan's skills twice over
+     (Ali, 12 Aug: "ive done it twice and they dont seem to have saved"). The row re-rendered,
+     the tick appeared, the badge dropped — and because nothing was marked dirty, the 3-minute
+     syncLatest() poll pulled the shared copy back over the top. Anything that CHANGES the rota
+     must arm edit mode first; this line says so out loud when something doesn't, so the next
+     one of these is found in the console instead of on the ward. */
+  if (!EDIT_MODE && !suppressDirty) {
+    try { console.warn("markDirty ignored — not in edit mode, so that change was NOT saved"); } catch(e){}
+    return;
+  }
+  if (suppressDirty) return;
   const snap = JSON.stringify(data);
   // Only add an undo point when the snapshot actually changed — stops lock heartbeats and repeat
   // calls piling up identical snapshots (which made one Undo click look like it did nothing).
@@ -2125,6 +2206,7 @@ function loadData(d){
     if (s.verified === undefined) s.verified = true;
   }
   data.pendingSkills = data.pendingSkills || [];
+  data.sorted = data.sorted || {};   // which Attention rows somebody has dealt with (12 Aug)
   migratePendingSkills();
   for (const wk of Object.values(data.weeks)) {
     if (!("roster" in wk)) wk.roster = null;
@@ -2624,8 +2706,13 @@ function renderStaff(){
     const vcell = el("td", { class: "vcell" });
     const pend = (data.pendingSkills || []).filter(x => x.id === s.id);
     if (s.verified === false) {
-      vcell.append(el("button", { class: "rowbtn check", title: "Confirm their skills are right", onclick: () => {
-        s.verified = true; logEntry("Checked new starter: " + s.name); markDirty(); renderStaff(); updateTeamBadge();
+      /* Arms editing itself and saves on the spot. Entering the rota-team pages normally does
+         this already, but edit mode closes after 5 idle minutes — and reading a staff list is
+         mostly idle. That is the state Ali kept clicking Check in. */
+      vcell.append(el("button", { class: "rowbtn check", title: "Confirm their skills are right", onclick: async () => {
+        if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
+        s.verified = true; logEntry("Checked new starter: " + s.name);
+        markDirty(); saveFile(true); renderStaff(); updateTeamBadge();
       }}, "Check"));
     } else vcell.append(el("span", { class: "muted-sm" }, "✓"));
     for (const x of pend) vcell.append(el("span", { class: "pendpill", title: Object.keys(x.add || {}).map(k => SKILL_SHORT[k] || k).join(", ") + " — ticked and live now; auto-fill starts using it " + niceDate(x.from) }, "auto-fill " + niceDate(x.from)));
@@ -2638,17 +2725,26 @@ function renderStaff(){
       const last = lastRosteredDay(s.id);
       if (last) acts.append(el("span", { class: "muted-sm", style: "margin-right:.5rem" }, "last " + niceDate(last)));
       acts.append(el("button", { class: "rowbtn", title: "Put them back in the pick-lists now, without waiting for a shift to appear",
-        onclick: () => { s.keepCurrent = true;
+        onclick: async () => {
+          if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
+          s.keepCurrent = true;
           logEntry(s.name + " brought back to the current staff list", "manual");
-          markDirty(); recomputeHistoric(); renderStaff(); renderWeek(); updateTeamBadge();
+          markDirty(); saveFile(true); recomputeHistoric(); renderStaff(); renderWeek(); updateTeamBadge();
           toast(s.name + " is back on the current list"); } }, "Bring back"));
     }
     acts.append(
-      el("button", { class: "rowbtn edit", title: "Edit this person's details", onclick: () => staffModal(s) }, "Edit"),
+      el("button", { class: "rowbtn edit", title: "Edit this person's details", onclick: async () => {
+        if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
+        staffModal(s);
+      } }, "Edit"),
+      /* The lock is taken BEFORE the question is asked. Outside edit mode this used to remove the
+         person from the screen and save nothing at all — they were back the next morning, which
+         is a worse lie than refusing outright. */
       el("button", { class: "rowbtn del", title: "Remove from the pick-lists", onclick: async () => {
+        if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
         if (!(await uiConfirm("This removes " + s.name + " from the staff list and future pick-lists. Rotas already saved keep their name. This can't be undone from here.", { title: "Delete " + s.name + "?", okLabel: "Delete", cancelLabel: "Keep", danger: true }))) return;
         data.staff = data.staff.filter(x => x.id !== s.id);
-        logEntry("Deleted staff: " + s.name); markDirty(); renderStaff(); renderWeek();
+        logEntry("Deleted staff: " + s.name); markDirty(); saveFile(true); renderStaff(); renderWeek();
       }}, "Delete")
     );
     tr.append(acts);
@@ -2822,6 +2918,10 @@ function profileEditor(box, s){
       lbl("About"), about, msg, started,
       el("div", { style: "margin-top:.8rem" }, lbl("Educational supervisor"), sup))));
 }
+/* Editing is armed by the buttons that OPEN this sheet, not in here. Two reasons: the
+   "Who's editing?" question is itself a dialog, and asking it on top of a half-filled person
+   sheet is how you lose what was typed; and this function stays synchronous, which is how the
+   render tests drive it. */
 function staffModal(s){
   const isNew = !s;
   s = s || { id: uid(), name:"", grade:"", airway:false, phoneHolder:false, phoneSupervisor:false, phoneShadow:false, nights:false, fgh:false, transfer:false, supernum:false, start:null, end:null, active:true, startAuto:true, aliases:[] };
@@ -2887,7 +2987,18 @@ function staffModal(s){
     el("button", { class: "btn sec", onclick: closeModal }, "Cancel"),
     el("button", { class: "btn", onclick: () => {
       if (!name.value.trim()) { name.style.borderColor = "var(--red)"; nameMsg.textContent = "A name is required."; name.focus(); return; }
+      const wasCalled = s.name;
       s.name = name.value.trim(); s.grade = grade.value;
+      /* A RENAME MUST NOT ORPHAN THEM FROM THE SYNC. merge.py matches an Optima row on the name
+         plus the aliases, so the name somebody arrived under has to stay somewhere — tidy
+         "Thomas Mckernan" to "Tom McKernan" without this and the next pull does not recognise
+         him, adds a SECOND record, and the rules sit on one while the rota is written against the
+         other (found 12 Aug, alongside the Staff page save bug). Aliases are stored normalised,
+         which is the form the matcher compares. */
+      if (!isNew && wasCalled && normName(wasCalled) !== normName(s.name)) {
+        s.aliases = s.aliases || [];
+        if (!s.aliases.includes(normName(wasCalled))) s.aliases.push(normName(wasCalled));
+      }
       /* Every tick lands NOW — the pills, the checker and anything granted by hand all see it
          immediately (Ali, 31 Jul). For skills GAINED by an existing person we then ask when the
          allocator should start USING them, so boards already written aren't churned. */
@@ -2905,7 +3016,7 @@ function staffModal(s){
       // Untick someone's phone skill and they let go of every phone they were holding.
       const freed = sweepInvalidPhones();
       if (freed) logEntry("Released " + freed + " phone allocation" + (freed === 1 ? "" : "s") + " after the skills change", "auto");
-      markDirty(); closeModal(); renderStaff(); renderWeek(); updateTeamBadge();
+      markDirty(); saveFile(true); closeModal(); renderStaff(); renderWeek(); updateTeamBadge();
       if (added.length) queueSkillGain(s, added, addMap);
     }}, isNew ? "Add" : "Save")
   ));
@@ -3157,6 +3268,16 @@ function renderWeek(){
     const vis = issues.filter(i => i.empty || !isAccepted(wk, di, i.msg));
     dayIssues.push(vis);
     allIssues.push(...vis);
+    /* Scored HERE rather than by its own listener, because everything that changes a day already
+       ends in renderWeek() — a move, a removal, an auto-fill, an undo, a sync landing. Hanging
+       the strength off that one path is what makes it impossible for the dials to fall behind
+       the board. Every day is ticked, not just the one on screen, so a delta always means
+       "since the last redraw". */
+    strengthTick(day, dateISO);
+    /* The five-bar day meter USED TO BE APPENDED HERE and is not any more. Ali, 26.08.14: "the
+       front view needs to stay as it is". A row of bars above every day was furniture on the one
+       screen that must stay exactly as clinicians already read it. The shape itself is not lost —
+       it lives on Setup › Pod strength, where the fuller view belongs. */
     if (!mob || di === mobileDay) tbody.append(renderDayRow(day, di, dateISO, vis));
   });
   tbl.append(tbody);
@@ -3961,6 +4082,122 @@ function cycleShift(day, id, pool){
   if (day.phone === id && next.code !== "LD") { day.phone = null; toast("Phone taken off " + staffById(id).name + " — a long day is needed to hold it"); }
   markDirty(); renderWeek();
 }
+/* ================= POD STRENGTH ON THE BOARD =================
+   THE MATHS IS NOT HERE. strength.js holds one copy of it, and the replay harness and the unit
+   tests require that same file — a second implementation in this page is exactly the drift that
+   file exists to prevent. Everything below reads the scores and draws them.
+
+   HARD RULE 6. A pod's score is built only from the people who ARE in the pod and what they can
+   do. Somebody not on the day simply is not in the list, no field here carries or infers a
+   reason, and the delta chip says only that a number moved. */
+var STR_SEEN = {};   // dateISO -> { A: pts, ... } as the board last drew it
+var STR_DAY  = {};   // dateISO -> { ds: dayScore, delta: { A: n, ... } }
+
+/* Hard rule 1: the defaults in strength.js are a starting point. What the board actually scores
+   with is whatever Settings has written into the store. */
+function strengthCfg(){
+  var over = (data && data.strengthCfg) || null;
+  if (window.Strength && Strength.cfgOf) return Strength.cfgOf(over);
+  return over || {};
+}
+/* Called for EVERY day on every redraw, not just the day on screen, so a delta always means
+   "since the board was last drawn" rather than "since you last looked at this particular day".
+   The snapshot is taken here, after the comparison, which is why a change shows its delta once
+   and then settles. */
+function strengthTick(day, dateISO){
+  if (!window.Strength || !data) return null;
+  var ds = Strength.dayScore(day, Strength.indexStaff(data.staff), dateISO, strengthCfg());
+  var seen = STR_SEEN[dateISO], now = {}, delta = {}, i, p, sc;
+  for (i = 0; i < PODS.length; i++) {
+    p = PODS[i]; sc = ds.pods[p];
+    if (!sc) continue;
+    now[p] = sc.pts;
+    if (seen && seen[p] != null && seen[p] !== sc.pts) delta[p] = sc.pts - seen[p];
+  }
+  STR_SEEN[dateISO] = now;
+  STR_DAY[dateISO] = { ds: ds, delta: delta };
+  return STR_DAY[dateISO];
+}
+/* The line a dial carries. Gaps first, because a gap names the thing to fix and a bare number
+   names nobody. Then spare transfer cover, which is the other fact somebody can act on. */
+function strengthWhy(sc){
+  if (!sc) return "";
+  /* GAPS AND NOTHING ELSE. It used to fall through to "N transfer-trained — N to spare" and then
+     to "meets its floor", which is project rule 2 — a sentence restating what the green dial has
+     already said. A pod with nothing missing now says nothing at all, and the line is there only
+     when it names something to fix. */
+  if (sc.gaps && sc.gaps.length) return sc.gaps.join(" · ");
+  return "";
+}
+/* GATED ON EDIT MODE, AT THE SOURCE. Ali, 26.08.14: "the front view needs to stay as it is. when
+   press edit there can be some minimal things that come up to help with changes." A viewer sees
+   the board exactly as it was before any of this existed; the dial and its delta chip appear only
+   once somebody has pressed Edit, because that is the moment they are a working aid rather than a
+   dashboard. The gate is here rather than at the call site so no future caller can bypass it. */
+function strengthDial(dateISO, p){
+  if (!canEdit()) return null;
+  var rec = STR_DAY[dateISO];
+  if (!rec || !rec.ds || !rec.ds.pods || !rec.ds.pods[p]) return null;
+  var sc = rec.ds.pods[p], d = rec.delta[p];
+  var wrap = el("div", { class: "strpod" },
+    el("span", { class: "strdial " + Strength.band(sc), title: "Pod " + p + " · floor " + sc.floor },
+      String(sc.pts)));
+  if (d) wrap.append(el("span", { class: "strdelta " + (d > 0 ? "up" : "down") },
+    (d > 0 ? "▲" : "▼") + String(Math.abs(d))));
+  /* Only when there is something to say — an empty span still costs a flex gap and a basis. */
+  var why = strengthWhy(sc);
+  if (why) wrap.append(el("span", { class: "strwhy" }, why));
+  return wrap;
+}
+/* Five bars against the tallest thing on the day — a pod's score, or its floor where the floor
+   is higher — so a day where everything is thin reads as a low row rather than as five
+   full-height bars that say nothing. */
+/* Takes a dayScore rather than a date, so the Setup page can draw a day it has just scored itself
+   without going through STR_DAY — which belongs to the board's redraw cycle and whose snapshots
+   drive the delta chips. A second reader poking at it would eat those deltas. */
+function strengthShape(ds){
+  if (!ds || ds.empty) return null;
+  var top = 1, i, p, sc, h, worst = null;
+  for (i = 0; i < PODS.length; i++) {
+    sc = ds.pods[PODS[i]]; if (!sc) continue;
+    if (sc.pts > top) top = sc.pts;
+    if (sc.floor > top) top = sc.floor;
+    /* Named from the shortfalls themselves, not from ds.weakest: on the "min" and "avg" day
+       scores weakest is the LOWEST pod, which is not always the one furthest below its own
+       floor, and the sentence is about the floor. */
+    if (ds.worstShort > 0 && worst === null && sc.short === ds.worstShort) worst = sc.pod;
+  }
+  var bars = el("div", { class: "strm-bars" });
+  for (i = 0; i < PODS.length; i++) {
+    p = PODS[i]; sc = ds.pods[p];
+    h = sc ? Math.max(6, Math.min(100, Math.round(sc.pts / top * 100))) : 6;
+    bars.append(el("div", { class: "strm-col" },
+      el("div", { class: "strm-slot" },
+        el("i", { class: "strm-fill " + (sc ? Strength.band(sc) : "unknown"),
+                  style: "height:" + h + "%",
+                  title: sc ? (sc.pts + " · floor " + sc.floor) : "" })),
+      el("span", {}, p)));
+  }
+  var say = (ds.worstShort > 0 && worst)
+    ? "Pod " + worst + " is " + ds.worstShort + " below its floor"
+    : "every pod meets its floor";
+  return el("div", { class: "strm-wrap" },
+    el("span", { class: "strm-score" }, String(ds.score)),
+    bars,
+    el("span", { class: "strm-say" }, say));
+}
+/* The day row form. NOTHING ON THE BOARD CALLS THIS ANY MORE — renderWeek used to append it above
+   every day and no longer does (see the note there). Kept, not deleted: the shape is the same one
+   Setup › Pod strength draws, and the day-row form is the thing to reach for if the day meter is
+   ever wanted back inside the table. */
+function strengthMeterRow(dateISO){
+  var rec = STR_DAY[dateISO];
+  if (!rec) return null;
+  var wrap = strengthShape(rec.ds);
+  if (!wrap) return null;
+  return el("tr", { class: "strrow" }, el("td", { class: "strmeter", colspan: "9" }, wrap));
+}
+
 function renderDayRow(day, di, dateISO, issues){
   normalizePods(day);
   const tr = el("tr");
@@ -4091,6 +4328,11 @@ function renderDayRow(day, di, dateISO, issues){
   for (const p of PODS) {
     const pod = day.pods[p];
     const col = el("td", { class: "col-" + p });
+    /* The dial goes in first so it reads before the names, which is the order the question comes
+       in: how strong is this pod, then who is in it. STR_DAY was filled by strengthTick() in
+       renderWeek, so this is a read and costs nothing. */
+    const strDial = strengthDial(dateISO, p);
+    if (strDial) col.append(strDial);
     /* Supernumeraries and observers are never part of a pod's numbers, so dropping them into the
        pod itself makes it look staffed when it isn't. They go in the Super box underneath instead. */
     makeZone(col, di, id => {
@@ -5184,7 +5426,79 @@ function renderLog(){
   box.innerHTML = "";
   if (!data || !data.log.length) { box.append(el("div", { class: "empty" }, "No changes logged yet.")); return; }
 
-  box.append(logPanel(data.log, 400, renderLog));
+  box.append(logViewToggle());
+  if (logView === "raw") { box.append(rawLogBlock()); return; }
+  const panel = logPanel(data.log, 400, renderLog);
+  box.append(panel);
+  tagLogRows(panel);
+  /* logPanel repaints its own group list when the search box is typed in — deliberately, so the
+     box keeps focus — and it does that without coming back through here. Watching the panel is
+     how the tags survive a search; re-tagging is idempotent, so this cannot chase its own tail. */
+  try { new MutationObserver(() => tagLogRows(panel)).observe(panel, { childList: true, subtree: true }); }
+  catch(e){}
+}
+
+/* CATEGORISED OR RAW (14 Aug). Two readers, one log. Categorised is the derived human view that
+   was already here, with the family of each row named on the row. Raw is the stored records
+   themselves, one JSON object per line, for handing to something that reads JSON rather than
+   English. Neither view adds a field and neither reveals one: the log has never recorded why
+   anybody is not on (hard rule 6), so there is nothing in the raw records to expose. The
+   existing rendering is untouched — the toggle is around it, not through it. */
+let logView = "cat";
+function logViewToggle(){
+  const seg = el("div", { class: "logvw" });
+  const b = (v, label) => el("button", { class: v === logView ? "on" : "",
+    onclick: () => { logView = v; renderLog(); } }, label);
+  seg.append(b("cat", "Categorised"), b("raw", "Raw"));
+  return seg;
+}
+function rawLogBlock(){
+  const lines = ((data && data.log) || []).map(e => { try { return JSON.stringify(e); } catch(err){ return "{}"; } });
+  return el("pre", { class: "rawlog" }, lines.join("\n"));
+}
+/* Six families, from the fields the entry already carries — nothing is re-parsed and nothing new
+   is stored. "Off" and "Back on" say only that somebody came off the day or went back on it,
+   which is what the log has always recorded; there is no seventh tag for any particular kind of
+   off, because a distinction anywhere in the set is an inference channel for the whole set. */
+function logCatOf(e){
+  if (!e) return "Other";
+  if (typeof logKind === "function" && logKind(e) === "auto") return "Auto";
+  const d = (typeof logDet === "function" ? logDet(e) : null) || {};
+  if (d.act === "move") return "Move";
+  if (d.act === "off") return "Off";
+  if (d.act === "on") return "Back on";
+  if (d.act === "set" || d.act === "batch") return "Setting";
+  return "Other";
+}
+/* The entries logGroups is drawing, in the order it draws them, so the nth row is the nth entry.
+   The steps are core.js's, repeated rather than reached into, because logGroups returns a DOM
+   tree and not its input. If the two ever disagree on how many rows there are, the tags are left
+   off entirely — a tag on the wrong row is worse than no tag at all. */
+function logShownEntries(){
+  const all = ((data && data.log) || []).slice(0, 400);
+  let groups = groupLog(all.filter(logMatches), logBy, logFilter);
+  if (logBy === "affects") {
+    const today = todayISO();
+    groups = logWhen === "past"
+      ? groups.filter(g => g.date <  today).sort((a, b) => a.date > b.date ? -1 : 1)
+      : groups.filter(g => g.date >= today).sort((a, b) => a.date < b.date ? -1 : 1);
+  }
+  const out = [];
+  groups.forEach(g => g.entries.forEach(e => out.push(e)));
+  return out;
+}
+function tagLogRows(panel){
+  if (!panel) return;
+  const rows = panel.querySelectorAll("tr.logrow");
+  const ents = logShownEntries();
+  if (rows.length !== ents.length) return;
+  rows.forEach((r, n) => {
+    if (r.dataset.cat) return;
+    const cat = logCatOf(ents[n]);
+    r.dataset.cat = cat;
+    const cell = r.children[1] || r.children[0];
+    if (cell) cell.prepend(el("span", { class: "logcat" }, cat));
+  });
 }
 
 /* A pod named in a log line is drawn in the same colour it has on the grid, so "Pod C → Pod D"
@@ -6136,6 +6450,57 @@ function planDayFix(di){
     }
   }
 
+  /* 3a) SPREAD THE AIRWAY COVER — added 11 Aug 2026.
+
+     Ali moved Bruce Liu from B to D by hand to give D airway presence, and asked why the board had
+     neither suggested it nor done it. The check for this already existed and had fired — amber:
+     "Pod D has nobody airway-trained while another pod has 2." What did not exist was any way to
+     ACT on it: this planner only ever moved people for pod minimums and long-day cover, so Fix day
+     would not have made that move. It was not declining; the possibility never occurred to it.
+
+     The trigger is deliberately the clinically meaningful case and no wider — a pod with NOBODY
+     airway-trained while some other pod has TWO or more. One each is the aim; taking the only
+     airway person out of a pod to give another one is not a fix, it is the same problem moved.
+     So the donor must keep at least one, which is what `> 1` guarantees.
+
+     Everything already established stays established: never a third pod in a week, never strand a
+     pod below its minimum, never move the phone holder, and never take a pod's only long day.
+     Those are the rules that make the day work at all; airway is an aim, and an aim never gets to
+     break an issue to satisfy itself. If no move clears all of them, this says nothing and the
+     amber stands — the honest outcome, and the same shape as the pod-spread logic. */
+  {
+    const airwayIn = p => day.pods[p].assign.filter(a => a.id && countsIn(a.id) && (staffById(a.id) || {}).airway).length;
+    const AD = PODS.filter(p => p !== "E");
+    for (const p of AD) {
+      if (guard++ > 160) break;
+      if (podCount(p) === 0 || airwayIn(p) > 0) continue;
+      const donor = AD.find(q => q !== p && airwayIn(q) >= 2);
+      if (!donor) continue;                       // nobody has a spare — leave the amber alone
+      /* A SWAP, NOT A MOVE, and the difference is not cosmetic. The first version moved the spare
+         across, which made the receiving pod the biggest on the unit — and step 3c then pulls the
+         PHONE HOLDER into the biggest pod, dragging the donor's other airway person with them. Net
+         result: both airway people ended up in the same pod and the donor had none, which is the
+         very fault this step exists to fix. Swapping keeps every pod's headcount and long-day count
+         exactly as they were, so nothing downstream has anything to react to. */
+      const spare = day.pods[donor].assign.find(a =>
+        a.id && countsIn(a.id) && (staffById(a.id) || {}).airway &&
+        a.id !== day.phone &&                                  // the phone stays where it is
+        !(a.shift === "LD" && podLDs(donor) <= 1) &&            // never the donor's only long day
+        !wouldBeThirdPod(a.id, p));
+      if (!spare) continue;
+      // Same shift, so long-day cover on both sides is untouched. No same-shift partner, no swap.
+      const back = day.pods[p].assign.find(a =>
+        a.id && countsIn(a.id) && !(staffById(a.id) || {}).airway &&
+        a.id !== day.phone && a.shift === spare.shift &&
+        !wouldBeThirdPod(a.id, donor));
+      if (!back) continue;
+      day.pods[donor].assign = day.pods[donor].assign.filter(x => x !== spare);
+      day.pods[p].assign     = day.pods[p].assign.filter(x => x !== back);
+      day.pods[p].assign.push({ id: spare.id, shift: spare.shift });
+      day.pods[donor].assign.push({ id: back.id, shift: back.shift });
+    }
+  }
+
   // 3b) Keep Pod E the smallest — move any excess in E to the emptiest other pod
   while (podCount("E") > Math.min(...PODS.filter(q => q !== "E").map(podCount)) && podCount("E") > 1 && guard++ < 140) {
     const target = PODS.filter(q => q !== "E").sort((a,b) => podCount(a) - podCount(b))[0];
@@ -6758,31 +7123,79 @@ async function applyDuePendingSkills(silent){
    Everything the rota team has to act on, in one place, counted on the side-menu badge.
    Deliberately NOT the red/amber day dots — those live on the board where the day is. This is
    for things that would otherwise sit unnoticed: people to check, clashes, changes about to land. */
-function attentionItems(){
+/* ── ONE RULE FOR EVERY ROW: SORTED ───────────────────────────────────────────────────────────
+   Ali, 11 Aug, writing the rule for Cover: "any attention thing that leaves a badge must have a
+   way of showing youve sorted and the attention badge disappearing. And on attention page when
+   say youve sorted grey out and drop off after 3 days." Cover got it that night. The resident
+   board did not, and on 12 Aug it showed: he checked Tom McKernan, the row simply vanished, and
+   there was no way to tell a row that had been dealt with from a row that had never existed —
+   "it should just grey out and badge drop".
+
+   So: every row takes a press. The badge drops at once, the row greys and STAYS for three days
+   with the name of whoever pressed it, then goes. A row that disappears the instant you press it
+   answers "did somebody deal with that?" with silence.
+
+   What happens on the fourth day depends on what KIND of fact the row is:
+
+     A LIVE CONDITION — a clash with Optima, somebody still unchecked, cover still running out —
+     is only ever as true as it is right now. A press quiets it for three days; if it is STILL
+     true when they are up it comes back, un-greyed and counting again. You can quiet it, you
+     cannot make it lie.
+
+     A HISTORICAL FACT — a skill that starts on a date, a notice — happened, and a named person
+     saying they have dealt with it is the end of it. Those stay gone.
+
+   And one thing Cover did not need: here the press often makes the condition FALSE (checking
+   somebody is what the row was asking for). The row must still grey rather than vanish, so the
+   title is copied into the store when it is pressed and drawn from there for its three days. */
+const SORTED_GREY_DAYS = 3;
+const LIVE_KINDS = ["clash", "ghost", "unver", "dup", "cover"];
+function sortedOf(id){ return (data && data.sorted && data.sorted[id]) || null; }
+/* Rows that summarise a SET — the clashes, the ghosts — carry a signature of that set in their id,
+   so quieting today's three clashes cannot also quiet tomorrow's fourth. A new fact is a new row. */
+function attnSig(parts){
+  const s = parts.join("|");
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+function rawAttention(){
   if (!data) return [];
   const out = [];
-  const clashes = (data.syncReview || []).length;
-  if (clashes) out.push({ n: clashes, title: "Allocate disagrees with the board",
+  const review = data.syncReview || [];
+  const clashes = review.length;
+  if (clashes) out.push({ kind: "clash", id: "clash:" + attnSig(review.map(c => (c && (c.date || "")) + (c && (c.name || "")))),
+    n: clashes, title: "Allocate disagrees with the board",
     body: clashes === 1 ? "One day where somebody's shift here doesn't match Optima. Pick which is right." : clashes + " days where somebody's shift here doesn't match Optima. Pick which is right.",
     go: () => { const e = $("#syncReview"); if (e) e.scrollIntoView({ behavior: "smooth", block: "center" }); } });
 
   const ghosts = (typeof srDetectGhosts === "function") ? srDetectGhosts() : [];
-  if (ghosts.length) out.push({ n: ghosts.length, title: "Off the Optima rota but still allocated",
+  if (ghosts.length) out.push({ kind: "ghost", id: "ghost:" + attnSig(ghosts.map(g => (g && (g.sid || g.name || "")) + (g && (g.date || "")))),
+    n: ghosts.length, title: "Off the Optima rota but still allocated",
     body: ghosts.slice(0, 6).map(g => g.name).join(", ") + (ghosts.length > 6 ? " and " + (ghosts.length - 6) + " more" : "")
       + " — the sync clears these on its next run; these are the ones it could not.",
     go: () => { const e = $("#syncReview"); if (e) e.scrollIntoView({ behavior: "smooth", block: "center" }); } });
 
-  const unver = data.staff.filter(s => s.verified === false && s.active !== false);
-  if (unver.length) out.push({ n: unver.length, title: "New people to check",
-    body: unver.slice(0, 6).map(s => s.name).join(", ") + (unver.length > 6 ? " and " + (unver.length - 6) + " more" : "") + " — added automatically from Optima. Confirm their skills are right.",
-    go: () => switchTab("staff") });
+  /* ONE ROW PER PERSON, not one row listing six of them. Checking somebody is a thing you do to a
+     person, so it has to be a thing you can press against that person — a single row covering the
+     lot can only ever be half-done, and half-done is what the badge cannot say. The press does the
+     same work the Staff page's Check button does, which is why the button says Checked. */
+  for (const s of data.staff.filter(x => x.verified === false && x.active !== false)) {
+    out.push({ kind: "unver", id: "unver:" + s.id, n: 1,
+      title: s.name + " has not been checked",
+      body: "Added automatically from Optima" + (s.grade ? " as " + s.grade : " with no grade set")
+          + ". Confirm their skills are right — they are being allocated in the meantime.",
+      sortLabel: "Checked",
+      onSort: () => { s.verified = true; logEntry("Checked new starter: " + s.name); },
+      go: () => switchTab("staff") });
+  }
 
   /* Two records for one person is not a tidiness problem: the rules live on one of them while the
      rota is written against the other, so a supernumerary neurology registrar ends up counted in a
      pod and nothing on screen explains why. It goes near the top because everything downstream of
      it is wrong while it stays true. */
   for (const d of suspectedDuplicates()) {
-    out.push({ n: 1,
+    out.push({ kind: "dup", id: "dup:" + d.keep.id + ":" + d.dup.id, n: 1,
       title: d.dup.name + " and " + d.keep.name + " look like the same person",
       body: "They are " + d.why + ". \u201c" + d.dup.name + "\u201d came from the Optima import as a "
           + "one-off locum, so it carries no grade and no skills — anything set against "
@@ -6812,7 +7225,9 @@ function attentionItems(){
     const words = Object.keys(x.add || {}).map(k => (SKILL_SHORT[k] || k).toLowerCase());
     if (!words.length) continue;
     const list = words.length > 1 ? words.slice(0, -1).join(", ") + " and " + words[words.length - 1] : words[0];
-    out.push({ n: 1,
+    /* Historical, not live: the date it starts is a fact about the future that somebody has now
+       read. Once they say so it does not come back — unlike a clash, which is only true today. */
+    out.push({ kind: "pend", id: "pend:" + x.id + ":" + x.from, n: 1,
       title: x.name + " — " + list + " from " + niceDate(x.from),
       body: "Ticked and in use now. Auto-fill starts choosing them for " + list + " on " + niceDate(x.from) + ".",
       go: () => switchTab("staff") });
@@ -6833,13 +7248,63 @@ function attentionItems(){
       });
     }
     const daysLeft = lastCover ? Math.round((new Date(lastCover) - new Date(today)) / 86400000) : -1;
-    if (daysLeft < 7) out.push({ n: 1, title: "Consultant cover needs the next Pod Allocations sheet",
+    /* The id carries the date the cover runs out, so importing the next sheet makes this a
+       different row: quieting "cover ends 24 Aug" cannot also quiet "cover ends 21 Sep". */
+    if (daysLeft < 7) out.push({ kind: "cover", id: "cover:" + (lastCover || "none"), n: 1,
+      title: "Consultant cover needs the next Pod Allocations sheet",
       body: lastCover ? "The imported consultant cover ends " + niceDate(lastCover) + ". Drop the new 4-week sheet on the Import page."
                       : "No consultant cover imported for the days ahead. Drop the current 4-week Pod Allocations sheet on the Import page.",
       go: () => switchTab("import") });
   }
 
   return out;
+}
+/* THE SORTED PASS. Everything above says what is true; this says what somebody has already dealt
+   with. One place at the end rather than a check inside each push — doing it per row is how Cover
+   ended up with three different behaviours and one row that could not be cleared at all. */
+function attentionItems(){
+  if (!data) return [];
+  const now = Date.now();
+  const live = [];
+  const seen = new Set();
+  for (const it of rawAttention()) {
+    seen.add(it.id);
+    const s = sortedOf(it.id);
+    if (!s || !s.t) { live.push(it); continue; }
+    const ageDays = (now - Date.parse(s.t)) / 86400000;
+    if (!(ageDays >= 0)) { live.push(it); continue; }        // unreadable stamp: treat as not sorted
+    if (ageDays < SORTED_GREY_DAYS) { live.push(Object.assign({}, it, { done: true, doneBy: s.who, doneAt: s.t })); continue; }
+    // Three days up. Still true and live? It comes back. A record of something that happened stays dealt with.
+    if (LIVE_KINDS.includes(it.kind)) live.push(it);
+  }
+  /* Rows whose condition has GONE because the press dealt with it — checking somebody is exactly
+     this — still show, greyed, for their three days, drawn from what was stored at the time. */
+  for (const [id, s] of Object.entries((data.sorted) || {})) {
+    if (seen.has(id) || !s || !s.t || !s.title) continue;
+    const ageDays = (now - Date.parse(s.t)) / 86400000;
+    if (!(ageDays >= 0) || ageDays >= SORTED_GREY_DAYS) continue;
+    live.push({ kind: "gone", id: id, n: 1, title: s.title, body: s.body || "",
+      sortLabel: s.label || "Sorted", done: true, doneBy: s.who, doneAt: s.t, go: () => {} });
+  }
+  // Dealt-with rows sit under the ones that still need somebody. Order is otherwise untouched.
+  return live.filter(x => !x.done).concat(live.filter(x => x.done));
+}
+/* Pressing it is a change to the shared rota like any other: it arms editing, saves, and is
+   logged under a name — the name is the whole point of a greyed row. */
+async function markSorted(id){
+  const it = attentionItems().find(x => x.id === id);
+  if (!it || it.done) return;
+  if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
+  if (it.onSort) it.onSort();
+  data.sorted = data.sorted || {};
+  /* The title and the word on the button are stored alongside the stamp, so the greyed row can be
+     drawn for its three days after the condition that produced it has gone — which is exactly what
+     happens when the press is what dealt with it. */
+  data.sorted[id] = { t: new Date().toISOString(), who: editorName(), title: it.title,
+                      body: it.body || "", label: it.sortLabel || "Sorted" };
+  if (!it.onSort) logEntry("Marked sorted: " + it.title, "manual");
+  markDirty(); saveFile(true); renderAll(); updateTeamBadge();
+  toast((it.sortLabel || "Sorted") + " — " + it.title);
 }
 // Feedback has its own page so it doesn't clog this list, but it still counts on the badge.
 function unreadFeedback(){ return ((data && data.feedback) || []).filter(f => !isFeedbackRead(f)).length; }
@@ -6850,17 +7315,19 @@ function logSeenAt(){
   const local = store.get("logSeen") || "";
   return shared > local ? shared : local;
 }
+/* The badge counts what NOBODY HAS DEALT WITH. A greyed row is still on the page — that is the
+   point of it — but it must not keep the number up, or pressing Sorted would appear to do nothing. */
 function attentionCount(){
   const seen = logSeenAt();
   const freshLog = data ? (data.log || []).filter(x => x && x.t > seen).length : 0;
-  return attentionItems().reduce((n, x) => n + x.n, 0) + unreadFeedback() + (freshLog ? 1 : 0);
+  return attentionItems().reduce((n, x) => n + (x.done ? 0 : x.n), 0) + unreadFeedback() + (freshLog ? 1 : 0);
 }
 function updateTeamBadge(){
   const n = data ? attentionCount() : 0;
   const txt = n > 99 ? "99+" : String(n);
   const b = $("#teamBadge");
   if (b) { b.textContent = txt; b.classList.toggle("on", n > 0); }
-  const attnOnly = data ? attentionItems().reduce((a, x) => a + x.n, 0) : 0;
+  const attnOnly = data ? attentionItems().reduce((a, x) => a + (x.done ? 0 : x.n), 0) : 0;
   const t = $("#tabAttnCount");
   if (t) { t.textContent = String(attnOnly); t.classList.toggle("on", attnOnly > 0); }
   const st = $("#tabStaffCount");
@@ -6988,14 +7455,25 @@ function renderAttention(){
     return;
   }
   for (const it of items) {
-    const row = el("button", { class: "attnrow", onclick: it.go },
-      el("span", { class: "n" }, String(it.n)),
+    const row = el("button", { class: "attnrow" + (it.done ? " done" : ""), onclick: it.go },
+      el("span", { class: "n" }, it.done ? "✓" : String(it.n)),
       el("span", { class: "tx" }, el("b", {}, it.title), el("span", {}, it.body)));
-    /* Some rows can fix the thing they are describing. The button sits inside the row but stops
-       the click bubbling, so reading the row still takes you to the page and pressing the button
-       does the work — one row, two intentions, neither stealing the other. */
-    if (it.act) row.append(el("button", { class: "btn attnact", onclick: e => { e.stopPropagation(); it.act(); } },
-      it.actLabel || "Fix"));
+    /* A dealt-with row keeps its title and loses its buttons: there is nothing left to press, and
+       leaving a live Sorted button on a sorted row invites people to wonder whether it took. The
+       name stays, because "did somebody deal with that?" is the question this page is answering. */
+    if (it.done) {
+      row.append(el("span", { class: "attnwho" },
+        (it.doneBy && it.doneBy !== "(name not set)" ? (it.sortLabel || "Sorted") + " by " + it.doneBy : (it.sortLabel || "Sorted"))
+        + (it.doneAt ? " · " + niceDate(String(it.doneAt).slice(0, 10)) : "")));
+    } else {
+      /* Some rows can fix the thing they are describing. The button sits inside the row but stops
+         the click bubbling, so reading the row still takes you to the page and pressing the button
+         does the work — one row, two intentions, neither stealing the other. */
+      if (it.act) row.append(el("button", { class: "btn attnact", onclick: e => { e.stopPropagation(); it.act(); } },
+        it.actLabel || "Fix"));
+      row.append(el("button", { class: "btn sec attnsort", onclick: e => { e.stopPropagation(); markSorted(it.id); } },
+        it.sortLabel || "Sorted"));
+    }
     box.append(row);
   }
 }
@@ -7140,6 +7618,7 @@ function renderSettings(){
   const save = msg => { logEntry(msg, "manual"); markDirty(); saveFile(true); };
 
   if (settingsPage === "grades") { renderGradeDefaults(box); return; }
+  if (settingsPage === "strength") { renderStrengthPage(box); return; }
 
   /* ---- WHERE THE BOARD'S DATA COMES FROM -------------------------------------------------
      Two sources now, and they must both be named. The roster comes from Allocate through the
@@ -7245,8 +7724,123 @@ function renderSettings(){
     el("span", { style: "color:var(--muted)" }, "\u203a"));
   tiles.append(tile("Skills a grade starts with", GRADES.filter(g => g !== "CON").length + " grades",
     () => { settingsPage = "grades"; renderSettings(); }));
+  /* Ali, 26.08.14: "There can be more added to a rota team page on the back". The board keeps the
+     dial and nothing else; the day shapes, the day score and every number behind them live here,
+     behind the shield, where a longer look costs nobody a glance at the board. */
+  tiles.append(tile("Pod strength", "floors, tiers, day score",
+    () => { settingsPage = "strength"; renderSettings(); }));
   tiles.append(tile("Import by hand", "if the sync has stopped", () => switchTab("import")));
   box.append(tiles);
+}
+
+/* ---- SETUP › POD STRENGTH -------------------------------------------------------------------
+   Ali, 26.08.14: "the front view needs to stay as it is. when press edit there can be some
+   minimal things that come up to help with changes. There can be more added to a rota team page
+   on the back." This is the back page. The board keeps only the small dial, and only while
+   somebody is editing; the day shapes, the day score and every number underneath them are here.
+
+   HARD RULE 1 — every number on this page is editable from the front end by an authorised person.
+   strength.js ships defaults, not a specification: the tiers, the two week boundaries, what each
+   skill is worth, each pod's floor and which of the three day scores is used are all retuned from
+   here. Nothing needs a code edit, repo access or me. Negative points are allowed and expected —
+   being three weeks in is a cost.
+
+   HARD RULE 6 — nothing here records or hints at why anybody is not on. A pod is scored from the
+   people who ARE in it and what they can do. Somebody not on a day is simply not in the list, and
+   no field, label or log line on this page can be read backwards to a reason. */
+function renderStrengthPage(box){
+  const save = msg => { logEntry(msg, "manual"); markDirty(); saveFile(true); };
+  /* renderAll first so renderWeek re-ticks every day with the new numbers, then this page again so
+     the bars above are drawn from the same pass rather than from the previous one. */
+  const redraw = () => { renderAll(); renderSettings(); };
+  box.append(el("button", { class: "btn sec", style: "font-size:.78rem;padding:.25rem .7rem;margin-bottom:.9rem",
+    onclick: () => { settingsPage = null; renderSettings(); } }, "‹ Settings"));
+  const h = t => el("div", { class: "sectlab", style: "margin:1.2rem 0 .5rem" }, t);
+  const sc0 = strengthCfg();
+
+  /* Scored here rather than read out of STR_DAY: that store belongs to the board's redraw cycle
+     and its snapshots are what make the delta chips mean "since the last redraw". A second reader
+     taking from it would quietly eat those deltas. */
+  box.append(el("div", { class: "sectlab", style: "margin:0 0 .5rem" }, "THE WEEK ON SCREEN"));
+  /* Read, never getWeek() — this page must not bring a week into existence just by being looked
+     at. currentWeekKey is null until the board has drawn once, so fall back rather than feed null
+     into addDays(). */
+  const wkKey = currentWeekKey || mondayOf(todayISO());
+  const wk = (data.weeks || {})[wkKey];
+  const dayList = el("div");
+  for (let di = 0; di < 7; di++) {
+    const dateISO = addDays(wkKey, di);
+    const day = wk && wk.days && wk.days[di];
+    const ds = (day && window.Strength)
+      ? Strength.dayScore(day, Strength.indexStaff(data.staff), dateISO, sc0) : null;
+    dayList.append(el("div", { style: "display:flex;align-items:center;gap:.9rem;padding:.5rem 0;border-top:1px solid var(--hair)" },
+      el("div", { style: "width:8rem;flex:none;font-size:.78rem;color:var(--muted)" },
+        DAYNAMES[di] + " " + fmtDate(dateISO)),
+      strengthShape(ds) || el("span", { style: "font-size:.78rem;color:var(--muted)" }, "—")));
+  }
+  box.append(dayList);
+
+  /* Three ways of turning five pod scores into one day number, side by side so they can be
+     compared on the real board rather than argued about from a mockup. */
+  const msel = el("select", { style: "font-size:.9rem" });
+  for (const [v, l] of [["floor","worst shortfall"],["min","lowest pod"],["avg","mean pod"]]) {
+    const o = el("option", { value: v }, l);
+    if (v === sc0.mode) o.selected = true;
+    msel.append(o);
+  }
+  msel.onchange = () => {
+    const was = sc0.mode;
+    setStr({ mode: msel.value });
+    save("Setting: day score changed from " + was + " to " + msel.value);
+    redraw();
+  };
+  box.append(el("label", { style: "display:inline-flex;align-items:center;gap:.5rem;margin-top:.9rem;font-size:.8rem;color:var(--muted)" },
+    "Day score", msel));
+
+  /* Same tile as the pod rules on the main settings screen, minus the "never below zero" guard
+     those have. */
+  const stile = (label, unit, val, apply) => {
+    const inp = el("input", { type: "number", value: String(val),
+      style: "font-size:1.35rem;font-weight:600;width:100%;border:0;background:transparent;padding:0" });
+    inp.onchange = () => {
+      const v = Number(inp.value);
+      if (inp.value === "" || !isFinite(v)) { inp.value = String(val); return; }
+      apply(v, label);
+    };
+    return el("div", { style: "background:var(--hair);border-radius:10px;padding:.6rem .75rem" },
+      el("div", { style: "display:flex;align-items:baseline;gap:.2rem" }, inp,
+        unit ? el("span", { style: "font-size:.9rem;color:var(--muted)" }, unit) : null),
+      el("div", { style: "font-size:.76rem;color:var(--muted);line-height:1.35;margin-top:.15rem" }, label));
+  };
+  function setStr(patch){ data.strengthCfg = Object.assign({}, data.strengthCfg || {}, patch); }
+
+  /* One floor per pod, because a pod is judged against what that pod needs. Scoring E against
+     A–D made E the weakest pod on almost every day, which is a signal that only ever says "E". */
+  box.append(h("Pod floors"));
+  const fgrid = el("div", { style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.55rem" });
+  for (const p of PODS)
+    fgrid.append(stile("Pod " + p + " floor", "", (sc0.floors || {})[p], (v, lb) => {
+      const was = (sc0.floors || {})[p];
+      const fl = Object.assign({}, sc0.floors || {}); fl[p] = v;
+      setStr({ floors: fl });
+      save("Setting: " + lb + " changed from " + was + " to " + v);
+      redraw();
+    }));
+  box.append(fgrid);
+
+  box.append(h("What each thing is worth"));
+  const snums = [["newWeeks","new below this many weeks","wks"],["settleWeeks","settling below this many weeks","wks"],
+    ["newPts","new is worth",""],["settlePts","settling is worth",""],["estPts","established is worth",""],
+    ["airwayPts","airway trained is worth",""],["transferPts","transfer trained is worth",""],
+    ["phonePts","phone holder is worth",""]];
+  const sgrid2 = el("div", { style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.55rem" });
+  for (const [k, label, unit] of snums)
+    sgrid2.append(stile(label, unit, sc0[k], (v, lb) => {
+      const was = sc0[k]; const patch = {}; patch[k] = v; setStr(patch);
+      save("Setting: " + lb + " changed from " + was + " to " + v);
+      redraw();
+    }));
+  box.append(sgrid2);
 }
 
 /* The grade defaults, unchanged in behaviour — only moved off the main settings screen. */
@@ -7903,6 +8497,17 @@ function switchTab(tab){
   if (tab === "settings") renderSettingsGate();
   if (tab === "overrides") renderOverridesGate();
   if (tab === "feedback") { renderFeedback(); markFeedbackRead(); }
+  /* PAST THE SHIELD IS EDITING (Ali, 12 Aug: "if somebody logs into the rota team bit past the
+     shield it should enter edit mode and block others from saving until theyve stopped using").
+     The rota-team password and edit mode were two separate ideas, and the gap between them is
+     where changes went to die: unlock the staff list, tick something, and markDirty() returns
+     without a word. Arming here also takes the editor lock, which is the "block others" half of
+     the same sentence — and the existing 5-minute idle timer is the "until theyve stopped".
+     Last in the function so the page is already drawn behind the "Who's editing?" question. */
+  if (TEAM_TABS.includes(tab) && data && !EDIT_MODE && !VIEW_ONLY && !teamEditTried) {
+    teamEditTried = true;
+    Promise.resolve(enterEdit()).catch(() => {});   // navigation must never die on a failed unlock
+  }
 }
 document.querySelectorAll("aside button[data-tab], #teamPanel .tpi").forEach(b => b.onclick = () => switchTab(b.dataset.tab));
 $("#btnTeam").onclick = () => { document.body.classList.remove("railback"); switchTab("team"); };
@@ -7954,7 +8559,10 @@ $("#btnNextWeek").onclick = () => { currentWeekKey = addDays(currentWeekKey, 7);
 $("#btnToday").onclick = () => { currentWeekKey = mondayOf(todayISO()); renderWeek(); };
 $("#btnAutoFill").onclick = autoFillWeek;
 $("#btnFixWeek").onclick = fixWeekDialog;
-$("#btnAddStaff").onclick = () => staffModal(null);
+$("#btnAddStaff").onclick = async () => {
+  if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
+  staffModal(null);
+};
 $("#modalBg").onclick = e => { if (e.target.id === "modalBg") closeModal(); };
 $("#wOpen").onclick = openFile;
 $("#wNew").onclick = e => { e.preventDefault(); newFile(); };
