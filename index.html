@@ -1245,7 +1245,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
 </div>
 
 <script src="core.js?v=20260810-04"></script>
-<script src="strength.js?v=20260814-05"></script>
+<script src="strength.js?v=20260814-07"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -4272,13 +4272,27 @@ function strDonorNote(sc, id, exceptPod){
   for (i = 0; i < lst.length; i++) if (lst[i].pod !== exceptPod) out.push("Pod " + lst[i].pod + " has " + lst[i].spare + " spare");
   return out.join(", ");
 }
-/* The line under a dial. Only what is missing and only what can be moved — never a sentence
-   restating what the ring already said, which is project rule 2. */
+/* THE LINE UNDER A DIAL SAYS ONLY WHAT A MOVE WOULD FIX. Ali, 26.08.15: "theres so much noise from
+   pod broken up grey writings." He was right, and the answer is not smaller type.
+
+   Printing every unmet aim put a grey sentence under all five pods on most days, and most of those
+   sentences named nothing anybody could act on. "Pod broken up" is the clearest case: it is a fact
+   about yesterday, there is no move that undoes it, and it was sitting on top of the two lines that
+   DO name an action — no transfer and no ACCP, each with a pod holding a spare.
+
+   So the face carries two things only: a broken gate, which stops everything, and a missed aim that
+   some other pod could actually fill. An aim nobody could have met is already out of the score, and
+   an aim that is met but unfixable is behind the ring, where a number that has been read and
+   queried belongs. Fewer words on the board, the same arithmetic one tap away. */
 function strengthWhy(sc, p){
-  var pd = sc.pods[p], parts = [], i;
+  var pd = sc.pods[p], parts = [], i, id;
   if (!pd) return "";
   for (i = 0; i < pd.broken.length; i++) parts.push(Strength.shortOf(pd.broken[i]));
-  for (i = 0; i < pd.missed.length; i++) parts.push(Strength.shortOf(pd.missed[i]));
+  for (i = 0; i < pd.missed.length; i++) {
+    id = pd.missed[i];
+    if (!Strength.donors(sc, id).length) continue;   // nothing to move, nothing to say
+    parts.push(Strength.shortOf(id));
+  }
   return parts.join(" · ");
 }
 /* THE RING. Ali, 26.08.15: "At rest number when moved signed delta." A percentage in the middle,
@@ -4330,9 +4344,13 @@ function strengthRulesDialog(dateISO, p){
   m.append(el("h3", {}, "Pod " + p + " · " + fmtDate(dateISO)));
   for (i = 0; i < pd.broken.length; i++)
     m.append(line("unmet", "✕", Strength.labelOf(pd.broken[i]), "", "must"));
-  for (i = 0; i < pd.missed.length; i++)
-    m.append(line("unmet", "✕", Strength.labelOf(pd.missed[i]),
-      strDonorNote(sc, pd.missed[i], p), "0 of " + Strength.wOf(sc.cfg, pd.missed[i])));
+  var partOf = function (id) { var k; for (k = 0; k < (pd.part || []).length; k++) if (pd.part[k].id === id) return pd.part[k].f; return null; };
+  for (i = 0; i < pd.missed.length; i++) {
+    var f = partOf(pd.missed[i]), w = Strength.wOf(sc.cfg, pd.missed[i]);
+    m.append(line("unmet", f == null ? "✕" : "~", Strength.labelOf(pd.missed[i]),
+      strDonorNote(sc, pd.missed[i], p),
+      (f == null ? "0" : (Math.round(f * w * 100) / 100)) + " of " + w));
+  }
   for (i = 0; i < pd.met.length; i++)
     m.append(line("met", "✓", Strength.labelOf(pd.met[i]), "",
       Strength.wOf(sc.cfg, pd.met[i]) + " of " + Strength.wOf(sc.cfg, pd.met[i])));
@@ -4353,7 +4371,7 @@ function strengthRulesDialog(dateISO, p){
   m.append(el("div", { class: "strrule tot " + (pd.isBroken ? "unmet" : "met") },
     mark(pd.isBroken ? "✕" : "✓"),
     el("span", { class: "rlb" }, "Pod " + p),
-    el("span", { class: "rwt" }, pd.isBroken ? "broken" : (pd.pct + "% · " + pd.got + " of " + pd.app))));
+    el("span", { class: "rwt" }, pd.isBroken ? "broken" : (pd.pct + "% · " + (Math.round(pd.got * 100) / 100) + " of " + pd.app))));
   m.append(el("div", { class: "modalbtns" }, el("button", { class: "btn", onclick: closeModal }, "Close")));
   $("#modalBg").style.display = "flex";
 }
@@ -4392,10 +4410,15 @@ function strengthDial(dateISO, p){
        arithmetic must not also count as picking the pod. */
     onclick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); strengthRulesDialog(dateISO, p); } });
   var wrap = el("div", { class: "strpod" }, btn);
-  /* THE SIGNED DELTA. Ali chose this over a ghost arc: a change of three points has to be legible,
-     and an arc creeping by three pixels is not. It says only that a number moved and by how much —
-     never who moved, never why anybody is or is not on the day (hard rule 6). */
-  if (d) wrap.append(el("span", { class: "strdelta " + (d > 0 ? "up" : "down") },
+  /* THE SIGNED DELTA, AND NEVER BESIDE A RING THAT HAS NO NUMBER. Ali, 26.08.15, reading a broken
+     pod: "-25under minimum · pod broken up cant be a minus number." He was right and it was worse
+     than a typo — a broken pod draws an exclamation rather than a percentage, so the delta chip was
+     the ONLY figure on the tile and read as the pod's score. A signed change needs something to be
+     a change TO. No number on the face, no chip.
+
+     It says only that a number moved and by how much — never who moved, never why anybody is or is
+     not on the day (hard rule 6). */
+  if (d && !pd.isBroken) wrap.append(el("span", { class: "strdelta " + (d > 0 ? "up" : "down") },
     (d > 0 ? "+" : "−") + String(Math.abs(d))));
   var why = strengthWhy(rec.sc, p);
   if (why) wrap.append(el("span", { class: "strwhy" }, why));
