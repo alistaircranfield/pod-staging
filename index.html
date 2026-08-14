@@ -804,6 +804,8 @@ button.strdial:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .strdelta{flex:none;font-size:.66rem;font-weight:700;padding:.05rem .35rem;border-radius:999px;white-space:nowrap}
 .strdelta.up{background:#eef7f1;color:#2f7a52}
 .strdelta.down{background:#fdf1f1;color:#B3302F}
+/* The day ring sits under the dot in a narrow column, so it centres rather than running in a row. */
+.strpod.strday{justify-content:center;margin:.35rem 0 0}
 .strwhy{flex:1 1 5.5rem;min-width:0;font-size:.66rem;line-height:1.25;color:var(--muted);overflow-wrap:anywhere}
 /* WHAT THE RING OPENS. One row per requirement, met or unmet, with what it is worth — the same
    rules Settings holds, answered for this pod on this day. No legend and no sentence explaining
@@ -822,11 +824,23 @@ button.strdial:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .strrule .rwt{flex:none;font-size:.8rem;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
 .strrule.tot{border-top:1.5px solid var(--line);font-weight:700}
 .strrule.tot .rwt{color:var(--ink)}
-/* The day's number, before and after the fix. Two numbers and an arrow: what pressing the button
-   is worth, in the same unit the rings are drawn in. */
-.fixscore{display:flex;align-items:baseline;gap:.5rem;font-size:1.15rem;font-weight:800;margin:.5rem 0 .2rem;
-  font-variant-numeric:tabular-nums}
-.fixscore span{font-size:.9rem;font-weight:600;color:var(--muted)}
+/* The day's number before and after, as the same two rings the board draws. */
+.ccrings{display:flex;align-items:center;justify-content:center;gap:.9rem;background:#fafaf8;border-radius:11px;
+  padding:.7rem;margin:.7rem 0 .2rem}
+.ccrings .rt{stroke:var(--hair)}
+.ccarrow{font-size:1.1rem;color:#c9cbd0}
+/* A move: who, out of which pod, into which. The circles are the board's own pod colours. */
+.fixrow.move{display:flex;align-items:center;gap:.5rem;padding:.35rem 0}
+.fixrow.move .fixrow-t{flex:1 1 auto;min-width:0;font-size:.88rem;color:var(--ink)}
+.fixrow-ar{color:#c9cbd0;font-size:.8rem;flex:none}
+.poddot{flex:none;width:23px;height:23px;border-radius:50%;display:inline-flex;align-items:center;
+  justify-content:center;font-size:.7rem;font-weight:800}
+.poddot.podA{background:var(--podA);color:var(--podAb)}
+.poddot.podB{background:var(--podB);color:var(--podBb)}
+.poddot.podC{background:var(--podC);color:var(--podCb)}
+.poddot.podD{background:var(--podD);color:var(--podDb)}
+.poddot.podE{background:var(--podE);color:var(--podEb)}
+.poddot.bench{background:var(--hair);color:var(--muted)}
 .strhead{font-size:.6rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:1rem 0 0}
 /* THE REGISTER, on the rota team's page. Rows rather than a table: at 390px a five-column table
    of twenty-four requirements is unreadable, and the id, the name and the weight are the only
@@ -1245,7 +1259,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
 </div>
 
 <script src="core.js?v=20260810-04"></script>
-<script src="strength.js?v=20260814-10"></script>
+<script src="strength.js?v=20260814-11"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -2447,6 +2461,15 @@ const FLAGS = [
   ["neuro","Neuro placement","rule","#6A2C91","On a neuro placement — auto-fill aims to keep more of their shifts on Pods C & D."],
   ["supernum","Supernumerary — never counted","rule","#72243E","Doesn't count towards pod numbers (e.g. supernumerary or purely learning)."],
   ["picc","PICC line","find","","Trained to insert PICC lines. Deliberately not a board icon — asked for a few times a week, not read off every pod. Use Who can… to see who is on today."],
+  /* NOT A PERSON. Ali, 26.08.15: "how do we handle locum and neurology resitsrat their attnetion
+     things are annoying." They were annoying because the board has two kinds of record and treated
+     them as one. "Locum Doctor - Non Airway" and "Neurology Registrar" are STANDING SLOTS that a
+     different person fills each time — so "when did they start on the unit?" has no answer, will
+     never have one, and the Attention page kept asking. Every person-shaped question skips a record
+     with this ticked: no start date asked, no returner asked, no check asked, and no experience tier
+     dragging the pod's mix. Deliberately a tick and NOT a guess from the name (Ali chose this): a
+     real colleague whose name happens to contain "Registrar" must never be quietly reclassified. */
+  ["placeholder","A slot, not a person","info","","A standing slot filled by whoever covers it — a locum line, the neurology registrar. The board stops asking it questions that only make sense about a person."],
   ["nights","Works nights","info","","Available to be put on night shifts."],
   ["fgh","FGH days","info","","Covers Fairfield General on days."],
   ["fghNights","FGH nights","info","","Covers Fairfield General at night."],
@@ -3660,36 +3683,66 @@ function afterChangeCard(di, headline){
   box.append(el("div", { class: "dlg-title" }, headline),
              el("div", { class: "dlg-body" }, "The sync won't put them back."));
 
+  /* ── WHAT THIS CARD LOOKED LIKE BEFORE, AND WHY IT CHANGED ──────────────────────────────
+     Ali sent a photograph of it, 26.08.15: "This popup not clear at all, either visually or whats
+     haoppening or what the buttons do." Four things were wrong and only one of them was visual.
+
+       AIM in a beige box is jargon. It named the requirement's CLASS, which is a thing the code
+       cares about and nobody reading at five in the morning does. The aims are now expressed by
+       the number moving, which is what a number is for.
+
+       "92% → 98%" floated with no label. Two rings answer "of what?" by being rings.
+
+       The three moves sat under it with nothing saying they were a PROPOSAL. A reader could not
+       tell whether they had already happened. Now they are rows under a heading that says what
+       pressing the button does, and each names the pod it leaves and the pod it joins as the same
+       pastel letter used everywhere else on the board.
+
+       And the buttons were backwards. The dark, leading button said "Done" — which does nothing —
+       while the one that actually acted was greyed and called "Even the pods up ANYWAY", a word
+       that reads as the board discouraging you from taking its own advice. Now the dark button
+       does the thing and its label says what the thing is.
+
+     What has NOT changed: which button leads still depends on whether anything is broken. "Dont
+     move people for the sake if it otherwise will annoy" — get that backwards and everybody taps
+     the top button on reflex, including on the days it matters. */
   const line = (kind, txt) => el("div", { class: "cc-line " + kind },
     el("span", { class: "cc-tag" }, kind === "hard" ? "ISSUE" : kind === "soft" ? "AIM" : "OK"),
     el("span", {}, txt));
+  /* Broken things still get a sentence, because a gate is not a percentage and never was. Aims do
+     not: they are the number. */
   hard.forEach(i => box.append(line("hard", i.msg)));
-  soft.forEach(i => box.append(line("soft", i.msg)));
-  if (spread) box.append(line("soft", spread));
+
+  const ring = (pct) => el("span", { class: "ccring", html:
+    '<svg viewBox="0 0 40 40" width="46" height="46" aria-hidden="true">'
+    + '<circle class="rt" cx="20" cy="20" r="15.9155" pathLength="100" fill="none" stroke-width="4.5"></circle>'
+    + '<circle cx="20" cy="20" r="15.9155" pathLength="100" fill="none" stroke-width="4.5" stroke-linecap="round"'
+    + ' stroke-dasharray="' + Math.max(0, Math.min(100, pct)) + ' 100" transform="rotate(-90 20 20)"'
+    + ' style="stroke:' + Strength.colourOf(pct) + '"></circle>'
+    + '<text x="20" y="24.5" text-anchor="middle" font-size="13" font-weight="700"'
+    + ' style="fill:' + Strength.colourOf(pct) + '">' + esc(String(pct)) + '</text></svg>' });
 
   if (!hard.length && !soft.length && !spread) {
     box.append(line("ok", "Every check passes. Nothing to move."),
       el("div", { class: "cc-sub" }, "Airway, phone, phone supervision, long days, transfers and pod numbers all still hold."));
     box.append(el("button", { class: "btn sheetbtn", onclick: shut }, "Done"));
   } else if (plan.changes.length) {
-    box.append(el("div", { class: "cc-sub" }, "The fewest changes that clear it — everyone else stays put"));
+    const n = plan.changes.length;
     if (scNow && scFix && scNow.day.pct != null && scFix.day.pct != null)
-      box.append(el("div", { class: "fixscore" },
-        el("b", { style: "color:" + Strength.colourOf(scNow.day.pct) }, scNow.day.pct + "%"),
-        el("span", {}, "→"),
-        el("b", { style: "color:" + Strength.colourOf(scFix.day.pct) }, scFix.day.pct + "%")));
+      box.append(el("div", { class: "ccrings" }, ring(scNow.day.pct),
+        el("span", { class: "ccarrow" }, "→"), ring(scFix.day.pct)));
+    box.append(el("div", { class: "cc-sub" },
+      n === 1 ? "One move, and everyone else stays put" : n + " moves, and everyone else stays put"));
     const list = el("div", { class: "fixlist" });
     plan.changes.forEach(c => list.append(fixChangeRow(c)));
     box.append(list);
     const apply = el("button", { class: "btn sheetbtn", onclick: () => {
         shut(); applyFixedDay(di, plan.fixed, plan.changes);
         toast("Fixed " + DAYNAMES[di].slice(0,3) + " — Undo reverses it");
-      } }, "Apply " + plan.changes.length + " change" + (plan.changes.length > 1 ? "s" : ""));
-    const done = el("button", { class: "btn sec sheetbtn plain", onclick: shut }, "Leave it as it is");
-    /* Which one leads is the whole argument of this function. */
+      } }, n === 1 ? "Make this move" : "Make these " + n + " moves");
+    const done = el("button", { class: "btn sec sheetbtn plain", onclick: shut }, "Leave the day as it is");
     if (hard.length) box.append(apply, done);
-    else { done.textContent = "Done"; done.className = "btn sheetbtn";
-           apply.textContent = "Even the pods up anyway"; apply.className = "btn sec sheetbtn plain";
+    else { done.className = "btn sheetbtn"; apply.className = "btn sec sheetbtn plain";
            box.append(done, apply); }
   } else {
     box.append(el("div", { class: "cc-sub" },
@@ -4527,6 +4580,62 @@ function strengthDial(dateISO, p){
   if (why) wrap.append(el("span", { class: "strwhy" }, why));
   return wrap;
 }
+/* THE DAY RING FOR THE DATE COLUMN. Same ring, same colours, same tap-through as a pod — the whole
+   point is that a reader learns one object. Its panel lists the day-wide aims and every pod as a
+   row, so tapping the day is the way into "which pod is the thin one" without hunting across the
+   table. */
+function strengthDayDial(dateISO){
+  if (!canEdit()) return null;
+  var rec = STR_DAY[dateISO];
+  if (!rec || !rec.sc || rec.sc.empty || rec.sc.day.pct == null) return null;
+  var d = rec.sc.day, dd = rec.dayDelta;
+  var lab = "The day, " + d.pct + " per cent";
+  var btn = el("button", { class: "strdial " + Strength.band(d.pct), type: "button",
+    title: lab, "aria-label": lab,
+    html: strengthRingSVG({ pct: d.pct, isBroken: false }),
+    onclick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); strengthDayDialog(dateISO); } });
+  var wrap = el("div", { class: "strpod strday" }, btn);
+  if (dd) wrap.append(el("span", { class: "strdelta " + (dd > 0 ? "up" : "down") },
+    (dd > 0 ? "+" : "−") + String(Math.abs(dd))));
+  return wrap;
+}
+/* What the day ring opens: the day-wide aims, then one row per pod and one for the night team, each
+   with its own number. The thin pod names itself rather than having to be hunted for. */
+function strengthDayDialog(dateISO){
+  var rec = STR_DAY[dateISO];
+  if (!rec || !rec.sc) return;
+  var m = $("#modal"); if (!m) return;
+  var sc = rec.sc, i;
+  var mark = function (k) { return el("span", { class: "rmk" }, k); };
+  var line = function (cls, glyph, label, sub, right) {
+    return el("div", { class: "strrule " + cls }, mark(glyph),
+      el("span", { class: "rlb" }, label, sub ? el("span", { class: "rsk" }, sub) : null),
+      el("span", { class: "rwt" }, right || ""));
+  };
+  m.innerHTML = "";
+  m.append(el("h3", {}, fmtDate(dateISO)));
+  for (i = 0; i < sc.day.broken.length; i++) m.append(line("unmet", "✕", Strength.labelOf(sc.day.broken[i]), "", "must"));
+  for (i = 0; i < sc.day.missed.length; i++) m.append(line("unmet", "✕", Strength.labelOf(sc.day.missed[i]), "", ""));
+  m.append(el("div", { class: "strhead" }, "Pod by pod"));
+  var row = function (key, name, pd) {
+    if (!pd) return;
+    m.append(el("div", { class: "strrule " + (pd.isBroken ? "unmet" : "met") },
+      mark(pd.isBroken ? "✕" : "✓"),
+      el("span", { class: "rlb" }, name,
+        el("span", { class: "rsk" }, pd.isBroken ? Strength.shortOf(pd.broken[0])
+          : (pd.missed.length ? pd.missed.map(Strength.shortOf).join(" · ") : pd.assessed + " of " + pd.possible + " assessed")),
+        el("span", { class: "rgo" })),
+      el("span", { class: "rwt", style: "color:" + Strength.colourOf(pd.pct) },
+        pd.isBroken ? "broken" : (pd.pct + "%"))));
+  };
+  for (i = 0; i < PODS.length; i++) row(PODS[i], "Pod " + PODS[i], sc.pods[PODS[i]]);
+  if (sc.night) row("N", "Night team", sc.night);
+  m.append(el("div", { class: "strrule tot met" }, mark("✓"),
+    el("span", { class: "rlb" }, "The day", el("span", { class: "rsk" }, "of what was possible · " + sc.day.assessed + " of " + sc.day.possible + " assessed")),
+    el("span", { class: "rwt", style: "color:" + Strength.colourOf(sc.day.pct) }, sc.day.pct + "%")));
+  m.append(el("div", { class: "modalbtns" }, el("button", { class: "btn", onclick: closeModal }, "Close")));
+  $("#modalBg").style.display = "flex";
+}
 /* The day, as one number and five bars. Not on the board — Ali, 26.08.14: "the front view needs to
    stay as it is" — this is what Setup draws, and what the fix card compares against. */
 function strengthShape(sc){
@@ -4591,6 +4700,13 @@ function renderDayRow(day, di, dateISO, issues){
     onclick: () => { if (!isEmpty) checksDialog(di); }
   });
   const dlInner = el("div", { class: "dl-inner" }, el("div", { class: "dn" }, DAYNAMES[di].slice(0,3).toUpperCase()), el("div", { class: "d" }, fmtDate(dateISO)), el("div", {}, badge));
+  /* THE DAY'S OWN RING, WHERE THE DOT ALREADY LIVES. Ali, 26.08.15: "why doesnt the column with the
+     daily dot show the day overview". No reason except that it never did — the day score existed
+     only on Setup, while the column that answers "how is this day?" carried a three-state dot. Same
+     edit-mode gate as the pod rings, so the front view is untouched, and it sits UNDER the dot
+     rather than replacing it: the dot is what people read today and nothing anybody relies on
+     should move on the day a new number arrives beside it. */
+  { const dRing = strengthDayDial(dateISO); if (dRing) dlInner.append(dRing); }
   const dl = el("td", { class: "daylabel" }, dlInner);
   if (canEdit() && (hard || soft) && !isEmpty) {
     dlInner.append(el("button", { class: "fixday", title: "Correct this day with the fewest changes", onclick: () => fixDayDialog(di) },
@@ -6971,8 +7087,12 @@ function planDayFix(di){
   const ids = new Set([...PODS.flatMap(p => day.pods[p].assign.map(a=>a.id)), ...PODS.flatMap(p => orig.pods[p].assign.map(a=>a.id))].filter(Boolean));
   for (const id of ids) {
     const b = origPod(id), a = podOf(id);
-    if (b && a && b !== a) changes.push({ icon: "move", text: "Move " + sn(id) + " — Pod " + b + " → Pod " + a, reason: "" });
-    else if (!b && a) changes.push({ icon: "plus", text: "Add " + sn(id) + " to Pod " + a, reason: "From the bench" });
+    /* `who`, `from` and `to` carry the move as DATA as well as as a sentence. The sentence is what
+       the log keeps, because a log is read months later by somebody with no screen in front of
+       them; the fields are what the card draws as pastel pod letters. Both, rather than parsing the
+       sentence back apart at the other end. */
+    if (b && a && b !== a) changes.push({ icon: "move", who: sn(id), from: b, to: a, text: "Move " + sn(id) + " — Pod " + b + " → Pod " + a, reason: "" });
+    else if (!b && a) changes.push({ icon: "plus", who: sn(id), from: null, to: a, text: "Add " + sn(id) + " to Pod " + a, reason: "From the bench" });
   }
   if (orig.night.phone !== day.night.phone && day.night.phone) changes.push({ icon: "phone", text: "Night phone → " + sn(day.night.phone), reason: "" });
   return { changes, fixed: day, unresolved: [...new Set(unresolved)] };
@@ -7116,7 +7236,21 @@ function fixIcon(kind){
     : kind === "plus" ? "M12 5v14M5 12h14" : "M5 12h14M13 6l6 6-6 6";
   return '<svg viewBox="0 0 24 24" width="16" height="16" fill="' + (kind==="phone"?"currentColor":"none") + '" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="' + p + '"/></svg>';
 }
+/* A MOVE, DRAWN THE WAY THE BOARD ALREADY DRAWS PODS. Ali, 26.08.15, choosing this shape: "like the
+   nice pastel letter in circles for pods used elsewhere." A name, the pod it leaves, the pod it
+   joins — read left to right, no arrow glyph doing the work of a label, and the two circles in the
+   same colours as the columns they refer to, so the eye goes to the right place on the board without
+   reading a word. Falls back to the sentence for any change that is not a pod-to-pod move. */
+function podDot(p){
+  return el("span", { class: "poddot pod" + p, title: "Pod " + p }, p);
+}
 function fixChangeRow(c){
+  if (c.to && c.who)
+    return el("div", { class: "fixrow move" },
+      el("span", { class: "fixrow-t" }, c.who),
+      c.from ? podDot(c.from) : el("span", { class: "poddot bench", title: "From the bench" }, "·"),
+      el("span", { class: "fixrow-ar" }, "→"),
+      podDot(c.to));
   return el("div", { class: "fixrow" },
     el("span", { class: "fixrow-ic", html: fixIcon(c.icon) }),
     el("div", {}, el("div", { class: "fixrow-t" }, c.text), c.reason ? el("div", { class: "fixrow-r" }, c.reason) : null));
@@ -7607,7 +7741,8 @@ function rawAttention(){
      person, so it has to be a thing you can press against that person — a single row covering the
      lot can only ever be half-done, and half-done is what the badge cannot say. The press does the
      same work the Staff page's Check button does, which is why the button says Checked. */
-  for (const s of data.staff.filter(x => x.verified === false && x.active !== false)) {
+  /* A slot has nobody to check — see the placeholder note beside FLAGS. */
+  for (const s of data.staff.filter(x => x.verified === false && x.active !== false && !x.placeholder)) {
     out.push({ kind: "unver", id: "unver:" + s.id, n: 1,
       title: s.name + " has not been checked",
       body: "Added automatically from Optima" + (s.grade ? " as " + s.grade : " with no grade set")
@@ -7637,7 +7772,7 @@ function rawAttention(){
       if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
       fn(); markDirty(); saveFile(true); renderAll();
     };
-    for (const s of data.staff.filter(x => x.active !== false && x.grade !== "CON" && !x.adhoc)) {
+    for (const s of data.staff.filter(x => x.active !== false && x.grade !== "CON" && !x.adhoc && !x.placeholder)) {
       const tier = Strength.tierOf(s, sToday, scfg, sfs);
       if (tier === "unknown") {
         out.push({ kind: "noexp", id: "noexp:" + s.id, n: 1,
