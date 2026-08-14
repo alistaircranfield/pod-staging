@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T18:33:23.148379+00:00",
- "build": "726dfb8",
+ "generated": "2026-08-14T18:34:21.864654+00:00",
+ "build": "9fbba78",
  "liveBuild": "35abf4e",
- "count": 189,
+ "count": 191,
  "changes": [
+  {
+   "sha": "9fbba78",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T19:34:13+01:00",
+   "msg": "Two more assertions: an empty yesterday drops continuity rather than failing it"
+  },
+  {
+   "sha": "43f1925",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T18:33:23Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "726dfb8",
    "who": "alistaircranfield",
