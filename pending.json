@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T22:23:22.076489+00:00",
- "build": "6f67728",
+ "generated": "2026-08-14T22:31:53.738477+00:00",
+ "build": "cdb2920",
  "liveBuild": "35abf4e",
- "count": 213,
+ "count": 215,
  "changes": [
+  {
+   "sha": "cdb2920",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T23:31:45+01:00",
+   "msg": "Dot or ring, never both \u2014 and the dot takes the same spectrum"
+  },
+  {
+   "sha": "df39ffd",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T22:23:22Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "6f67728",
    "who": "alistaircranfield",
