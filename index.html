@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+—<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1265,7 +1265,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
 </div>
 
 <script src="core.js?v=20260810-04"></script>
-<script src="strength.js?v=20260814-17"></script>
+<script src="strength.js?v=20260814-19"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -4735,7 +4735,28 @@ function renderDayRow(day, di, dateISO, issues){
     title: isEmpty ? "Nothing allocated yet" : (issues.filter(i => !i.info).map(i => (i.hard?"Issue: ":"Aim: ") + i.msg).join("\n") || "All checks pass"),
     onclick: () => { if (!isEmpty) checksDialog(di); }
   });
-  const dlInner = el("div", { class: "dl-inner" }, el("div", { class: "dn" }, DAYNAMES[di].slice(0,3).toUpperCase()), el("div", { class: "d" }, fmtDate(dateISO)), el("div", {}, badge));
+  /* ── ONE MARK, NOT TWO ────────────────────────────────────────────────────────────────────
+     Ali, 26.08.15, with a screenshot of the dot and the ring stacked on top of each other:
+     "clearly shouldnt have dot and wheel. An make the colour m,ath, dots can be more specturm when
+     not in edit mode."
+
+     They were saying the same thing twice in two different alphabets — a three-state dot above a
+     percentage ring, and the dot's green did not even match the ring's green. So: the RING is the
+     edit-mode object, because a number is what you need while you are moving people; the DOT is the
+     resting object, because the front view stays as it is. Never both.
+
+     And the dot now takes its colour from the same continuous ramp the ring uses, so a 72% day and
+     a 94% day stop being the identical green. It keeps its click-through to the day's checks and
+     its three-state class for anything that still reads it — only the fill changes. */
+  const dayRec = STR_DAY[dateISO];
+  const daySc = dayRec && dayRec.sc && !dayRec.sc.empty ? dayRec.sc.day : null;
+  if (daySc && !isEmpty && window.Strength) {
+    badge.style.background = daySc.isBroken ? "#E24B4A" : Strength.colourOf(daySc.pct);
+    badge.title = (daySc.isBroken ? "Pod " + daySc.podBroken.join(", ") + " broken" : "The day, " + daySc.pct + "%")
+      + "\n" + badge.title;
+  }
+  const dlInner = el("div", { class: "dl-inner" }, el("div", { class: "dn" }, DAYNAMES[di].slice(0,3).toUpperCase()), el("div", { class: "d" }, fmtDate(dateISO)),
+    canEdit() ? null : el("div", {}, badge));
   /* THE DAY'S OWN RING, WHERE THE DOT ALREADY LIVES. Ali, 26.08.15: "why doesnt the column with the
      daily dot show the day overview". No reason except that it never did — the day score existed
      only on Setup, while the column that answers "how is this day?" carried a three-state dot. Same
