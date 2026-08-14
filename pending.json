@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T15:19:51.648974+00:00",
- "build": "09d0c8e",
+ "generated": "2026-08-14T15:20:16.411478+00:00",
+ "build": "f4ad54f",
  "liveBuild": "35abf4e",
- "count": 171,
+ "count": 173,
  "changes": [
+  {
+   "sha": "f4ad54f",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T16:20:08+01:00",
+   "msg": "Rules ring per pod with tap-through breaches, per-pod requirements as editable rules, day glow in edit, badge capped at floor"
+  },
+  {
+   "sha": "2cc95ae",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T15:19:51Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "09d0c8e",
    "who": "alistaircranfield",
