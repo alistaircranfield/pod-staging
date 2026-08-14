@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T18:23:09.946752+00:00",
- "build": "d306ca8",
+ "generated": "2026-08-14T18:24:46.192262+00:00",
+ "build": "ff96d09",
  "liveBuild": "35abf4e",
- "count": 181,
+ "count": 183,
  "changes": [
+  {
+   "sha": "ff96d09",
+   "who": "alistaircranfield",
+   "when": "2026-08-14T19:24:36+01:00",
+   "msg": "strength-tests: 63 assertions for the register, gates, achievability and hard rule 6"
+  },
+  {
+   "sha": "e4353b5",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T18:23:09Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "d306ca8",
    "who": "alistaircranfield",
