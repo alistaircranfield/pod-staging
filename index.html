@@ -925,8 +925,8 @@ button.strdial:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   pointer-events:none;z-index:5}
 /* Quiet, always there, never in the way — the foot of the rail, where a version belongs. */
 .appver{margin-top:auto;padding:.5rem .2rem .2rem;font-size:.62rem;color:var(--muted);text-align:center;letter-spacing:.04em}
-.draftflag{display:inline-block;background:#e6b800;color:#3d2f00;font-size:.68rem;font-weight:700;
-  letter-spacing:.09em;padding:.2rem .8rem;border-radius:6px 6px 0 0;margin-top:.35rem}
+.draftflag{position:sticky;top:0;z-index:6;display:block;background:#e6b800;color:#3d2f00;
+  font-size:.68rem;font-weight:700;letter-spacing:.09em;padding:.25rem .8rem;text-align:center}
 /* Look ahead: the real board, one block per week, stacked and scrolled. The band shows on the
    header rather than over the grid, because the grid is the front page and must look like it. */
 .aheadwk{margin-bottom:1.1rem}
@@ -1362,7 +1362,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
 </div>
 
 <script src="core.js?v=20260810-04"></script>
-<script src="strength.js?v=20260815-07"></script>
+<script src="strength.js?v=20260815-08"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -3638,12 +3638,22 @@ function renderWeekInner(){
      it told nobody anything. A week enters the firm window once it is within firmWeeks of the
      current Monday, so the answer is this week's Monday minus (firmWeeks - 1) weeks. */
   const isDraftWeek = weekIsDraft(currentWeekKey);
+  const wrap = el("div", { class: "rota-wrap" + (isDraftWeek ? " draftwk" : "") });
+  /* THE FLAG GOES INSIDE THE SCROLLER, PINNED. Audited on a phone 26.08.15: appended to the grid
+     it sat above the sticky day strip, scrolled away on the first swipe, and left only a 10%
+     wash — which is the "read once and scrolled past" fault the wash was meant to cure, moved
+     four lines down. Sticky inside the wrap, it is on screen for as long as the week is.
+
+     AND THE DATE IT NAMES IS SANE IN BOTH DIRECTIONS. `currentWeekKey - 7*(firmWeeks()-1)` is
+     next Monday when firmWeeks is 2, but it is the week's OWN Monday when firmWeeks is 1 — which
+     reads as "the week of 24 Aug settles on 24 Aug", circular, and it is reachable because Setup
+     lets firmWeeks be 1. When the date is not in the future it says so in words instead. */
   if (isDraftWeek) {
     const settles = addDays(currentWeekKey, -7 * (firmWeeks() - 1));
-    grid.append(el("div", { class: "draftflag" },
-      el("b", {}, "DRAFT"), " \u00b7 WILL CHANGE \u00b7 settles " + fmtDate(settles)));
+    wrap.append(el("div", { class: "draftflag" }, el("b", {}, "DRAFT"),
+      settles > todayISO() ? " \u00b7 will change \u00b7 settles " + fmtDate(settles)
+                           : " \u00b7 will change before it is worked"));
   }
-  const wrap = el("div", { class: "rota-wrap" + (isDraftWeek ? " draftwk" : "") });
   const tbl = el("table", { class: "rota" });
   const headRow = el("tr", {}, el("th", {}, ""), el("th", { class: "trayth", style: "width:13%" }, "To allocate"));
   for (const p of PODS) headRow.append(el("th", { class: "podth", style: "border-top-color:var(--pod" + p + "b)" }, "Pod " + p));
@@ -9612,6 +9622,24 @@ function monthGrid(anchorISO, opts){
 }
 function weekExists(dateISO){ return !!(data && data.weeks && data.weeks[mondayOf(dateISO)]); }
 
+/* ── ONE DOOR TO A WEEK, AND IT IS GUARDED ────────────────────────────────────────────────────
+   Found by auditing the board as a trainee, 26.08.15. The week arrows were gated on the published
+   window — and the date picker was not. Tapping the week title on a phone, or any cell in the
+   month grid, ran `currentWeekKey = mondayOf(...)` directly and rendered ANY week: the arrows said
+   no and the calendar said yes.
+
+   That is worse than simply leaking the data. An unpublished week reached this way carries no
+   DRAFT flag and no wash, because `weekIsDraft` is false outside the visible window — so the one
+   week a trainee is most likely to go looking for (leave, a swap, a wedding) is the one drawn with
+   the MOST confidence, while the planner is still free to rearrange it nightly.
+
+   So every route into a week goes through here. */
+function goToWeekFor(dateISO){
+  const wk = mondayOf(dateISO);
+  if (!staffUnlocked() && !weekIsVisible(wk)) { toast(lookAheadWhy(wk)); return false; }
+  currentWeekKey = wk; switchTab("rota"); renderWeek(); return true;
+}
+
 /* ── LOOK AHEAD ───────────────────────────────────────────────────────────────────────────────
    Ali, 26.08.15: "look ahead should just be like the public front page when in edit mode but
    scroll through loads of future weeks."
@@ -9655,10 +9683,20 @@ function renderAhead(){
     keys.length + " week" + (keys.length > 1 ? "s" : "") + " written, to " + fmtDate(addDays(keys[keys.length - 1], 6))
     + ". The first " + firmWeeks() + " are firm; the rest can still change."));
 
+  /* ── HOW MANY WEEKS TO PAINT AT ONCE ───────────────────────────────────────────────────────
+     One week is a full board — five pods, a night team, a tray, every chip with its own drag and
+     press-and-hold handlers. The store holds 55 weeks, and painting all of them would build tens
+     of thousands of nodes and freeze the browser for the person whose job depends on it. So a
+     screenful at a time with a button for more: the rota team asked to scroll through the future,
+     not to wait for it. */
+  const AHEAD_PAGE = 8;
+  if (!aheadShown || aheadShown < AHEAD_PAGE) aheadShown = AHEAD_PAGE;
+  const show = keys.slice(0, aheadShown);
+
   const saveKey = currentWeekKey, saveLast = (typeof lastWeekShown !== "undefined") ? lastWeekShown : null;
   const grid = $("#weekGrid");
   try {
-    for (const k of keys) {
+    for (const k of show) {
       currentWeekKey = k;
       if (typeof lastWeekShown !== "undefined") lastWeekShown = k;   // don't reset the mobile day per block
       renderWeekInner();
@@ -9669,15 +9707,45 @@ function renderAhead(){
       while (grid.firstChild) block.append(grid.firstChild);
       /* CLAIM THE WEEK BEFORE ANY HANDLER INSIDE IT RUNS — see the note above. */
       block.addEventListener("pointerdown", () => { currentWeekKey = k; }, true);
+      /* ── AND REFUSE A DRAG THAT CROSSES WEEKS ────────────────────────────────────────────
+         Every drop handler closes over the `day` object of the week it was drawn for, so a chip
+         dragged out of one block and released in another really would move that person from a day
+         they are rostered on to a day they are not. Nothing downstream would object: they would
+         simply appear in a September pod, be counted, be scored, and be removed by the next sync
+         as a ghost — after somebody had read the board.
+
+         Stacking the weeks is what makes this reachable at all; on the single-week board there is
+         nowhere else to drop. So the block records which week a drag STARTED in and refuses a drop
+         from anywhere else. Refused rather than silently ignored: a drag that does nothing and
+         says nothing is indistinguishable from a bug. */
+      block.addEventListener("dragstart", () => { window.__dragWeek = k; }, true);
+      block.addEventListener("drop", e => {
+        if (window.__dragWeek && window.__dragWeek !== k) {
+          e.stopPropagation(); e.preventDefault();
+          toast("That move crosses two weeks. Open the week you want and move them there.");
+        }
+        window.__dragWeek = null;
+      }, true);
       box.append(block);
     }
   } finally {
     currentWeekKey = saveKey;
     if (typeof lastWeekShown !== "undefined") lastWeekShown = saveLast;
     grid.innerHTML = "";
+    /* PUT THE CHROME BACK. renderWeekInner writes the week title, the Today button, the auto-fill
+       button, the summary banner and body.dataset.week — none of which live inside #weekGrid, so
+       after this loop every one of them describes the LAST week painted rather than the front
+       page. Repainting the real week is the only way to be sure the list stays right as the board
+       grows; enumerating them here would be a list to keep in step, and it would rot. */
+    try { renderWeekInner(); } catch (e) {}
   }
+  if (keys.length > show.length)
+    box.append(el("button", { class: "btn sec", style: "margin:.2rem auto 1rem;display:block",
+      onclick: () => { aheadShown += AHEAD_PAGE; renderAhead(); } },
+      "Show " + Math.min(AHEAD_PAGE, keys.length - show.length) + " more week"
+      + (keys.length - show.length > 1 ? "s" : "")));
 }
-var aheadAnchor = null;
+var aheadAnchor = null, aheadShown = 0;
 
 function jumpToDate(){
   let anchor = currentWeekKey || todayISO();
@@ -9696,7 +9764,7 @@ function jumpToDate(){
       const here = weekExists(dISO);
       const b = el("button", { class: "mday" + (here ? "" : " mnone") + (mondayOf(dISO) === currentWeekKey ? " mon" : ""),
         title: here ? "" : "Nothing written for this week yet",
-        onclick: () => { currentWeekKey = mondayOf(dISO); closeModal(); switchTab("rota"); renderWeek(); } },
+        onclick: () => { if (goToWeekFor(dISO)) closeModal(); } },
         String(new Date(dISO + "T12:00:00").getDate()));
       return b;
     } }));
@@ -9768,7 +9836,7 @@ function renderMine(){
          nothing. On-demand help is allowed; a sentence sitting on the screen is not. */
       const c = el("button", { class: "mday" + (here ? "" : " mnone") + (past ? " mpast" : "") + (w ? " mon" : ""),
         title: here ? "" : "Nothing written for this week yet",
-        onclick: () => { currentWeekKey = mondayOf(dISO); switchTab("rota"); renderWeek(); } },
+        onclick: () => { goToWeekFor(dISO); } },
         el("span", {}, String(new Date(dISO + "T12:00:00").getDate())));
       if (w) c.append(el("span", { class: "mwhat" },
         w.kind === "night" ? "night" : w.kind === "fgh" ? "FGH"
