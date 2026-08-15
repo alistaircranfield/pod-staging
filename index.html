@@ -927,14 +927,16 @@ button.strdial:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .appver{margin-top:auto;padding:.5rem .2rem .2rem;font-size:.62rem;color:var(--muted);text-align:center;letter-spacing:.04em}
 .draftflag{position:sticky;top:0;z-index:6;display:block;background:#e6b800;color:#3d2f00;
   font-size:.68rem;font-weight:700;letter-spacing:.09em;padding:.25rem .8rem;text-align:center}
-/* Look ahead: the real board, one block per week, stacked and scrolled. The band shows on the
-   header rather than over the grid, because the grid is the front page and must look like it. */
-.aheadwk{margin-bottom:1.1rem}
-.aheadhd{display:flex;align-items:baseline;gap:.6rem;padding:.15rem .1rem .35rem}
-.aheadhd b{font-size:.92rem}
-.aheadhd span{font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.aheadwk.firm .aheadhd span{color:var(--accent)}
-.aheadwk.draft .aheadhd span{color:#8a6300}
+/* Look ahead is the same board on a different page, so it needs one line saying which page you
+   are on — otherwise the only difference from the public board is that the arrows do not stop,
+   and a control that silently changes behaviour is the thing that started this. */
+.aheadbar{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap;margin:0 0 .7rem;
+  padding:.5rem .8rem;border-radius:10px;background:var(--hair)}
+.aheadbar b{font-size:.9rem}
+.aheadbar span{font-size:.76rem;color:var(--muted)}
+/* Standing on Look ahead, the board's own week arrows are the whole point, so nothing about the
+   board is hidden here. The public page keeps its stop. */
+body.aheadview #tab-rota{margin-top:0}
 /* The suggestion sits UNDER its requirement rather than beside it: it is a comment on that row,
    not a competing value, and putting it in the weight column would make two numbers argue. No
    top border, so the pair reads as one block. */
@@ -1006,10 +1008,10 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
   <div class="tpttl">Rota team</div>
   <button data-tab="team" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l8.5 15h-17z"/><path d="M12 10v4"/><circle cx="12" cy="16.6" r=".5" fill="currentColor"/></svg>Attention<span class="tpc" id="tabAttnCount"></span></button>
   <button data-tab="ahead" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/><path d="M15 15l2 2 3-4"/></svg>Look ahead</button>
+  <button data-tab="log" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Change log<span class="tpc" id="tabLogCount"></span></button>
   <button data-tab="staff" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19.5c.8-3.3 3.3-5 6.2-5s5.4 1.7 6.2 5"/><path d="M15.5 5.5a3.2 3.2 0 011.6 6"/></svg>Staff<span class="tpc" id="tabStaffCount"></span></button>
   <button data-tab="feedback" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg>Feedback<span class="tpc" id="tabFbCount"></span></button>
   <button data-tab="fair" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l3-8 4 14 3-8h4"/></svg>Fairness</button>
-  <button data-tab="log" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Change log<span class="tpc" id="tabLogCount"></span></button>
   <button data-tab="settings" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M4 12h2M18 12h2M12 4v2M12 18v2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M17.7 6.3l-1.4 1.4M7.7 16.3l-1.4 1.4"/></svg>Settings</button>
   <button data-tab="import" class="tpi" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M4 20h16"/></svg>Import</button>
 </nav>
@@ -1048,6 +1050,31 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
     </div>
     <div id="summaryBanner"></div>
     <div id="weekGrid"></div>
+  </section>
+  <!-- Where the board lives when it is NOT on Look ahead. See setAheadView(). -->
+  <div id="rotaAnchor" hidden></div>
+
+  <!-- ── LOOK AHEAD: THE BOARD, PAST THE WALL, BEHIND THE SHIELD ─────────────────────────────
+       Ali, 26.08.15: "it needs to be a replica page inside the rota team but goes past the 3
+       week barrier", and earlier: "you could have used code already exists for another."
+
+       A replica page, and NOT a replica renderer. Three previous attempts each built a second
+       board — a month grid, then every week stacked, then a week picker — and each one was a
+       new thing to keep in step with the real board and worse at the job than the board is.
+       The fourth attempt went the other way and made this a door that armed edit mode and
+       dropped you back on the public page, which is not a page at all.
+
+       So this page HOSTS the real board. `#tab-rota` is physically moved in here on arrival and
+       moved back out on leaving. One renderer, one set of element ids, one set of rules — every
+       function in this file goes on addressing #weekGrid and #weekTitle without knowing the
+       board has changed parents. What the page adds is the only thing it needs to: the week
+       arrows are not stopped at the published window while the board is standing here. -->
+  <section id="tab-ahead" style="display:none">
+    <div class="aheadbar">
+      <b>Look ahead</b>
+      <span>the whole rota as written so far &middot; trainees see <span id="aheadVis"></span></span>
+    </div>
+    <div id="aheadHost"></div>
   </section>
 
   <section id="tab-import" style="display:none">
@@ -1186,19 +1213,6 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
     </div>
   </section>
 
-  <section id="tab-ahead" style="display:none">
-    <div id="aheadGate" class="gatebox" style="display:none">
-      <div class="card">
-        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
-        <h3 id="gateTitleH"></h3>
-        <input id="gatePwH" type="password" autocomplete="current-password" placeholder="Password">
-        <button id="gateBtnH" class="btn"></button>
-        <div id="gateMsgH" class="gmsg"></div>
-        <button id="gateResetH" class="linkish" style="display:none">Forgotten it?</button>
-      </div>
-    </div>
-    <div id="aheadCard"></div>
-  </section>
   <section id="tab-fair" style="display:none">
     <div id="fairGate" class="gatebox" style="display:none">
       <div class="card">
@@ -1362,7 +1376,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
 </div>
 
 <script src="core.js?v=20260810-04"></script>
-<script src="strength.js?v=20260815-08"></script>
+<script src="strength.js?v=20260815-09"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -1436,7 +1450,19 @@ function weekIsVisible(wkKey){ return wkKey >= visibleFrom() && wkKey <= visible
 /* Firm means somebody has read it and it will not move under them. Draft means shown and honest
    about being provisional. The board draws the difference; the sync obeys it. */
 function weekIsFirm(wkKey){ return wkKey >= visibleFrom() && wkKey <= firmTo(); }
-function weekIsDraft(wkKey){ return weekIsVisible(wkKey) && !weekIsFirm(wkKey); }
+/* ── EVERY WEEK BUT THIS ONE IS A DRAFT ────────────────────────────────────────────────────────
+   Ali, 26.08.15: "on public rota the draft message can be on all except current week."
+
+   Simpler than what it replaces and more honest. The old rule marked only the third week, on the
+   reasoning that weeks one and two were firm — but "firm" was always about what the SYNC may do
+   unasked, not about what a trainee can rely on. Next week genuinely can change: somebody goes
+   off sick, somebody is added, and the rota team move people. The only week nobody is going to
+   rewrite underneath you is the one already running.
+
+   So the mark follows the truth: this week is what it is, and everything after it may move. The
+   firm window still governs the sync — those are two different questions and they were being
+   answered by one flag. */
+function weekIsDraft(wkKey){ return wkKey > visibleFrom(); }
 function dayIsFirm(iso){ return weekIsFirm(mondayOf(iso)); }
 /* A day inside the window has been read by the people working it. Used by the board to decide
    what to draw, and mirrored in allocate_auto.py to decide what the sync may do unasked — the two
@@ -3648,12 +3674,9 @@ function renderWeekInner(){
      next Monday when firmWeeks is 2, but it is the week's OWN Monday when firmWeeks is 1 — which
      reads as "the week of 24 Aug settles on 24 Aug", circular, and it is reachable because Setup
      lets firmWeeks be 1. When the date is not in the future it says so in words instead. */
-  if (isDraftWeek) {
-    const settles = addDays(currentWeekKey, -7 * (firmWeeks() - 1));
+  if (isDraftWeek)
     wrap.append(el("div", { class: "draftflag" }, el("b", {}, "DRAFT"),
-      settles > todayISO() ? " \u00b7 will change \u00b7 settles " + fmtDate(settles)
-                           : " \u00b7 will change before it is worked"));
-  }
+      " \u00b7 not settled \u00b7 people may still move before this week is worked"));
   const tbl = el("table", { class: "rota" });
   const headRow = el("tr", {}, el("th", {}, ""), el("th", { class: "trayth", style: "width:13%" }, "To allocate"));
   for (const p of PODS) headRow.append(el("th", { class: "podth", style: "border-top-color:var(--pod" + p + "b)" }, "Pod " + p));
@@ -4624,6 +4647,32 @@ function strengthCfg(){
   var over = (data && data.strengthCfg) || null;
   if (window.Strength && Strength.cfgOf) return Strength.cfgOf(over);
   return over || {};
+}
+/* ── WHAT THE PLANNER IS ALLOWED TO DO, AS DATA ────────────────────────────────────────────────
+   The four numbers that shape a plan used to be typed into the middle of planDayFix, which made
+   every one of them a code change and put them outside project rule 1. They are judgements about
+   how much disruption a fix may cause, so they belong to the rota team, not to the file.
+
+   minGain      percentage points a move must be worth before it is taken at all. THE CHURN LEVER.
+   maxMoves     how many single moves one plan may contain, after the deal.
+   maxDeal      how many carriers of a scarce skill may be enumerated (arrangements grow pods^n).
+   dealWhenAmple  the dealer normally bails when there are at least as many carriers as pods that
+                want one. True runs it anyway, on the argument that "enough to go round" and "spread
+                properly" are not the same thing.
+   weekMoveCap  the most times one person may be moved between pods inside a week, counting the
+                days already written. 0 is off. This is the direct enforcement of "never more than
+                two", which until now was measured after the fact and never enforced.
+   weakPodMemory  points of penalty for putting somebody back in the weakest pod when they have
+                been there often lately. 0 is off. Fairness over a rota period rather than a day. */
+function planCfg(){
+  var o = (data && data.planCfg) || {};
+  return { minGain: o.minGain == null ? 1 : +o.minGain,
+           maxMoves: o.maxMoves == null ? 4 : +o.maxMoves,
+           maxDeal: o.maxDeal == null ? 4 : +o.maxDeal,
+           dealWhenAmple: !!o.dealWhenAmple,
+           weekMoveCap: o.weekMoveCap == null ? 0 : +o.weekMoveCap,
+           weakPodMemory: o.weakPodMemory == null ? 0 : +o.weakPodMemory,
+           weakPodWindow: o.weakPodWindow == null ? 14 : +o.weakPodWindow };
 }
 /* TIME ON THE UNIT COMES FROM TWO PLACES AND THIS IS THE SECOND. A stated start date covers 44 of
    87 people; the Optima roster in the store runs back to 18 Aug 2025, and first-appearance in it
@@ -7748,9 +7797,72 @@ function planDayFix(di){
      optimising the aims, which is exactly the behaviour this page had before today. A missing
      score must degrade the plan, never throw inside it. */
   if (typeof Strength !== "undefined" && Strength && Strength.scoreDay && data) {
-    var MIN_GAIN = 1;          // percentage points — below this it is churn, not improvement
-    var MAX_MOVES = 4;         // the plan stays small enough to read
+    var PC = planCfg();
+    var MIN_GAIN = PC.minGain; // percentage points — below this it is churn, not improvement
+    var MAX_MOVES = PC.maxMoves; // the plan stays small enough to read
     var byIdX = Strength.indexStaff(data.staff), fsX = strFirstSeen(), cfgX = strengthCfg();
+
+    /* ── HOW OFTEN THIS PERSON HAS ALREADY BEEN MOVED THIS WEEK ───────────────────────────────
+       Counted from the days already written, once, rather than re-walked for every candidate.
+       A "move" is a pod change between one day and the next inside the same Monday-to-Sunday
+       week — the thing a person actually notices — so Friday to Monday is not one. */
+    var priorMoves = {}, prevPodOf = {};
+    (function () {
+      var last = {}, k, q, a, arr;
+      for (k = 0; k < di; k++) {
+        var seen = {};
+        for (q = 0; q < PODS.length; q++) {
+          arr = (wk.days[k].pods[PODS[q]].assign || []);
+          for (a = 0; a < arr.length; a++) if (arr[a].id) seen[arr[a].id] = PODS[q];
+        }
+        for (var id in seen) {
+          if (last[id] && last[id] !== seen[id]) priorMoves[id] = (priorMoves[id] || 0) + 1;
+          last[id] = seen[id];
+        }
+      }
+      prevPodOf = last;
+    })();
+    /* The cap is a filter on whole candidate days rather than on single moves, because the dealer
+       moves several people at once and a per-move check would let a deal through that a sequence
+       of the same moves would have been refused. */
+    var capOK = function (d) {
+      if (!PC.weekMoveCap) return true;
+      var q, a, arr, id;
+      for (q = 0; q < PODS.length; q++) {
+        arr = d.pods[PODS[q]].assign || [];
+        for (a = 0; a < arr.length; a++) {
+          id = arr[a].id; if (!id) continue;
+          var n = (priorMoves[id] || 0) + (prevPodOf[id] && prevPodOf[id] !== PODS[q] ? 1 : 0);
+          if (n > PC.weekMoveCap) return false;
+        }
+      }
+      return true;
+    };
+
+    /* ── FAIRNESS MEMORY ──────────────────────────────────────────────────────────────────────
+       The weakest pod on a day is somebody's day. Nothing until now remembered whose it was
+       yesterday, so the same person could be given it over and over and every measure the model
+       had would call each of those days correct. This counts, over a trailing window of the days
+       already in the store, how many days each person has spent in each pod, and charges the day
+       score for putting somebody in today's weakest pod who has been carrying it. It is a penalty
+       on the objective, not a rule — a genuinely better placement can still outweigh it. */
+    var podHist = {};
+    if (PC.weakPodMemory) {
+      var back = PC.weakPodWindow, z, wkey, wobj, dd2, q2, arr2, a2;
+      for (z = 1; z <= back; z++) {
+        var iso2 = addDays(dateISO, -z);
+        wkey = mondayOf(iso2); wobj = data.weeks[wkey]; if (!wobj || !wobj.days) continue;
+        dd2 = wobj.days[Math.round((Date.parse(iso2) - Date.parse(wkey)) / 864e5)];
+        if (!dd2 || !dd2.pods) continue;
+        for (q2 = 0; q2 < PODS.length; q2++) {
+          arr2 = dd2.pods[PODS[q2]].assign || [];
+          for (a2 = 0; a2 < arr2.length; a2++) if (arr2[a2].id) {
+            podHist[arr2[a2].id] = podHist[arr2[a2].id] || {};
+            podHist[arr2[a2].id][PODS[q2]] = (podHist[arr2[a2].id][PODS[q2]] || 0) + 1;
+          }
+        }
+      }
+    }
     var prevDay = di > 0 ? wk.days[di - 1] : ((data.weeks[addDays(currentWeekKey, -7)] || {}).days || [])[6];
     var prevCountsX = prevDay ? strCounts(prevDay) : null;
 
@@ -7763,7 +7875,25 @@ function planDayFix(di){
         counts: strCounts(d), prevCounts: prevCountsX, issues: iss, cfg: cfgX });
       var brk = sc.day.broken.length, q;
       for (q = 0; q < PODS.length; q++) brk += sc.pods[PODS[q]].broken.length;
-      return { brk: brk, pct: sc.day.pct == null ? 0 : sc.day.pct };
+      var pct = sc.day.pct == null ? 0 : sc.day.pct;
+      /* Fairness memory, charged against the day rather than against the pod: the question is not
+         "is this pod weak" but "is it the same person in it again". */
+      if (PC.weakPodMemory) {
+        var weak = null, qq, arr3, a3, n3 = 0, sum3 = 0;
+        for (q = 0; q < PODS.length; q++) {
+          qq = PODS[q];
+          if (!sc.pods[qq] || sc.pods[qq].pct == null) continue;
+          if (weak === null || sc.pods[qq].pct < sc.pods[weak].pct) weak = qq;
+        }
+        if (weak) {
+          arr3 = d.pods[weak].assign || [];
+          for (a3 = 0; a3 < arr3.length; a3++) if (arr3[a3].id) {
+            n3++; sum3 += ((podHist[arr3[a3].id] || {})[weak] || 0) / PC.weakPodWindow;
+          }
+          if (n3) pct -= PC.weakPodMemory * (sum3 / n3);
+        }
+      }
+      return { brk: brk, pct: pct };
     };
     var better = function (x, y) { return x.brk !== y.brk ? x.brk < y.brk : x.pct > y.pct + 0; };
 
@@ -7826,6 +7956,100 @@ function planDayFix(di){
     };
 
     var here = rate(day), step;
+    /* ── DEAL THE SCARCE PEOPLE OUT FIRST, BY TRYING EVERY WAY ────────────────────────────────
+       Ali, 26.08.15, on Thursday 13 Aug: Pod C had no airway person while three were on the day,
+       the board said "nothing to change — the day already passes the rules", and he was right that
+       something was wrong. It was not the score. Brute-forcing all 44 single moves on that day
+       showed none of them improves it: the day sits at 80 with a ceiling of 89 and every single
+       step downhill. A hill-climber cannot cross a dip, so it stops and calls the day finished.
+
+       But the interesting part of this problem is TINY. Three airway-trained people across five
+       pods is a handful of arrangements, and a human does not nudge one person at a time — they
+       look at who is scarce and deal them out. So before the general tidy, every distribution of
+       the scarce carriers is enumerated and scored, and the best is taken whole. No hill, no local
+       optimum, and it explains itself in one sentence: we tried every way of placing the three
+       airway people, and this is the best one.
+
+       SCARCE MEANS FEWER CARRIERS THAN PODS THAT WANT ONE. Above that there is no dealing problem
+       to solve and the ordinary search is the right tool. Capped at MAX_DEAL carriers because the
+       arrangements grow as pods^carriers — 5^4 is 625 and fine, 5^7 is 78,000 and pointless, and
+       by then the skill is not scarce anyway.
+
+       IT MOVES NOBODY IT DOES NOT HAVE TO. The winner is compared against the day as it stands
+       under the same doorman the rest of the planner uses, and a distribution that ties is
+       rejected — so a day that is already dealt correctly produces no moves at all. */
+    var MAX_DEAL = PC.maxDeal;
+    ["R04", "N01"].forEach(function (skillId) {
+      if (typeof Strength === "undefined" || !Strength.isOn(strengthCfg(), skillId)) return;
+      var trait = skillId === "R04" ? "airway" : "transfer";
+      var carriers = [], wantPods = [];
+      PODS.forEach(function (q) {
+        (day.pods[q].assign || []).forEach(function (a) {
+          if (!a.id || !countsIn(a.id)) return;
+          var st = staffById(a.id);
+          if (st && st[trait]) carriers.push({ id: a.id, from: q, shift: a.shift });
+        });
+        if ((day.pods[q].assign || []).filter(function (x) { return x.id && countsIn(x.id); }).length) wantPods.push(q);
+      });
+      if (!carriers.length || carriers.length > MAX_DEAL) return;
+      // Not scarce: enough carriers to go round, so ordinarily there is no dealing problem to
+      // solve and the hill-climb below is the right tool. dealWhenAmple runs it anyway.
+      if (!PC.dealWhenAmple && carriers.length >= wantPods.length) return;
+      var bestDeal = null, combos = Math.pow(wantPods.length, carriers.length), ci;
+      for (ci = 0; ci < combos; ci++) {
+        var n = ci, trial = clone(day), okDeal = true, c;
+        for (c = 0; c < carriers.length; c++) {
+          var to = wantPods[n % wantPods.length]; n = Math.floor(n / wantPods.length);
+          var car = carriers[c];
+          if (to === car.from) continue;
+          if (wouldBeThirdPod(car.id, to)) { okDeal = false; break; }
+          /* ── DEAL AS A SWAP, NOT A TRANSPLANT ────────────────────────────────────────────────
+             Relocating a lone carrier leaves the pod it came from one short and the pod it went to
+             one over, which is a real change to two pods to fix one thing. So the carrier trades
+             places with somebody in the destination who is NOT carrying the skill and is on the
+             same shift — every pod keeps its size and its shape, and the only thing that has moved
+             is the capability, which is the entire point of dealing.
+
+             A plain move is still allowed where no partner exists, but only if the pod it leaves
+             can stand without them. That is checked below along with the rest of the legality. */
+          var pool2 = trial.pods[to].assign.filter(function (x) {
+            if (!x.id || x.id === car.id || !countsIn(x.id)) return false;
+            if (x.shift !== car.shift) return false;
+            var s2 = staffById(x.id);
+            if (s2 && s2[trait]) return false;                 // never trade the skill back
+            return !wouldBeThirdPod(x.id, car.from);
+          });
+          var partner = pool2[0] || null;
+          trial.pods[car.from].assign = trial.pods[car.from].assign.filter(function (x) { return x.id !== car.id; });
+          trial.pods[to].assign.push({ id: car.id, shift: car.shift });
+          if (partner) {
+            trial.pods[to].assign = trial.pods[to].assign.filter(function (x) { return x.id !== partner.id; });
+            trial.pods[car.from].assign.push({ id: partner.id, shift: partner.shift });
+          }
+        }
+        if (!okDeal) continue;
+        /* Every pod must still stand up on its own — the deal may not strand one below its
+           minimum or take its only long day, which the ordinary move filter guarantees and this
+           has to check for itself because it moves several people at once. */
+        var legal = true;
+        for (var z = 0; z < PODS.length; z++) {
+          var qq = PODS[z];
+          if (cnt(day, qq) && !cnt(trial, qq)) { legal = false; break; }
+          if (cnt(trial, qq) < cnt(day, qq) && cnt(trial, qq) < (qq === "E" ? rule("podEMin") : rule("podMin"))) { legal = false; break; }
+          if (lds(day, qq) && !lds(trial, qq)) { legal = false; break; }
+        }
+        if (!legal) continue;
+        if (!capOK(trial)) continue;
+        var gotDeal = rate(trial);
+        if (!bestDeal || better(gotDeal, bestDeal.got)) bestDeal = { got: gotDeal, day: trial };
+      }
+      if (bestDeal && ((bestDeal.got.brk < here.brk) ||
+          (bestDeal.got.brk === here.brk && bestDeal.got.pct >= here.pct + MIN_GAIN))) {
+        day.pods = bestDeal.day.pods;
+        here = bestDeal.got;
+      }
+    });
+
     for (step = 0; step < MAX_MOVES; step++) {
       /* The winner is held aside and applied only once the whole round has been judged. Applying
          it as it was found mutated the day the remaining candidates were being generated and
@@ -7834,6 +8058,7 @@ function planDayFix(di){
       for (k2 = 0; k2 < list.length; k2++) {
         var trial = list[k2].fn(clone(day));
         if (!trial) continue;
+        if (!capOK(trial)) continue;
         var got = rate(trial);
         // a repaired gate always wins; otherwise the gain has to be worth the annoyance
         var worth = (got.brk < here.brk) || (got.brk === here.brk && got.pct >= here.pct + MIN_GAIN);
@@ -8085,7 +8310,7 @@ async function sha256(s){
 }
 function staffUnlocked(){ return store.sget("staffUnlocked") === "1" || (data && !data.staffPw); }
 function gateRefs(sfx){
-  const gates = { S: "#staffGate", F: "#fairGate", I: "#importGate", L: "#logGate", T: "#teamGate", O: "#ovrGate", G: "#setGate", H: "#aheadGate" };
+  const gates = { S: "#staffGate", F: "#fairGate", I: "#importGate", L: "#logGate", T: "#teamGate", O: "#ovrGate", G: "#setGate" };
   return { gate: $(gates[sfx]), title: $("#gateTitle"+sfx), pw: $("#gatePw"+sfx), btn: $("#gateBtn"+sfx), msg: $("#gateMsg"+sfx), reset: $("#gateReset"+sfx) };
 }
 function renderGate(sfx, cardSel, onShow){
@@ -8197,7 +8422,6 @@ function teamUnlockDialog(then){
 }
 function renderStaffGate(){ renderGate("S", "#staffCard", renderStaff); }
 function renderTeamGate(){ renderGate("T", "#teamCard", renderAttention); }
-function renderAheadGate(){ renderGate("H", "#aheadCard", renderAhead); }
 // Actually opening the Log page counts as reading the feedback. renderAll() redraws every page
 // whether it's on screen or not, so this must never live inside renderLog.
 /* markDirty() returns early when you are not in edit mode, so this used to set f.read = true in
@@ -9636,116 +9860,14 @@ function weekExists(dateISO){ return !!(data && data.weeks && data.weeks[mondayO
    So every route into a week goes through here. */
 function goToWeekFor(dateISO){
   const wk = mondayOf(dateISO);
-  if (!staffUnlocked() && !weekIsVisible(wk)) { toast(lookAheadWhy(wk)); return false; }
-  currentWeekKey = wk; switchTab("rota"); renderWeek(); return true;
+  if (!AHEAD_VIEW && !weekIsVisible(wk)) { toast(lookAheadWhy(wk)); return false; }
+  /* Standing on Look ahead, stay on Look ahead — switching to "rota" would move the board back
+     out from under them and then refuse to show the week they just picked. */
+  currentWeekKey = wk;
+  if (!AHEAD_VIEW) switchTab("rota");
+  renderWeek(); return true;
 }
 
-/* ── LOOK AHEAD ───────────────────────────────────────────────────────────────────────────────
-   Ali, 26.08.15: "look ahead should just be like the public front page when in edit mode but
-   scroll through loads of future weeks."
-
-   The first version of this was a month calendar with a score in each cell. It was wrong, and the
-   reason is worth writing down: a month grid answers "which day needs attention", and the rota
-   team's actual job is to LOOK AT the day and move somebody. A calendar makes you find a problem
-   and then go somewhere else to fix it, which is two screens for one thought.
-
-   So Look ahead is THE BOARD — literally the same renderer the front page uses, run once per week
-   and stacked, with the weeks past the published window all present and scrollable. Reusing
-   `renderWeekInner` rather than reimplementing it is the whole point: "just like the front page"
-   is guaranteed by construction, and there is no second board to keep in step. It draws into
-   #weekGrid, so each week is rendered there and the finished node is MOVED across.
-
-   ── THE HAZARD, AND WHY EACH BLOCK CLAIMS THE WEEK ON POINTERDOWN ──────────────────────────────
-   Every handler on the board — drag, tap-to-move, the shift toggle, Fix this day — reads the
-   GLOBAL `currentWeekKey` when it fires, not when it was drawn. Stack eight weeks and every one of
-   them would act on whichever week happened to be current, so a drag on 14 September would quietly
-   rearrange this Monday. That is a data-loss bug, not a cosmetic one.
-
-   So each block sets `currentWeekKey` to its own week on `pointerdown`, in the capture phase, which
-   runs before any click or drag handler inside it. Cheap, and it makes the invariant true for every
-   control in the block including ones added later, which a per-control fix would not. */
-function renderAhead(){
-  const box = $("#aheadCard");
-  if (!box) return;
-  box.innerHTML = "";
-  if (!data || !data.weeks) { box.append(el("div", { class: "card empty" }, "Nothing loaded yet.")); return; }
-
-  /* Every week from the start of the published window forward that has a roster. The rota team
-     asked for "loads of future weeks" and the honest limit is how far Optima has been written —
-     which is now however far the puller reached, not four. */
-  const from = visibleFrom();
-  const keys = Object.keys(data.weeks)
-    .filter(k => k >= from && data.weeks[k] && data.weeks[k].roster && Object.keys(data.weeks[k].roster).length)
-    .sort();
-
-  if (!keys.length) { box.append(el("div", { class: "card empty" }, "No roster loaded past this week.")); return; }
-  box.append(el("div", { class: "cc-sub", style: "margin:0 0 .7rem" },
-    keys.length + " week" + (keys.length > 1 ? "s" : "") + " written, to " + fmtDate(addDays(keys[keys.length - 1], 6))
-    + ". The first " + firmWeeks() + " are firm; the rest can still change."));
-
-  /* ── HOW MANY WEEKS TO PAINT AT ONCE ───────────────────────────────────────────────────────
-     One week is a full board — five pods, a night team, a tray, every chip with its own drag and
-     press-and-hold handlers. The store holds 55 weeks, and painting all of them would build tens
-     of thousands of nodes and freeze the browser for the person whose job depends on it. So a
-     screenful at a time with a button for more: the rota team asked to scroll through the future,
-     not to wait for it. */
-  const AHEAD_PAGE = 8;
-  if (!aheadShown || aheadShown < AHEAD_PAGE) aheadShown = AHEAD_PAGE;
-  const show = keys.slice(0, aheadShown);
-
-  const saveKey = currentWeekKey, saveLast = (typeof lastWeekShown !== "undefined") ? lastWeekShown : null;
-  const grid = $("#weekGrid");
-  try {
-    for (const k of show) {
-      currentWeekKey = k;
-      if (typeof lastWeekShown !== "undefined") lastWeekShown = k;   // don't reset the mobile day per block
-      renderWeekInner();
-      const block = el("div", { class: "aheadwk" + (weekIsFirm(k) ? " firm" : weekIsDraft(k) ? " draft" : "") });
-      block.append(el("div", { class: "aheadhd" },
-        el("b", {}, weekLabel(k)),
-        el("span", {}, weekIsFirm(k) ? "firm" : weekIsDraft(k) ? "draft" : "not published")));
-      while (grid.firstChild) block.append(grid.firstChild);
-      /* CLAIM THE WEEK BEFORE ANY HANDLER INSIDE IT RUNS — see the note above. */
-      block.addEventListener("pointerdown", () => { currentWeekKey = k; }, true);
-      /* ── AND REFUSE A DRAG THAT CROSSES WEEKS ────────────────────────────────────────────
-         Every drop handler closes over the `day` object of the week it was drawn for, so a chip
-         dragged out of one block and released in another really would move that person from a day
-         they are rostered on to a day they are not. Nothing downstream would object: they would
-         simply appear in a September pod, be counted, be scored, and be removed by the next sync
-         as a ghost — after somebody had read the board.
-
-         Stacking the weeks is what makes this reachable at all; on the single-week board there is
-         nowhere else to drop. So the block records which week a drag STARTED in and refuses a drop
-         from anywhere else. Refused rather than silently ignored: a drag that does nothing and
-         says nothing is indistinguishable from a bug. */
-      block.addEventListener("dragstart", () => { window.__dragWeek = k; }, true);
-      block.addEventListener("drop", e => {
-        if (window.__dragWeek && window.__dragWeek !== k) {
-          e.stopPropagation(); e.preventDefault();
-          toast("That move crosses two weeks. Open the week you want and move them there.");
-        }
-        window.__dragWeek = null;
-      }, true);
-      box.append(block);
-    }
-  } finally {
-    currentWeekKey = saveKey;
-    if (typeof lastWeekShown !== "undefined") lastWeekShown = saveLast;
-    grid.innerHTML = "";
-    /* PUT THE CHROME BACK. renderWeekInner writes the week title, the Today button, the auto-fill
-       button, the summary banner and body.dataset.week — none of which live inside #weekGrid, so
-       after this loop every one of them describes the LAST week painted rather than the front
-       page. Repainting the real week is the only way to be sure the list stays right as the board
-       grows; enumerating them here would be a list to keep in step, and it would rot. */
-    try { renderWeekInner(); } catch (e) {}
-  }
-  if (keys.length > show.length)
-    box.append(el("button", { class: "btn sec", style: "margin:.2rem auto 1rem;display:block",
-      onclick: () => { aheadShown += AHEAD_PAGE; renderAhead(); } },
-      "Show " + Math.min(AHEAD_PAGE, keys.length - show.length) + " more week"
-      + (keys.length - show.length > 1 ? "s" : "")));
-}
-var aheadAnchor = null, aheadShown = 0;
 
 function jumpToDate(){
   let anchor = currentWeekKey || todayISO();
@@ -10088,12 +10210,59 @@ function renderAllInner(){ fillStartDates(); recomputeHistoric(); snapVisibleWee
 const APP_VERSION = "1.2";
 const PAGE_TITLES = { rota: "Pod Allocator", mine: "My shifts", ahead: "Look ahead", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", settings: "Settings", help: "How it works", team: "Needs attention", feedback: "Trial feedback" };
 const TEAM_TABS = ["team", "ahead", "import", "staff", "fair", "log", "settings", "feedback"];
+
+/* ── THE BOARD MOVES HOUSE ────────────────────────────────────────────────────────────────────
+   AHEAD_VIEW is true only while `#tab-rota` is sitting inside the Look ahead page. It is the one
+   thing that lifts the week arrows' stop, and it is true for exactly as long as the rota team is
+   standing on a page they had to get past the shield to reach.
+
+   THIS REPLACED GATING ON EDIT MODE, and the reason matters. Ali, 26.08.15: "editing is open to
+   the public, it's not password gated." He is right and I had it backwards — anybody can press
+   Edit, so "edit mode lifts the wall" is not a restriction at all, it is a two-click bypass with
+   a comment above it claiming to be a rule. The earlier attempt at gating on `staffUnlocked()`
+   was wrong in the other direction: that flag is session-wide, so glancing at the change log
+   once turned the PUBLIC board unlimited for the rest of the day.
+
+   Tying it to WHERE THE BOARD IS answers both. The public page is capped at the published window
+   for everybody, always, with no state that can leak it open. The unlimited board exists only as
+   a child of a rota-team page, so it cannot be reached without the password and cannot outlive
+   leaving the page. */
+let AHEAD_VIEW = false;
+let publicWeekKey = null;
+function setAheadView(on){
+  const board = $("#tab-rota"), host = $("#aheadHost"), anchor = $("#rotaAnchor");
+  if (!board || !host || !anchor) return;
+  if (on === AHEAD_VIEW) { if (on) board.style.display = ""; return; }
+  AHEAD_VIEW = on;
+  if (on) {
+    /* Remember where the trainee-facing board was, so leaving puts them back rather than
+       stranding them in week 30 on a page that will not show it. */
+    publicWeekKey = currentWeekKey;
+    host.append(board);
+    board.style.display = "";
+    document.body.classList.add("aheadview");
+    const vis = $("#aheadVis"); if (vis) vis.textContent = "to " + fmtDate(visibleTo());
+  } else {
+    anchor.parentNode.insertBefore(board, anchor);
+    document.body.classList.remove("aheadview");
+    if (publicWeekKey) currentWeekKey = publicWeekKey;
+    publicWeekKey = null;
+    /* Belt and braces: if the remembered week has itself fallen out of the window while they
+       were away, land on this week rather than on a page the arrows refuse to leave. */
+    if (!weekIsVisible(currentWeekKey)) currentWeekKey = mondayOf(todayISO());
+  }
+  if (data) renderWeek();
+}
+
 function switchTab(tab){
   // Locked out? Ask once, here, then carry on to where they were going.
   if (TEAM_TABS.includes(tab) && data && !staffUnlocked()) { showLockScreen(() => switchTab(tab)); return; }
   document.body.classList.remove("teamlocked");
   document.querySelectorAll("aside button[data-tab]").forEach(x => x.classList.toggle("active", x.dataset.tab === tab));
   for (const t of ["rota","mine","ahead","import","staff","fair","log","settings","help","team","feedback","lock"]) $("#tab-" + t).style.display = (tab === t) ? "" : "none";
+  /* Must run AFTER the loop above: the loop has just set #tab-rota to display:none, and on Look
+     ahead the board is a child of this page and has to come back. */
+  setAheadView(tab === "ahead");
   $("#pageTitle").textContent = PAGE_TITLES[tab];
   // The rota-team pages stay folded away until you go in, so residents only ever see two items.
   document.body.classList.toggle("teamopen", TEAM_TABS.includes(tab));
@@ -10102,7 +10271,6 @@ function switchTab(tab){
   if (tab === "mine") renderMine();
   if (tab === "team") renderTeamGate();
   if (tab === "staff") renderStaffGate();
-  if (tab === "ahead") renderAheadGate();
   if (tab === "fair") renderFairGate();
   if (tab === "import") renderImportGate();
   if (tab === "log") renderLogGate();
@@ -10171,13 +10339,18 @@ initImportPage();
    looking for it, and "there is more, and it is not settled yet" is the true answer. */
 function stepWeek(n){
   const want = addDays(currentWeekKey, 7 * n);
-  if (!staffUnlocked() && !weekIsVisible(want)) { toast(lookAheadWhy(want)); return; }
+  /* ── READING STOPS AT THE PUBLISHED WINDOW ON THE PUBLIC PAGE. FULL STOP. ────────────────
+     The only way past is to be standing on Look ahead, which is behind the rota-team shield.
+     Not edit mode: edit mode is open to anybody (see AHEAD_VIEW). Not staffUnlocked(): that is
+     session-wide and would leak the public board open for the rest of the day. */
+  if (!AHEAD_VIEW && !weekIsVisible(want)) { toast(lookAheadWhy(want)); return; }
   currentWeekKey = want; renderWeek();
 }
 function lookAheadWhy(wkKey){
+  /* Say what would let them through, not merely that they are stopped. */
   return wkKey < visibleFrom()
-    ? "Weeks that have been worked are on the Look ahead board, past the rota-team shield."
-    : "Not published yet — the rota past " + fmtDate(visibleTo()) + " can still change. The rota team can see it on Look ahead.";
+    ? "That week has been worked. The rota team can see it on Look ahead."
+    : "Not published — the rota past " + fmtDate(visibleTo()) + " is still being written. The rota team can see it on Look ahead.";
 }
 (function(){ const v = document.getElementById("appVer"); if (v) v.textContent = "v" + APP_VERSION; })();
 $("#btnPrevWeek").onclick = () => stepWeek(-1);
