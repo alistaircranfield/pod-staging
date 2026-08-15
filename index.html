@@ -1326,7 +1326,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
 </div>
 
 <script src="core.js?v=20260810-04"></script>
-<script src="strength.js?v=20260815-01"></script>
+<script src="strength.js?v=20260815-02"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -1347,9 +1347,101 @@ const GRADES = ["CON","ACCP","SCF","JCF","RCF","ST","CT","ACCS","IMT","FY1","FY2
    Both editable in Settings — hard rule 1. Drop spreadE to 2 and today's 4·4·4·3·2 starts
    suggesting a move; raise it to 4 and E goes quiet almost always. */
 const RULE_DEFAULTS = { podMin: 2, podEMin: 1, nightMin: 4, transferAim: 4, neuroTarget: 70, retentionDays: 400,
-                        spreadMax: 2, spreadE: 3 };
+                        spreadMax: 2, spreadE: 3, visibleWeeks: 2 };
 /* Every number the checks argue about, editable from Settings — hard rule 1. The table above is
    only the FALLBACK, so a board nobody has touched behaves exactly as it always did. */
+/* ── WHAT A TRAINEE CAN SEE, AND WHY IT IS A NUMBER RATHER THAN A RULE ─────────────────────────
+   Ali, 26.08.15: "make only this week and the next visible to trainees, removes the problem. make
+   moves within visible portion much more restricted."
+
+   It does remove the problem, and it removes it in a better way than the thing it replaces. The
+   board's protection against moving somebody behind their back was a THREE-DAY line: inside three
+   days the sync would only offer a change, beyond it the change was applied. Three days was a
+   proxy for "people have read this and planned around it" — a decent proxy, and a guess.
+
+   Visibility makes the same idea literal. Beyond the window nobody has read the day, because
+   nobody could; the planner may optimise it as hard as it likes and nobody is surprised. Inside
+   the window a day has been read, so nothing moves without somebody deciding it should. No
+   threshold to tune, and the rule can be stated in one sentence to a trainee: what you can see is
+   what you are working, and if it changes you will be told.
+
+   TWO WEEKS, not four and not one. One week means Friday's board shows nothing about Monday; four
+   puts a month of provisional allocation in front of people and re-creates the problem it was
+   meant to solve. Editable here like every other number (hard rule 1) — this is a judgement about
+   how far ahead people plan, and the rota team may disagree with it.
+
+   THE WEEKS ARE NOT SECRET, they are UNFINISHED. Everything past the window is one shield away on
+   the Look ahead board, and the rota team reaches it exactly as they reach the log or the staff
+   list. Nothing is hidden from anybody who is allowed to change it. */
+function visibleFrom(){ return mondayOf(todayISO()); }
+function visibleTo(){ return addDays(visibleFrom(), 7 * Math.max(1, rule("visibleWeeks")) - 1); }
+function weekIsVisible(wkKey){ return wkKey >= visibleFrom() && wkKey <= visibleTo(); }
+/* A day inside the window has been read by the people working it. Used by the board to decide
+   what to draw, and mirrored in allocate_auto.py to decide what the sync may do unasked — the two
+   must agree, and where they disagree the sync is the one that must be more cautious. */
+function dayIsVisible(iso){ return weekIsVisible(mondayOf(iso)); }
+
+/* ── WHAT THE TRAINEES SAW, KEPT SO A CHANGE CAN BE EXPLAINED ──────────────────────────────────
+   The moment a week crosses into the visible window it stops being a draft and becomes a promise.
+   From then on every change to it is a change to something a person has already read and planned
+   around, and "the log records it" is not the same as being able to answer the only question that
+   gets asked: what is different from what I saw?
+
+   So a copy is frozen on the way in, once, and never touched again. Everything after that is a
+   diff against it. Cheap — five pods of names for two weeks — and it is the difference between
+   "Pod C, and it was Pod A when you looked" and a log entry nobody will go and find.
+
+   NOT AN AUDIT TRAIL AND NOT A SECOND SOURCE OF TRUTH. It answers one question and it is deleted
+   when the week falls out of the window; the log remains the record. Kept as ids and pods only —
+   hard rule 6 is one surface away here, and a snapshot that carried anything about WHY somebody
+   moved would be exactly the sort of thing that rule exists to prevent. */
+function snapVisibleWeeks(){
+  if (!data || !data.weeks) return;
+  /* ONLY SOMEBODY WHO CAN SAVE MAY TAKE THE SNAPSHOT, and this guard is the whole reason the
+     function has one. Written without it, the first trainee to open the board each morning would
+     build a snapshot in memory, call markDirty(), have markDirty return at its first line because
+     EDIT_MODE is false, and drop it — and the console said exactly that in the test run. That is
+     the 12 Aug Staff-page fault reproduced: work done, screen updated, nothing written, and no
+     error anywhere. A snapshot that is silently lost is worse than none, because seenPodOf would
+     then answer "no change" for a week that had in fact changed.
+
+     So: the board snapshots only when it is already in edit mode, and the nightly sync — which
+     always saves — takes it for everybody else. A missing snapshot reads as "no answer", which
+     is the honest and safe outcome. */
+  if (!EDIT_MODE) return;
+  data.seen = data.seen || {};
+  let changed = false;
+  for (let i = 0; i < Math.max(1, rule("visibleWeeks")); i++) {
+    const wkKey = addDays(visibleFrom(), 7 * i);
+    const wk = data.weeks[wkKey];
+    if (!wk || data.seen[wkKey]) continue;
+    const shot = {};
+    (wk.days || []).forEach((day, di) => {
+      if (!day) return;
+      const per = {};
+      for (const p of PODS) for (const a of ((day.pods[p] || {}).assign || [])) if (a.id) per[a.id] = p;
+      shot[di] = per;
+    });
+    data.seen[wkKey] = { at: new Date().toISOString(), pods: shot };
+    changed = true;
+  }
+  /* Weeks that have fallen out of the window have nothing left to explain. */
+  for (const k of Object.keys(data.seen)) if (k < visibleFrom()) { delete data.seen[k]; changed = true; }
+  if (changed) markDirty();
+}
+/* Where somebody was standing when the week became visible, or null if this week was already
+   public before snapshots existed — which must read as "no answer", never as "no change". */
+function seenPodOf(iso, id){
+  const wkKey = mondayOf(iso), sn = data && data.seen && data.seen[wkKey];
+  if (!sn) return null;
+  const di = Math.round((Date.parse(iso) - Date.parse(wkKey)) / 86400000);
+  const per = sn.pods && sn.pods[di];
+  return per ? (per[id] || null) : null;
+}
+function movedSinceSeen(iso, id, nowPod){
+  const was = seenPodOf(iso, id);
+  return was && nowPod && was !== nowPod ? was : null;
+}
 function rule(k){
   const v = data && data.rules ? data.rules[k] : undefined;
   return (v === undefined || v === null || v === "") ? RULE_DEFAULTS[k] : Number(v);
@@ -8846,7 +8938,11 @@ function renderSettings(){
   box.append(h("Pod rules"));
   const nums = [["podMin","staff per pod, minimum",""],["podEMin","Pod E minimum",""],
     ["nightMin","night team minimum",""],["transferAim","transfer-trained on days, aim for",""],
-    ["neuroTarget","neuro shifts on Pods C/D","%"],["retentionDays","keep past weeks for","days"]];
+    ["neuroTarget","neuro shifts on Pods C/D","%"],["retentionDays","keep past weeks for","days"],
+    /* How much of the rota is published. Everything past this is one shield away on Look ahead,
+       and the sync will not move anybody inside it without being asked — so raising this number
+       makes the board calmer for trainees and the rota harder to improve, in that order. */
+    ["visibleWeeks","weeks trainees can see","weeks"]];
   const grid = el("div", { style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.55rem" });
   for (const [k, label, unit] of nums) {
     const inp = el("input", { type: "number", value: String(rule(k)),
@@ -9733,7 +9829,7 @@ function resolveSyncClash(i, how){
   toast(how === "take" ? "Changed to Optima's version: " + c.allocate : "Kept " + (c.app || "blank") + " — Optima won't override it");
 }
 function renderAll(){ withScrollKept(renderAllInner); }
-function renderAllInner(){ fillStartDates(); recomputeHistoric(); renderWeek(); renderAutoNotice(); renderStaffGate(); renderFairGate(); renderImportGate(); renderLogGate(); renderOverridesGate(); renderTeamGate(); renderSyncReview(); updateTeamBadge(); }
+function renderAllInner(){ fillStartDates(); recomputeHistoric(); snapVisibleWeeks(); renderWeek(); renderAutoNotice(); renderStaffGate(); renderFairGate(); renderImportGate(); renderLogGate(); renderOverridesGate(); renderTeamGate(); renderSyncReview(); updateTeamBadge(); }
 const PAGE_TITLES = { rota: "Pod Allocator", mine: "My shifts", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", settings: "Settings", help: "How it works", team: "Needs attention", feedback: "Trial feedback" };
 const TEAM_TABS = ["team", "import", "staff", "fair", "log", "settings", "feedback"];
 function switchTab(tab){
@@ -9813,8 +9909,21 @@ $("#btnResetDemo").onclick = async () => {
   }
 };
 initImportPage();
-$("#btnPrevWeek").onclick = () => { currentWeekKey = addDays(currentWeekKey, -7); renderWeek(); };
-$("#btnNextWeek").onclick = () => { currentWeekKey = addDays(currentWeekKey, 7); renderWeek(); };
+/* THE ARROWS STOP AT THE EDGE OF WHAT IS PUBLIC, unless the rota team has unlocked the board.
+   Deliberately a STOP rather than a hidden button: a control that vanishes is a bug to the person
+   looking for it, and "there is more, and it is not settled yet" is the true answer. */
+function stepWeek(n){
+  const want = addDays(currentWeekKey, 7 * n);
+  if (!staffUnlocked() && !weekIsVisible(want)) { toast(lookAheadWhy(want)); return; }
+  currentWeekKey = want; renderWeek();
+}
+function lookAheadWhy(wkKey){
+  return wkKey < visibleFrom()
+    ? "Weeks that have been worked are on the Look ahead board, past the rota-team shield."
+    : "Not published yet — the rota past " + fmtDate(visibleTo()) + " can still change. The rota team can see it on Look ahead.";
+}
+$("#btnPrevWeek").onclick = () => stepWeek(-1);
+$("#btnNextWeek").onclick = () => stepWeek(1);
 $("#btnToday").onclick = () => { currentWeekKey = mondayOf(todayISO()); renderWeek(); };
 $("#btnAutoFill").onclick = autoFillWeek;
 $("#btnFixWeek").onclick = fixWeekDialog;
