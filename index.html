@@ -914,6 +914,14 @@ button.strdial:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   font-variant-numeric:tabular-nums}
 .regrow .reglb{flex:1 1 auto;min-width:0;font-size:.85rem;line-height:1.3}
 .regrow .regsub{display:block;font-size:.66rem;color:var(--muted);letter-spacing:.03em}
+/* A chip that has changed pod since the week was published. Outline, not fill — the pod colours
+   own the fill and a second colour system on the same object reads as neither. */
+.chip.moved{box-shadow:0 0 0 2px var(--accent);border-radius:6px}
+/* The draft week says so on the face of the board rather than in a tooltip: a promise nobody can
+   see is not a promise. Warm rather than red — it is provisional, not wrong. */
+.draftbar{display:flex;align-items:center;gap:.5rem;margin:.35rem 0 .55rem;padding:.4rem .7rem;
+  border:1px solid #e6b800;background:#fff8e0;border-radius:8px;font-size:.78rem;color:#5b4600}
+.draftbar b{font-weight:700}
 /* The suggestion sits UNDER its requirement rather than beside it: it is a comment on that row,
    not a competing value, and putting it in the weight column would make two numbers argue. No
    top border, so the pair reads as one block. */
@@ -1326,7 +1334,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
 </div>
 
 <script src="core.js?v=20260810-04"></script>
-<script src="strength.js?v=20260815-02"></script>
+<script src="strength.js?v=20260815-03"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -1347,7 +1355,7 @@ const GRADES = ["CON","ACCP","SCF","JCF","RCF","ST","CT","ACCS","IMT","FY1","FY2
    Both editable in Settings — hard rule 1. Drop spreadE to 2 and today's 4·4·4·3·2 starts
    suggesting a move; raise it to 4 and E goes quiet almost always. */
 const RULE_DEFAULTS = { podMin: 2, podEMin: 1, nightMin: 4, transferAim: 4, neuroTarget: 70, retentionDays: 400,
-                        spreadMax: 2, spreadE: 3, visibleWeeks: 2 };
+                        spreadMax: 2, spreadE: 3, visibleWeeks: 3, firmWeeks: 2 };
 /* Every number the checks argue about, editable from Settings — hard rule 1. The table above is
    only the FALLBACK, so a board nobody has touched behaves exactly as it always did. */
 /* ── WHAT A TRAINEE CAN SEE, AND WHY IT IS A NUMBER RATHER THAN A RULE ─────────────────────────
@@ -1365,17 +1373,43 @@ const RULE_DEFAULTS = { podMin: 2, podEMin: 1, nightMin: 4, transferAim: 4, neur
    threshold to tune, and the rule can be stated in one sentence to a trainee: what you can see is
    what you are working, and if it changes you will be told.
 
-   TWO WEEKS, not four and not one. One week means Friday's board shows nothing about Monday; four
-   puts a month of provisional allocation in front of people and re-creates the problem it was
-   meant to solve. Editable here like every other number (hard rule 1) — this is a judgement about
-   how far ahead people plan, and the rota team may disagree with it.
+   THREE WEEKS, AND THE THIRD ONE SAYS SO. Ali, 26.08.15: "I think they might want to see current
+   week plus 2 more... maybe label 3rd week of the 3 with draft label to change significantly for
+   trainees or something."
+
+   That is a better shape than a flat two-week cut, and it is better because it separates two
+   things a single window had to conflate. People want to see further than a fortnight — they book
+   things. But the rota that far out is genuinely provisional, and showing it WITHOUT saying so is
+   how a board makes a promise it cannot keep.
+
+   So the window has two edges, not one:
+
+     FIRM     weeks 1..firmWeeks. Read, planned around, and protected: the sync may repair a
+              broken pod here and may not move anybody to make the day merely better.
+     DRAFT    the rest of the visible window. Shown, and labelled as likely to change, so the
+              planner may optimise it freely — which is honest, because the label is the promise
+              and the label says it will move.
+
+   Everything past the visible window stays rota-team only. Both numbers are editable (hard rule 1)
+   and the only invariant is that firmWeeks cannot exceed visibleWeeks — a firm week nobody can see
+   would be a rule protecting nothing.
 
    THE WEEKS ARE NOT SECRET, they are UNFINISHED. Everything past the window is one shield away on
    the Look ahead board, and the rota team reaches it exactly as they reach the log or the staff
    list. Nothing is hidden from anybody who is allowed to change it. */
 function visibleFrom(){ return mondayOf(todayISO()); }
-function visibleTo(){ return addDays(visibleFrom(), 7 * Math.max(1, rule("visibleWeeks")) - 1); }
+function visWeeks(){ return Math.max(1, rule("visibleWeeks")); }
+/* Never more firm than visible: a week protected from change that nobody can see protects nothing
+   and would quietly make the sync more timid than anybody asked for. */
+function firmWeeks(){ return Math.max(1, Math.min(visWeeks(), rule("firmWeeks"))); }
+function visibleTo(){ return addDays(visibleFrom(), 7 * visWeeks() - 1); }
+function firmTo(){ return addDays(visibleFrom(), 7 * firmWeeks() - 1); }
 function weekIsVisible(wkKey){ return wkKey >= visibleFrom() && wkKey <= visibleTo(); }
+/* Firm means somebody has read it and it will not move under them. Draft means shown and honest
+   about being provisional. The board draws the difference; the sync obeys it. */
+function weekIsFirm(wkKey){ return wkKey >= visibleFrom() && wkKey <= firmTo(); }
+function weekIsDraft(wkKey){ return weekIsVisible(wkKey) && !weekIsFirm(wkKey); }
+function dayIsFirm(iso){ return weekIsFirm(mondayOf(iso)); }
 /* A day inside the window has been read by the people working it. Used by the board to decide
    what to draw, and mirrored in allocate_auto.py to decide what the sync may do unasked — the two
    must agree, and where they disagree the sync is the one that must be more cautious. */
@@ -3551,6 +3585,16 @@ function renderWeekInner(){
     return Object.keys(pool).some(id => !assigned.has(id));
   });
   $("#btnAutoFill").style.display = anyUnplaced ? "" : "none";
+  /* ── THE DRAFT WEEK SAYS SO ON THE FACE OF THE BOARD ─────────────────────────────────────
+     Ali, 26.08.15: "maybe label 3rd week of the 3 with draft label to change significantly for
+     trainees or something." Shown here rather than as a tooltip or a tint, because the whole
+     value of the third week is the caveat attached to it: a provisional rota presented without
+     the word provisional is just a rota that turns out to be wrong. */
+  if (weekIsDraft(currentWeekKey))
+    grid.append(el("div", { class: "draftbar" },
+      el("b", {}, "Draft"),
+      "This week is still being written and the pods will change. Nothing here is settled until "
+      + fmtDate(addDays(firmTo(), 1)) + "."));
   const wrap = el("div", { class: "rota-wrap" });
   const tbl = el("table", { class: "rota" });
   const headRow = el("tr", {}, el("th", {}, ""), el("th", { class: "trayth", style: "width:13%" }, "To allocate"));
@@ -4194,6 +4238,27 @@ function chip(s, opts){
   const short = s.name.split(" ");
   c.append((short[0] || "") + (short.length > 1 ? " " + short[short.length-1] : ""));
   if (s.airway) c.append(el("span", { class: "awdot", title: "Airway trained" }, "A"));
+  /* ── MOVED SINCE YOU LOOKED ────────────────────────────────────────────────────────────────
+     Ali, 26.08.15: "how highlight changes on the allocation board (colour coding or borders or
+     something)."
+
+     A border rather than a fill, and for a reason that matters on this board: every pod already
+     owns a colour and the chips sit inside it, so tinting a chip to mean "changed" would put two
+     colour systems on the same object and neither would read. An outline is a second channel.
+
+     It is drawn ONLY where it can be true — inside the published window, against the snapshot
+     taken when the week became visible. A day with no snapshot draws nothing at all, because
+     `seenPodOf` returns null for "no answer" and null must never be shown as "no change". And it
+     is not drawn in the draft week, where everything is expected to move and marking every chip
+     would be noise saying nothing.
+
+     THE TITLE SAYS WHERE THEY WERE, not why they moved. Hard rule 6: the board records that
+     somebody is somewhere different and never the reason, and "was Pod A" is a fact about the
+     rota while anything more would be a fact about a person. */
+  if (opts.di != null && opts.pod && dayIsFirm(addDays(currentWeekKey, opts.di))) {
+    const was = movedSinceSeen(addDays(currentWeekKey, opts.di), s.id, opts.pod);
+    if (was) { c.classList.add("moved"); c.title = personLabel(s) + " — was Pod " + was + " when this week was published"; }
+  }
   if (s.adhoc && /zlocum/i.test(s.name || "") && opts.di != null && canEdit())
     c.append(el("button", { class: "x", title: "We know who this locum is — type their name", onclick: e => { e.stopPropagation(); nameLocum(s, opts.di); } }, "✎"));
   if (opts.onRemove) c.append(el("button", { class: "x", title: opts.removeTitle || "Remove", onclick: e => { e.stopPropagation(); opts.onRemove(); } }, "✕"));
@@ -5292,7 +5357,7 @@ function renderDayRow(day, di, dateISO, issues){
       }
     }
     for (const a of pod.assign.filter(a => a.id && staffById(a.id))) {
-      col.append(chip(staffById(a.id), { di, day, tag: a.shift,
+      col.append(chip(staffById(a.id), { di, day, pod: p, tag: a.shift,
         tagClick: async () => {
           const next = a.shift === "LD" ? "SD" : "LD";
           if (!(await uiConfirm(staffById(a.id).name + ": " + (next === "LD" ? "standard day → long day (8–8)?" : "long day → standard day (8–4)?"), { title: "Change shift?", okLabel: "Change to " + next }))) return;
