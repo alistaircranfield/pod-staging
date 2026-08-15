@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-15T06:57:15.290512+00:00",
- "build": "94499fa",
+ "generated": "2026-08-15T06:59:24.277584+00:00",
+ "build": "78d3252",
  "liveBuild": "35abf4e",
- "count": 241,
+ "count": 243,
  "changes": [
+  {
+   "sha": "78d3252",
+   "who": "alistaircranfield",
+   "when": "2026-08-15T07:59:16+01:00",
+   "msg": "Three weeks visible, third marked draft; chips outlined where they moved since publishing"
+  },
+  {
+   "sha": "bb05586",
+   "who": "github-actions[bot]",
+   "when": "2026-08-15T06:57:15Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "94499fa",
    "who": "alistaircranfield",
