@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-15T06:08:53.117574+00:00",
- "build": "0ac1a83",
+ "generated": "2026-08-15T06:38:21.008547+00:00",
+ "build": "3de509d",
  "liveBuild": "35abf4e",
- "count": 235,
+ "count": 237,
  "changes": [
+  {
+   "sha": "3de509d",
+   "who": "alistaircranfield",
+   "when": "2026-08-15T07:38:10+01:00",
+   "msg": "N06: a neuro placement outside Pods C and D now costs score"
+  },
+  {
+   "sha": "e4de045",
+   "who": "github-actions[bot]",
+   "when": "2026-08-15T06:08:53Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "0ac1a83",
    "who": "alistaircranfield",
