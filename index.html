@@ -1334,7 +1334,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
 </div>
 
 <script src="core.js?v=20260810-04"></script>
-<script src="strength.js?v=20260815-03"></script>
+<script src="strength.js?v=20260815-04"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -3590,11 +3590,18 @@ function renderWeekInner(){
      trainees or something." Shown here rather than as a tooltip or a tint, because the whole
      value of the third week is the caveat attached to it: a provisional rota presented without
      the word provisional is just a rota that turns out to be wrong. */
-  if (weekIsDraft(currentWeekKey))
+  /* THE DATE IT QUOTES IS WHEN THIS WEEK BECOMES FIRM, not when the firm window currently ends.
+     The first version printed `firmTo() + 1`, which on the draft week is the Monday of the week
+     being looked at — so it read "the week of 24 Aug is not settled until 24 Aug", which is
+     circular and tells nobody anything. A week enters the firm window once it is within
+     firmWeeks of the current Monday, so the answer is this week's Monday minus (firmWeeks - 1)
+     weeks: the Monday on which it stops moving. */
+  if (weekIsDraft(currentWeekKey)) {
+    const settles = addDays(currentWeekKey, -7 * (firmWeeks() - 1));
     grid.append(el("div", { class: "draftbar" },
       el("b", {}, "Draft"),
-      "This week is still being written and the pods will change. Nothing here is settled until "
-      + fmtDate(addDays(firmTo(), 1)) + "."));
+      "Still being written, and the pods will change. It settles on " + fmtDate(settles) + "."));
+  }
   const wrap = el("div", { class: "rota-wrap" });
   const tbl = el("table", { class: "rota" });
   const headRow = el("tr", {}, el("th", {}, ""), el("th", { class: "trayth", style: "width:13%" }, "To allocate"));
