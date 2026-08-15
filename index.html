@@ -917,24 +917,24 @@ button.strdial:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 /* A chip that has changed pod since the week was published. Outline, not fill — the pod colours
    own the fill and a second colour system on the same object reads as neither. */
 .chip.moved{box-shadow:0 0 0 2px var(--accent);border-radius:6px}
-/* The draft week says so on the face of the board rather than in a tooltip: a promise nobody can
-   see is not a promise. Warm rather than red — it is provisional, not wrong. */
-.draftbar{display:flex;align-items:center;gap:.5rem;margin:.35rem 0 .55rem;padding:.4rem .7rem;
-  border:1px solid #e6b800;background:#fff8e0;border-radius:8px;font-size:.78rem;color:#5b4600}
-.draftbar b{font-weight:700}
-/* Look ahead. The three bands are the ones the rest of the page already uses, so a month reads
-   the same way a week does: firm is settled, draft is provisional, open is not published. */
-.mnum{font-size:.72rem;color:var(--muted)}
-.mtag{margin-top:2px;font-size:.62rem;padding:1px 3px;border-radius:4px;color:#fff;text-align:center}
-.mtag.none{background:transparent;color:#a33;border:1px dashed #d9a2a2}
-.mcell.mfirm{outline:2px solid var(--accent);outline-offset:-2px}
-.mcell.mdraft{outline:2px dashed #e6b800;outline-offset:-2px}
-.mcell.mopen{opacity:.86}
-.aheadkey{display:flex;gap:.8rem;margin-top:.6rem;font-size:.7rem;color:var(--muted)}
-.aheadkey span::before{content:"";display:inline-block;width:10px;height:10px;margin-right:4px;vertical-align:-1px;border-radius:2px}
-.aheadkey .kfirm::before{border:2px solid var(--accent)}
-.aheadkey .kdraft::before{border:2px dashed #e6b800}
-.aheadkey .kopen::before{border:2px solid #ccc}
+/* THE DRAFT WEEK IS TINTED THROUGHOUT, so the caveat cannot be scrolled away from. The wash sits
+   BEHIND the table via a pseudo-element rather than as a background on the wrapper, because the
+   pod columns paint their own backgrounds and would cover a plain one. */
+.rota-wrap.draftwk{position:relative;border:2px solid #e6b800;border-radius:8px}
+.rota-wrap.draftwk::after{content:"";position:absolute;inset:0;background:#e6b800;opacity:.10;
+  pointer-events:none;z-index:5}
+/* Quiet, always there, never in the way — the foot of the rail, where a version belongs. */
+.appver{margin-top:auto;padding:.5rem .2rem .2rem;font-size:.62rem;color:var(--muted);text-align:center;letter-spacing:.04em}
+.draftflag{display:inline-block;background:#e6b800;color:#3d2f00;font-size:.68rem;font-weight:700;
+  letter-spacing:.09em;padding:.2rem .8rem;border-radius:6px 6px 0 0;margin-top:.35rem}
+/* Look ahead: the real board, one block per week, stacked and scrolled. The band shows on the
+   header rather than over the grid, because the grid is the front page and must look like it. */
+.aheadwk{margin-bottom:1.1rem}
+.aheadhd{display:flex;align-items:baseline;gap:.6rem;padding:.15rem .1rem .35rem}
+.aheadhd b{font-size:.92rem}
+.aheadhd span{font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.aheadwk.firm .aheadhd span{color:var(--accent)}
+.aheadwk.draft .aheadhd span{color:#8a6300}
 /* The suggestion sits UNDER its requirement rather than beside it: it is a comment on that row,
    not a competing value, and putting it in the weight column would make two numbers argue. No
    top border, so the pair reads as one block. */
@@ -999,14 +999,15 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
   <button data-tab="help" class="smallb"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.2A2.5 2.5 0 0112 7.5c1.4 0 2.5 1 2.5 2.2 0 1.5-1.6 1.9-2.5 3v.6"/><circle cx="12" cy="16.6" r=".4" fill="currentColor"/></svg></span>Help</button>
   <div class="aside-spacer"></div>
   <button class="smallb" id="btnTeam"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3.6v5c0 4.3-3 8.1-7.5 9.4-4.5-1.3-7.5-5.1-7.5-9.4v-5z"/></svg><span class="navbadge" id="teamBadge"></span></span>Rota team</button>
+  <div class="appver" id="appVer" title="Which build this is"></div>
 </aside>
 <nav id="teamPanel">
   <button id="tpBack" class="tpback"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>Menu</button>
   <div class="tpttl">Rota team</div>
   <button data-tab="team" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l8.5 15h-17z"/><path d="M12 10v4"/><circle cx="12" cy="16.6" r=".5" fill="currentColor"/></svg>Attention<span class="tpc" id="tabAttnCount"></span></button>
+  <button data-tab="ahead" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/><path d="M15 15l2 2 3-4"/></svg>Look ahead</button>
   <button data-tab="staff" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19.5c.8-3.3 3.3-5 6.2-5s5.4 1.7 6.2 5"/><path d="M15.5 5.5a3.2 3.2 0 011.6 6"/></svg>Staff<span class="tpc" id="tabStaffCount"></span></button>
   <button data-tab="feedback" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg>Feedback<span class="tpc" id="tabFbCount"></span></button>
-  <button data-tab="ahead" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/><path d="M15 15l2 2 3-4"/></svg>Look ahead</button>
   <button data-tab="fair" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l3-8 4 14 3-8h4"/></svg>Fairness</button>
   <button data-tab="log" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Change log<span class="tpc" id="tabLogCount"></span></button>
   <button data-tab="settings" class="tpi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M4 12h2M18 12h2M12 4v2M12 18v2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M17.7 6.3l-1.4 1.4M7.7 16.3l-1.4 1.4"/></svg>Settings</button>
@@ -1361,7 +1362,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
 </div>
 
 <script src="core.js?v=20260810-04"></script>
-<script src="strength.js?v=20260815-05"></script>
+<script src="strength.js?v=20260815-07"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -3617,19 +3618,32 @@ function renderWeekInner(){
      trainees or something." Shown here rather than as a tooltip or a tint, because the whole
      value of the third week is the caveat attached to it: a provisional rota presented without
      the word provisional is just a rota that turns out to be wrong. */
-  /* THE DATE IT QUOTES IS WHEN THIS WEEK BECOMES FIRM, not when the firm window currently ends.
+  /* ── THE DRAFT WEEK IS WASHED, NOT BANNERED ─────────────────────────────────────────────
+     Ali, 26.08.15: "i think draft warning watermark behind things, too subtle now." He is right
+     — a one-line bar at the top of a scrolling board is read once and then scrolled past, and the
+     whole point of the third week is the caveat, not the rota.
+
+     So the warning is a PROPERTY OF THE WHOLE WEEK rather than a notice above it: a warm wash
+     over the grid and a flag pinned to the corner. You cannot look at any part of the week
+     without it being tinted, which is the honest rendering of "none of this is settled".
+
+     WARM RATHER THAN RED, because provisional is not wrong. And a wash rather than a diagonal
+     watermark behind the names: the pods already carry their own colours and a big rotated word
+     underneath competes with them for the same pixels — a flat tint sits behind everything and
+     argues with nothing.
+
+     The date it quotes is when this week BECOMES FIRM, not when the firm window currently ends.
      The first version printed `firmTo() + 1`, which on the draft week is the Monday of the week
-     being looked at — so it read "the week of 24 Aug is not settled until 24 Aug", which is
-     circular and tells nobody anything. A week enters the firm window once it is within
-     firmWeeks of the current Monday, so the answer is this week's Monday minus (firmWeeks - 1)
-     weeks: the Monday on which it stops moving. */
-  if (weekIsDraft(currentWeekKey)) {
+     being looked at, so it read "the week of 24 Aug is not settled until 24 Aug" — circular, and
+     it told nobody anything. A week enters the firm window once it is within firmWeeks of the
+     current Monday, so the answer is this week's Monday minus (firmWeeks - 1) weeks. */
+  const isDraftWeek = weekIsDraft(currentWeekKey);
+  if (isDraftWeek) {
     const settles = addDays(currentWeekKey, -7 * (firmWeeks() - 1));
-    grid.append(el("div", { class: "draftbar" },
-      el("b", {}, "Draft"),
-      "Still being written, and the pods will change. It settles on " + fmtDate(settles) + "."));
+    grid.append(el("div", { class: "draftflag" },
+      el("b", {}, "DRAFT"), " \u00b7 WILL CHANGE \u00b7 settles " + fmtDate(settles)));
   }
-  const wrap = el("div", { class: "rota-wrap" });
+  const wrap = el("div", { class: "rota-wrap" + (isDraftWeek ? " draftwk" : "") });
   const tbl = el("table", { class: "rota" });
   const headRow = el("tr", {}, el("th", {}, ""), el("th", { class: "trayth", style: "width:13%" }, "To allocate"));
   for (const p of PODS) headRow.append(el("th", { class: "podth", style: "border-top-color:var(--pod" + p + "b)" }, "Pod " + p));
@@ -9599,89 +9613,69 @@ function monthGrid(anchorISO, opts){
 function weekExists(dateISO){ return !!(data && data.weeks && data.weeks[mondayOf(dateISO)]); }
 
 /* ── LOOK AHEAD ───────────────────────────────────────────────────────────────────────────────
-   Ali, 26.08.15: "Add a look ahead board function to show other weeks in the resident one - might
-   as well pull all available rota info to fill these, not public anyway."
+   Ali, 26.08.15: "look ahead should just be like the public front page when in edit mode but
+   scroll through loads of future weeks."
 
-   The board publishes three weeks and stops. That is right for a trainee and useless for the
-   people writing the thing: the rota team's whole job is the part nobody else can see, and until
-   now the only way to reach it was to arrow forward one week at a time and count.
+   The first version of this was a month calendar with a score in each cell. It was wrong, and the
+   reason is worth writing down: a month grid answers "which day needs attention", and the rota
+   team's actual job is to LOOK AT the day and move somebody. A calendar makes you find a problem
+   and then go somewhere else to fix it, which is two screens for one thought.
 
-   So this is a MONTH AT A GLANCE, built on the same `monthGrid` the date-jumper already uses —
-   reused rather than reinvented, so a month looks like a month everywhere on this page. Each day
-   carries the two facts that decide whether it needs attention, and nothing else:
+   So Look ahead is THE BOARD — literally the same renderer the front page uses, run once per week
+   and stacked, with the weeks past the published window all present and scrollable. Reusing
+   `renderWeekInner` rather than reimplementing it is the whole point: "just like the front page"
+   is guaranteed by construction, and there is no second board to keep in step. It draws into
+   #weekGrid, so each week is rendered there and the finished node is MOVED across.
 
-     how many people are placed   0 means the day exists on the roster and nobody has been put
-                                  anywhere, which is the single most useful thing to see far out
-     its score                    the same percentage the rings draw, coloured the same way
+   ── THE HAZARD, AND WHY EACH BLOCK CLAIMS THE WEEK ON POINTERDOWN ──────────────────────────────
+   Every handler on the board — drag, tap-to-move, the shift toggle, Fix this day — reads the
+   GLOBAL `currentWeekKey` when it fires, not when it was drawn. Stack eight weeks and every one of
+   them would act on whichever week happened to be current, so a drag on 14 September would quietly
+   rearrange this Monday. That is a data-loss bug, not a cosmetic one.
 
-   WHAT IT DELIBERATELY DOES NOT DO IS LET YOU EDIT FROM HERE. A month cell is about 40px and the
-   board's own rules about who may move whom are enforced in the week view; a second editing
-   surface would be a second place for those rules to be got wrong. Clicking a day takes you to it.
-
-   THE THREE BANDS ARE THE SAME THREE THE REST OF THE PAGE USES — firm, draft, and beyond — so the
-   answer to "why did that day change last night" is legible from here without opening it. */
+   So each block sets `currentWeekKey` to its own week on `pointerdown`, in the capture phase, which
+   runs before any click or drag handler inside it. Cheap, and it makes the invariant true for every
+   control in the block including ones added later, which a per-control fix would not. */
 function renderAhead(){
   const box = $("#aheadCard");
   if (!box) return;
   box.innerHTML = "";
-  if (!data) { box.append(el("div", { class: "card empty" }, "Nothing loaded yet.")); return; }
+  if (!data || !data.weeks) { box.append(el("div", { class: "card empty" }, "Nothing loaded yet.")); return; }
 
-  let anchor = aheadAnchor || todayISO();
-  const paint = () => {
-    box.innerHTML = "";
-    const head = el("div", { class: "mnav" });
-    const lbl = new Date(anchor + "T12:00:00").toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-    const step = n => () => {
-      const d = new Date(anchor + "T12:00:00"); d.setMonth(d.getMonth() + n); d.setDate(1);
-      anchor = aheadAnchor = d.toISOString().slice(0, 10); paint();
-    };
-    head.append(el("button", { class: "navarrow", onclick: step(-1), title: "Previous month" }, "‹"),
-      el("b", {}, lbl),
-      el("button", { class: "navarrow", onclick: step(1), title: "Next month" }, "›"));
-    box.append(head);
+  /* Every week from the start of the published window forward that has a roster. The rota team
+     asked for "loads of future weeks" and the honest limit is how far Optima has been written —
+     which is now however far the puller reached, not four. */
+  const from = visibleFrom();
+  const keys = Object.keys(data.weeks)
+    .filter(k => k >= from && data.weeks[k] && data.weeks[k].roster && Object.keys(data.weeks[k].roster).length)
+    .sort();
 
-    /* HOW FAR THE ROTA ACTUALLY REACHES, stated rather than implied. Somebody looking at an empty
-       October needs to know whether the rota is bad or simply not written yet, and those are not
-       the same thing — the puller now walks forward until Optima runs out, so the edge moves. */
-    const keys = Object.keys(data.weeks || {}).filter(k => (data.weeks[k].roster &&
-      Object.keys(data.weeks[k].roster).length)).sort();
-    const last = keys.length ? addDays(keys[keys.length - 1], 6) : null;
-    box.append(el("div", { class: "cc-sub", style: "margin:.2rem 0 .6rem" },
-      last ? "The roster reaches " + fmtDate(last) + ". Days past that are not written yet, not empty."
-           : "No roster loaded."));
+  if (!keys.length) { box.append(el("div", { class: "card empty" }, "No roster loaded past this week.")); return; }
+  box.append(el("div", { class: "cc-sub", style: "margin:0 0 .7rem" },
+    keys.length + " week" + (keys.length > 1 ? "s" : "") + " written, to " + fmtDate(addDays(keys[keys.length - 1], 6))
+    + ". The first " + firmWeeks() + " are firm; the rest can still change."));
 
-    box.append(monthGrid(anchor, { cell: (dISO, other) => {
-      const c = el("div", {});
-      c.append(el("div", { class: "mnum" }, String(Number(dISO.slice(8, 10)))));
-      const wkKey = mondayOf(dISO), wk = data.weeks && data.weeks[wkKey];
-      const hasRoster = !!(wk && wk.roster && wk.roster[dISO] && Object.keys(wk.roster[dISO]).length);
-      if (!other && hasRoster) {
-        const di = Math.round((Date.parse(dISO) - Date.parse(wkKey)) / 86400000);
-        const day = wk.days && wk.days[di];
-        let placed = 0;
-        if (day) for (const p of PODS) placed += (day.pods[p].assign || []).filter(a => a.id).length;
-        let pct = null;
-        try {
-          const sc = day && strengthTick(day, dISO, checkDay(day, dISO, di, wk).filter(x => !x.empty), wk, di);
-          pct = sc && sc.sc && sc.sc.day ? sc.sc.day.pct : null;
-        } catch (e) {}
-        if (!placed) c.append(el("div", { class: "mtag none" }, "not allocated"));
-        else if (pct != null && window.Strength)
-          c.append(el("div", { class: "mtag", style: "background:" + Strength.colourOf(pct) }, pct + "%"));
-        else c.append(el("div", { class: "mtag" }, placed + " on"));
-        c.classList.add(weekIsFirm(wkKey) ? "mfirm" : weekIsDraft(wkKey) ? "mdraft" : "mopen");
-        c.onclick = () => { currentWeekKey = wkKey; switchTab("rota"); renderWeek(); };
-        c.style.cursor = "pointer";
-      }
-      return c;
-    } }));
-
-    box.append(el("div", { class: "aheadkey" },
-      el("span", { class: "kfirm" }, "firm"),
-      el("span", { class: "kdraft" }, "draft"),
-      el("span", { class: "kopen" }, "not published")));
-  };
-  paint();
+  const saveKey = currentWeekKey, saveLast = (typeof lastWeekShown !== "undefined") ? lastWeekShown : null;
+  const grid = $("#weekGrid");
+  try {
+    for (const k of keys) {
+      currentWeekKey = k;
+      if (typeof lastWeekShown !== "undefined") lastWeekShown = k;   // don't reset the mobile day per block
+      renderWeekInner();
+      const block = el("div", { class: "aheadwk" + (weekIsFirm(k) ? " firm" : weekIsDraft(k) ? " draft" : "") });
+      block.append(el("div", { class: "aheadhd" },
+        el("b", {}, weekLabel(k)),
+        el("span", {}, weekIsFirm(k) ? "firm" : weekIsDraft(k) ? "draft" : "not published")));
+      while (grid.firstChild) block.append(grid.firstChild);
+      /* CLAIM THE WEEK BEFORE ANY HANDLER INSIDE IT RUNS — see the note above. */
+      block.addEventListener("pointerdown", () => { currentWeekKey = k; }, true);
+      box.append(block);
+    }
+  } finally {
+    currentWeekKey = saveKey;
+    if (typeof lastWeekShown !== "undefined") lastWeekShown = saveLast;
+    grid.innerHTML = "";
+  }
 }
 var aheadAnchor = null;
 
@@ -10017,6 +10011,13 @@ function resolveSyncClash(i, how){
 }
 function renderAll(){ withScrollKept(renderAllInner); }
 function renderAllInner(){ fillStartDates(); recomputeHistoric(); snapVisibleWeeks(); renderWeek(); renderAutoNotice(); renderStaffGate(); renderFairGate(); renderImportGate(); renderLogGate(); renderOverridesGate(); renderTeamGate(); renderSyncReview(); updateTeamBadge(); }
+/* ── WHICH BUILD AM I LOOKING AT ────────────────────────────────────────────────────────────
+   Ali, 26.08.15: "when this goes live i want v 1.2 showing somewhere on the page." Small ask,
+   real reason: this board is deployed by hand into a repo, three copies of it exist, and the only
+   way anybody has ever answered "is this the new one" is by hunting for a feature. One constant,
+   shown once, and bumped deliberately rather than by a build step — a version that changes itself
+   tells you the file moved, not that anybody decided it was ready. */
+const APP_VERSION = "1.2";
 const PAGE_TITLES = { rota: "Pod Allocator", mine: "My shifts", ahead: "Look ahead", import: "Import", staff: "Staff & attributes", fair: "Fairness", log: "Change log", settings: "Settings", help: "How it works", team: "Needs attention", feedback: "Trial feedback" };
 const TEAM_TABS = ["team", "ahead", "import", "staff", "fair", "log", "settings", "feedback"];
 function switchTab(tab){
@@ -10110,6 +10111,7 @@ function lookAheadWhy(wkKey){
     ? "Weeks that have been worked are on the Look ahead board, past the rota-team shield."
     : "Not published yet — the rota past " + fmtDate(visibleTo()) + " can still change. The rota team can see it on Look ahead.";
 }
+(function(){ const v = document.getElementById("appVer"); if (v) v.textContent = "v" + APP_VERSION; })();
 $("#btnPrevWeek").onclick = () => stepWeek(-1);
 $("#btnNextWeek").onclick = () => stepWeek(1);
 $("#btnToday").onclick = () => { currentWeekKey = mondayOf(todayISO()); renderWeek(); };
