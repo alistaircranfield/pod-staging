@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-15T20:14:28.276230+00:00",
- "build": "554c7d2",
+ "generated": "2026-08-15T20:48:57.606994+00:00",
+ "build": "2bc7d1d",
  "liveBuild": "35abf4e",
- "count": 255,
+ "count": 257,
  "changes": [
+  {
+   "sha": "2bc7d1d",
+   "who": "alistaircranfield",
+   "when": "2026-08-15T21:48:48+01:00",
+   "msg": "Look ahead hosts the real board; edit mode no longer lifts the 3 week wall"
+  },
+  {
+   "sha": "03fdae5",
+   "who": "github-actions[bot]",
+   "when": "2026-08-15T20:14:28Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "554c7d2",
    "who": "alistaircranfield",
