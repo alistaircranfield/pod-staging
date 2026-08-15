@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-15T06:59:24.277584+00:00",
- "build": "78d3252",
+ "generated": "2026-08-15T07:02:58.376863+00:00",
+ "build": "ab82869",
  "liveBuild": "35abf4e",
- "count": 243,
+ "count": 245,
  "changes": [
+  {
+   "sha": "ab82869",
+   "who": "alistaircranfield",
+   "when": "2026-08-15T08:02:48+01:00",
+   "msg": "Draft banner names the date the week settles, not the date it starts"
+  },
+  {
+   "sha": "5888380",
+   "who": "github-actions[bot]",
+   "when": "2026-08-15T06:59:24Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "78d3252",
    "who": "alistaircranfield",
