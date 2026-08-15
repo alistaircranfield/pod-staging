@@ -120,6 +120,15 @@
        all, and a neuro placement standing on A, B or E costs. Halves per person, so one is 0.5 and
        two is 0 — the same curve as two ACCPs stacked, for the same reason.
 
+       WEIGHT 1, CHOSEN BY MEASUREMENT RATHER THAN BY FEEL. Ali, on being shown the first result:
+       "the weight too high, fix." It was — at 2 the simulated ten years came out at 88% on C/D
+       against an aim of 70%, which is not a rota keeping neuro trainees mostly on C and D, it is
+       one pinning them there and paying for it elsewhere. Re-run across six years at each setting:
+       weight 2 gives 88%, 1.5 gives 84%, and 1 gives 77% — just above the aim, which is what
+       "mostly" means — with the mean day score unmoved (88.9 against 88.8). So 1. Editable in
+       Setup like everything else, and the three measurements are here so the next person changing
+       it knows what each one buys.
+
        THE NEURO REGISTRAR IS NOT THIS. They are supernumerary and hard-locked to C and D by
        neuroPodOK, which refuses the move outright rather than pricing it. This row is about
        ordinary trainees on a neuro placement, who may go elsewhere and mostly should not. */
@@ -172,7 +181,7 @@
        multiple of 20 (Ali: "still suspicious of algorithm with all the 100s and 80s and muliples
        of 10"). These are a proposal and the weakest part of the model — the override counter is
        what should set them, and it has only just started collecting. Editable from Setup. */
-    w: { R04: 3, N01: 2, N05: 1, N02: 1, N03: 3, N04: 1, N06: 2,
+    w: { R04: 3, N01: 2, N05: 1, N02: 1, N03: 3, N04: 1, N06: 1,
          R05: 1, R06: 1, R07: 1, R14: 1, R15: 1, R17: 1, R18: 1, R19: 1, R20: 1 },
 
     /* WHAT ONE PERSON IS WORTH TO A POD'S EXPERIENCE. Ali, 26.08.15: "nights even with 5 and 3
