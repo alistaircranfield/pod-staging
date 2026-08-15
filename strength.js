@@ -102,6 +102,28 @@
        Pod A's three transfer-trained on 13 August, in a different currency. Nothing is asked of a
        pod with one or none. */
     { id: "N02", scope: "pod",  kind: "aim",  label: "No more than one ACCP in the pod", short: "two ACCPs stacked" },
+    /* NEURO IS A PENALTY, NOT A PRESENCE — and it is here because a ten-year simulation caught
+       the model quietly wrecking it. Added 26.08.15.
+
+       R20 asks that neuro placements sit mostly on Pods C and D, and R20 is scope "week", so it
+       never enters the day percentage. The planner optimises the day percentage. Neuro was
+       therefore INVISIBLE to every decision the planner made, and moving a neuro trainee off C to
+       buy a point of transfer cover cost nothing. Simulated over ten independent years with
+       sickness and trainee churn, that is exactly what happened: 62% of neuro shifts on C/D under
+       the old acceptance rule, 54% under the new one, against an aim of 70%. Consistent across
+       all ten years. Nobody would have seen it on a week's board.
+
+       Shaped like N02 rather than like R04, and the reason matters. Asking every pod for a neuro
+       person would hand C and D a free point on days when no neuro trainee is even on, and would
+       ask A, B and E for something they must not have. What is actually wanted is the absence of a
+       mistake: nothing is asked of a pod holding no neuro placement, nothing is asked of C or D at
+       all, and a neuro placement standing on A, B or E costs. Halves per person, so one is 0.5 and
+       two is 0 — the same curve as two ACCPs stacked, for the same reason.
+
+       THE NEURO REGISTRAR IS NOT THIS. They are supernumerary and hard-locked to C and D by
+       neuroPodOK, which refuses the move outright rather than pricing it. This row is about
+       ordinary trainees on a neuro placement, who may go elsewhere and mostly should not. */
+    { id: "N06", scope: "pod",  kind: "aim",  label: "No neuro placement outside Pods C and D", short: "neuro off C/D" },
     { id: "N03", scope: "pod",  kind: "aim",  label: "Not everybody in their first weeks", short: "all new" },
     { id: "N04", scope: "pod",  kind: "aim",  label: "Keeps its people from yesterday", short: "pod broken up" },
 
@@ -124,6 +146,11 @@
     { id: "R20", scope: "week", kind: "aim",  label: "Neuro-trained mostly on C and D", from: "check", short: "neuro off C/D" }
   ];
 
+  /* Where a neuro placement belongs. Named rather than inlined because the board has its own copy
+     (NEURO_PODS) for the registrar hard-lock, and two lists that must agree should at least be
+     findable by the same search. */
+  var NEURO_POD = ["C", "D"];
+
   var DEFAULTS = {
     /* Experience, three tiers — Ali, 26.08.14: "experience just 3 tiers". Days rather than weeks
      * because the measure behind them is a date, and the boundaries are editable because they are
@@ -145,7 +172,7 @@
        multiple of 20 (Ali: "still suspicious of algorithm with all the 100s and 80s and muliples
        of 10"). These are a proposal and the weakest part of the model — the override counter is
        what should set them, and it has only just started collecting. Editable from Setup. */
-    w: { R04: 3, N01: 2, N05: 1, N02: 1, N03: 3, N04: 1,
+    w: { R04: 3, N01: 2, N05: 1, N02: 1, N03: 3, N04: 1, N06: 2,
          R05: 1, R06: 1, R07: 1, R14: 1, R15: 1, R17: 1, R18: 1, R19: 1, R20: 1 },
 
     /* WHAT ONE PERSON IS WORTH TO A POD'S EXPERIENCE. Ali, 26.08.15: "nights even with 5 and 3
@@ -392,7 +419,8 @@
       for (j = 0; j < ids.length; j++) {
         var per = S(ids[j]), t = tierOf(per, iso, cfg, fs);
         pods[p].people.push({ id: ids[j], tier: t, name: per && per.name, grade: per && per.grade,
-          airway: !!(per && per.airway), transfer: !!(per && per.transfer), accp: !!(per && per.grade === "ACCP") });
+          airway: !!(per && per.airway), transfer: !!(per && per.transfer), neuro: !!(per && per.neuro),
+          accp: !!(per && per.grade === "ACCP") });
         if (t === "unknown" && per) unknowns.push(per.id);
       }
     }
@@ -451,6 +479,14 @@
         for (j = 0; j < pe.length; j++) if (pe[j].accp) accps++;
         var over = Math.max(0, accps - 1);
         charge(pods[p], "N02", Math.max(0, 1 - over * 0.5), over === 0, wFor(cfg, "N02", p));
+      }
+
+      /* Neuro, counted the same way: what it costs to have somebody in the wrong place. C and D
+         are never asked, and a pod holding nobody on a neuro placement is never asked. */
+      if (isOn(cfg, "N06") && NEURO_POD.indexOf(p) === -1) {
+        var nro = 0;
+        for (j = 0; j < pe.length; j++) if (pe[j].neuro) nro++;
+        if (nro) charge(pods[p], "N06", Math.max(0, 1 - nro * 0.5), false, wFor(cfg, "N06", p));
       }
 
       /* Continuity. Share of the pod that was in it yesterday, against the share we ask for. */
