@@ -914,6 +914,11 @@ button.strdial:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   font-variant-numeric:tabular-nums}
 .regrow .reglb{flex:1 1 auto;min-width:0;font-size:.85rem;line-height:1.3}
 .regrow .regsub{display:block;font-size:.66rem;color:var(--muted);letter-spacing:.03em}
+/* The suggestion sits UNDER its requirement rather than beside it: it is a comment on that row,
+   not a competing value, and putting it in the weight column would make two numbers argue. No
+   top border, so the pair reads as one block. */
+.regrow.hintrow{border-bottom:1px solid var(--hair);padding-top:0;margin-top:-.35rem}
+.regrow.hintrow .regsub{color:var(--accent);font-style:italic}
 .regrow .regw{flex:none;font-size:.8rem;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
 /* A gate is not an aim with a large number. It reads as a word, so nobody can try to tune it. */
 .regrow.gate .regw{font-size:.66rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
@@ -1321,7 +1326,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
 </div>
 
 <script src="core.js?v=20260810-04"></script>
-<script src="strength.js?v=20260814-26"></script>
+<script src="strength.js?v=20260815-01"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -3843,6 +3848,12 @@ function afterChangeCard(di, headline){
         try { logEntry("Fix this day suggested " + plan.changes.length + " change"
           + (plan.changes.length > 1 ? "s" : "") + " — not taken", "manual", dateOfDi(di), null,
           { act: "fixno", n: plan.changes.length }); markDirty(); } catch (e) {}
+        /* AND WHICH REQUIREMENTS WERE TURNED DOWN, not just how many moves. Added 26.08.15.
+           "Three changes, not taken" tells the weights nothing: three changes to fix WHAT? The
+           whole value of a decline is that it names a requirement somebody looked at, understood
+           the cost of, and decided they did not care about — which is the one piece of evidence
+           that can push a weight DOWN. Counted per requirement, never per person. */
+        try { strCountDeclined(di, plan); } catch (e) {}
         shut();
       } }, "Leave the day as it is");
     if (hard.length) box.append(apply, done);
@@ -4388,6 +4399,9 @@ var STR_FS   = null; // id -> first rostered date, built once per load
 /* Set while Fix this day is applying its own plan, so the override counter does not credit the
    planner's moves to a human. The whole value of that count is that it is people. */
 var STR_FROM_FIX = false;
+/* Offers already banked this sitting, keyed date|pod|requirement. Session-scoped on purpose —
+   see the note in strengthTick: it records what has been counted, not what happened. */
+var STR_OPP = {};
 
 /* Hard rule 1: the register's defaults are a starting point. What the board actually scores with
    is whatever the rota team has written into the store from Setup. */
@@ -4458,27 +4472,67 @@ function strengthTick(day, dateISO, issues, wk, di){
     if (seen && seen.pods[p] != null && pd && pd.pct != null && seen.pods[p] !== pd.pct)
       delta[p] = pd.pct - seen.pods[p];
   }
-  /* ── WHAT A BREACH ACTUALLY COSTS, COUNTED RATHER THAN GUESSED ─────────────────────────────
-     Every aim ships at weight 1 because nothing measured which ones matter, and Ali cannot supply
-     that: "the consequence is consultants get annoyed — we cover the safety aspects." But
-     annoyance IS measurable. Somebody reaching in and moving a person by hand is the cost of a
-     breach, paid, in public — 312 manual log entries and 70 pod moves before any of this existed.
+  /* ── A COUNT ON ITS OWN CANNOT BE TURNED INTO A WEIGHT. Added 26.08.15. ────────────────────
+     Ali: "can you find a way to get information from what other people do to correct things."
+     Yes — but the tally above, alone, would have measured the wrong thing and measured it
+     confidently, which is worse than not measuring it.
 
-     So: a requirement that was missed on the last redraw and is met on this one, in edit mode, by
-     a hand and not by Fix this day, gets a mark against its name. After a few weeks the weights
-     come from what people actually correct instead of from me.
+     PEOPLE FIX WHAT IS EASY. Moving a spare airway-trained person into the pod that lacks one is
+     a single drag; continuity cannot be repaired at all once yesterday has happened; two ACCPs
+     stacked can only be unstacked if a third pod will take one. Count corrections and rank the
+     requirements by the total, and what comes out is a league table of CONVENIENCE wearing the
+     label "importance" — and because it would be built from real data about real behaviour it
+     would be believed. That is the failure mode to design against here, not inaccuracy.
 
-     COUNTS ONLY, NEVER NAMES. The store gets a tally per requirement id and nothing else — no
-     person, no pod, no date, no editor. Hard rule 6 is about absence, but the same instinct
-     applies: a log of who moved whom would be a behaviour record nobody asked for. */
+     So the numerator needs a denominator, and there are two of them:
+
+       reqChance  the requirement was MISSED and was FIXABLE, in front of somebody who was
+                  editing that day. That is an offer made. Counted once per day per pod per
+                  requirement per session, NOT per redraw — a requirement left unmet through
+                  ten keystrokes is one decision, not ten, and counting redraws would punish
+                  exactly the requirements that are hardest to satisfy.
+
+       reqLeft    Fix this day worked out a change that WOULD have met it, and the person read
+                  that and chose to leave the day alone. This is the strongest signal in the
+                  whole scheme and it points the other way: it is the algorithm and somebody
+                  who knows the unit disagreeing, with the person having seen the alternative.
+                  A model fed only on what people fix, and never on what they decline, can only
+                  ever conclude that everything matters more than it thought.
+
+     The weight suggestion is then fixes ÷ (fixes + chances not taken + declines), which asks a
+     question worth asking — "when this was wrong and could have been put right, how often did
+     somebody bother?" — rather than "how often is this easy?".
+
+     UNFIXABLE ROWS ARE NOT AN OFFER and are excluded from reqChance. Charging somebody for not
+     doing something no move could have done would drag every scarce requirement's ratio towards
+     zero and quietly recommend that airway cover matters less than continuity.
+
+     COUNTS ONLY, NEVER NAMES, for all three. The store gets a tally per requirement id and
+     nothing else — no person, no pod, no date, no editor. Hard rule 6 is about absence, but the
+     same instinct applies: a log of who moved whom would be a behaviour record nobody asked for,
+     and one that scored people on how often they agree with the computer would be worse. */
   if (EDIT_MODE && !STR_FROM_FIX && seen && seen.miss && data) {
     data.reqFixes = data.reqFixes || {};
+    data.reqChance = data.reqChance || {};
     for (i = 0; i < PODS.length; i++) {
       p = PODS[i];
       var was = seen.miss[p] || [], k;
       for (k = 0; k < was.length; k++)
         if (now.miss[p].indexOf(was[k]) === -1 && sc.pods[p] && sc.pods[p].people.length)
           data.reqFixes[was[k]] = (data.reqFixes[was[k]] || 0) + 1;
+      /* The offer, banked once. STR_OPP is session-scoped and deliberately not stored: it is
+         book-keeping about this sitting, not a fact about the rota. */
+      pd = sc.pods[p];
+      if (pd && pd.people.length) {
+        var miss = pd.missed || [], u = pd.unfixable || [], m;
+        for (m = 0; m < miss.length; m++) {
+          if (u.indexOf(miss[m]) !== -1) continue;          // nothing could have been done
+          var oKey = dateISO + "|" + p + "|" + miss[m];
+          if (STR_OPP[oKey]) continue;
+          STR_OPP[oKey] = 1;
+          data.reqChance[miss[m]] = (data.reqChance[miss[m]] || 0) + 1;
+        }
+      }
     }
   }
   var dd = (seen && seen.day != null && sc.day.pct != null && seen.day !== sc.day.pct) ? sc.day.pct - seen.day : 0;
@@ -4487,6 +4541,88 @@ function strengthTick(day, dateISO, issues, wk, di){
   STR_SEEN[dateISO] = now;
   STR_DAY[dateISO] = { sc: sc, delta: delta, dayDelta: dd, nightDelta: nd };
   return STR_DAY[dateISO];
+}
+/* Which requirements a REFUSED plan would have met. Scored on a copy through the same evaluator
+   the rings use, so "would have met" means the same thing here as everywhere else. */
+function strCountDeclined(di, plan){
+  if (!window.Strength || !data || !plan || !plan.fixed) return;
+  var wk = getWeek(currentWeekKey), dateISO = dateOfDi(di);
+  var before = wk.days[di], after = plan.fixed;
+  var read = function (d) {
+    var prev = di > 0 ? wk.days[di - 1]
+      : ((data.weeks[addDays(currentWeekKey, -7)] || {}).days || [])[6];
+    return Strength.scoreDay({ day: d, dateISO: dateISO, byId: Strength.indexStaff(data.staff),
+      firstSeen: strFirstSeen(), counts: strCounts(d), prevCounts: prev ? strCounts(prev) : null,
+      nightCounts: strNightCounts(d), prevNightCounts: prev ? strNightCounts(prev) : null,
+      issues: checkDay(d, dateISO, di, wk).filter(function (x) { return !x.empty; }),
+      cfg: strengthCfg() });
+  };
+  var a = read(before), b = read(after), i, p, m;
+  data.reqLeft = data.reqLeft || {};
+  for (i = 0; i < PODS.length; i++) {
+    p = PODS[i];
+    if (!a.pods[p] || !b.pods[p]) continue;
+    var was = a.pods[p].missed || [], nowMet = b.pods[p].missed || [];
+    for (m = 0; m < was.length; m++)
+      if (nowMet.indexOf(was[m]) === -1)
+        data.reqLeft[was[m]] = (data.reqLeft[was[m]] || 0) + 1;
+  }
+}
+/* ── WHAT THE EVIDENCE SAYS THIS WEIGHT SHOULD BE ─────────────────────────────────────────────
+   Ali, 26.08.15, choosing between three options: "suggest, you accept." So this returns a number
+   and a sample size and NOTHING ELSE HAPPENS. It is never applied, never nudged, never averaged
+   into the live weight in the background.
+
+   WHY NOT AUTO-APPLY, since he asked whether it could be smart and change a bit on its own. It
+   could, easily. The reason not to is that the same rota would then score differently in
+   September than it did in August for reasons invisible on the screen, and "why is Tuesday 82
+   when last Tuesday was 89" would have no answer anybody could give — which is the fault this
+   whole model was built to remove, arriving through a door marked "improvement". A weight is
+   the one part of the system that says what the unit VALUES, and that should move when a person
+   decides it moves.
+
+   THE SHAPE. share = fixes / (fixes + declines + offers not taken), which lands in 0..1: 1 means
+   every time this was wrong and could have been put right, somebody put it right; 0 means it was
+   offered repeatedly and always waved through. Mapped onto a weight by scaling the CURRENT weight
+   rather than by inventing an absolute number, because the register's weights are relative to
+   each other and an absolute scale would have no meaning to compare against. A share of 0.5 — as
+   often fixed as left — returns the weight unchanged, which is the honest answer for a
+   requirement about which the evidence is neutral.
+
+   THE BOUND: no suggestion may move a weight by more than half of itself in one step. Evidence
+   collected over a few weeks in a unit that has just changed how it allocates is not strong
+   enough to triple anything, and a suggestion that lands somewhere plausible is far more likely
+   to be accepted and then watched than one that lands somewhere startling.
+
+   AND AN HONEST NOTE ABOUT THAT BOUND, because the mutation check found it. `share` is already
+   between 0 and 1, so `cur * (0.5 + share)` cannot leave 0.5×cur .. 1.5×cur on its own — which
+   means the clamp below is REDUNDANT TODAY and deleting it breaks no test. It stays because the
+   formula is the part most likely to be changed by whoever tunes this next, and the bound is the
+   part that must survive them: it is a statement about how much a machine may move a human's
+   number, not an artefact of one particular sum. The test asserting it therefore passes for the
+   formula's reasons rather than the clamp's, and that is recorded here rather than glossed. */
+var REQ_MIN_SAMPLE = 20;   // below this, say nothing at all — editable in Setup like everything else
+function strWeightHint(id){
+  if (!data || !window.Strength) return null;
+  var row = Strength.rowOf(id);
+  if (!row || row.kind !== "aim") return null;          // a gate has no weight to suggest
+  var fixes = ((data.reqFixes || {})[id]) || 0;
+  var left = ((data.reqLeft || {})[id]) || 0;
+  var chance = ((data.reqChance || {})[id]) || 0;
+  /* Offers not taken = times it was missed and fixable, minus the times somebody fixed it. Floors
+     at zero because the two counters are banked at different moments and a redraw can land
+     between them. */
+  var ignored = Math.max(0, chance - fixes);
+  var n = fixes + left + ignored;
+  if (n < REQ_MIN_SAMPLE) return { id: id, n: n, enough: false };
+  var share = fixes / n;
+  var cur = Strength.wOf(strengthCfg(), id);
+  var want = cur * (0.5 + share);                        // share 0.5 → unchanged
+  var lo = cur * 0.5, hi = cur * 1.5;
+  want = Math.max(lo, Math.min(hi, want));
+  return { id: id, n: n, enough: true, fixes: fixes, left: left, ignored: ignored,
+           share: share, cur: cur, want: Math.round(want * 10) / 10,
+           moves: Math.abs(want - cur) >= 0.2 };
 }
 /* THE DONOR SENTENCE, WHICH IS THE WHOLE POINT. Surplus is capacity, not score: a pod is not better
    for holding three transfer-trained people, and on 13 Aug Pod A held exactly that while Pod C held
@@ -8856,12 +8992,21 @@ function renderStrengthPage(box){
     const isGate = r.kind === "gate";
     const on = Strength.isOn(sc0, r.id);
     const row = el("div", { class: "regrow" + (isGate ? " gate" : "") + (on ? "" : " off") });
+    const ev = { f: ((data && data.reqFixes) || {})[r.id] || 0,
+                 l: ((data && data.reqLeft) || {})[r.id] || 0,
+                 c: ((data && data.reqChance) || {})[r.id] || 0 };
+    const evBits = [];
+    if (ev.f) evBits.push("fixed " + ev.f + "\u00d7");
+    if (Math.max(0, ev.c - ev.f)) evBits.push("left " + Math.max(0, ev.c - ev.f) + "\u00d7");
+    if (ev.l) evBits.push("turned down " + ev.l + "\u00d7");
     row.append(el("span", { class: "regid" }, r.id),
       el("span", { class: "reglb" }, r.label,
         el("span", { class: "regsub" }, scopeLab[r.scope] + (r.rel ? " · drops below supply" : "") + (isGate ? " · gate" : "")
-          /* The only evidence anybody has about what a breach is worth: how often somebody has gone
-             in and fixed it by hand. Shown beside the weight so the two can be argued together. */
-          + (((data && data.reqFixes) || {})[r.id] ? " · corrected " + data.reqFixes[r.id] + "\u00d7 by hand" : ""))));
+          /* THREE NUMBERS, NOT ONE. "Corrected 8x by hand" on its own says nothing about whether 8
+             is a lot: 8 out of 9 chances is a requirement people care about, 8 out of 200 is one
+             they mostly ignore, and the sentence read identically either way. So the line now says
+             what actually happened — fixed, left alone, turned down. */
+          + (evBits.length ? " · " + evBits.join(" · ") : ""))));
     if (isGate) {
       row.append(el("span", { class: "regw" }, "must"));
     } else {
@@ -8887,6 +9032,37 @@ function renderStrengthPage(box){
       row.append(el("span", { class: "regw" }, inp), cb);
     }
     tbl.append(row);
+    /* ── THE SUGGESTION, WHICH IS THE ONLY PLACE THE EVIDENCE IS ALLOWED TO ACT ───────────────
+       Ali, 26.08.15, asked whether the weights could be smart and change a bit on their own, and
+       then chose "suggest, you accept" from three options. So this row appears, states its
+       working, and waits. Nothing here writes a weight; the button does, once, when pressed.
+
+       It shows the sample size on the face rather than in a tooltip, because the number that
+       decides whether to believe a recommendation should not be the one you have to go looking
+       for. Below REQ_MIN_SAMPLE nothing is drawn at all — a suggestion built on four events would
+       be read as a finding, and it is not one. */
+    if (!isGate) {
+      const hint = strWeightHint(r.id);
+      if (hint && hint.enough && hint.moves) {
+        const up = hint.want > hint.cur;
+        const hrow = el("div", { class: "regrow hintrow" });
+        hrow.append(el("span", { class: "regid" }, ""),
+          el("span", { class: "reglb" },
+            el("span", { class: "regsub" },
+              "the evidence suggests " + hint.want + " \u2014 " + (up ? "\u2191 higher" : "\u2193 lower")
+              + " than " + hint.cur + ", from " + hint.n + " times this came up ("
+              + hint.fixes + " fixed, " + hint.ignored + " left, " + hint.left + " turned down)")));
+        const take = el("button", { class: "btn sec plain", style: "font-size:.8rem;padding:.2rem .6rem",
+          onclick: () => {
+            setStr({ w: Object.assign({}, sc0.w || {}, { [r.id]: hint.want }) });
+            save("Requirement " + r.id + " (" + r.label + ") weight changed from " + hint.cur
+               + " to " + hint.want + " \u2014 accepted from the evidence (" + hint.n + " events)");
+            redraw();
+          } }, "Use " + hint.want);
+        hrow.append(take);
+        tbl.append(hrow);
+      }
+    }
   }
   box.append(tbl);
 
