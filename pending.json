@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-15T07:27:33.290541+00:00",
- "build": "1951674",
+ "generated": "2026-08-15T07:32:05.214860+00:00",
+ "build": "4e027f0",
  "liveBuild": "35abf4e",
- "count": 249,
+ "count": 251,
  "changes": [
+  {
+   "sha": "4e027f0",
+   "who": "alistaircranfield",
+   "when": "2026-08-15T08:31:57+01:00",
+   "msg": "Enhance draft week styles and display app version"
+  },
+  {
+   "sha": "8046383",
+   "who": "github-actions[bot]",
+   "when": "2026-08-15T07:27:33Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "1951674",
    "who": "alistaircranfield",
