@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-15T06:42:06.886457+00:00",
- "build": "ead75a6",
+ "generated": "2026-08-15T06:57:15.290512+00:00",
+ "build": "94499fa",
  "liveBuild": "35abf4e",
- "count": 239,
+ "count": 241,
  "changes": [
+  {
+   "sha": "94499fa",
+   "who": "alistaircranfield",
+   "when": "2026-08-15T07:57:05+01:00",
+   "msg": "N06 weight 2 to 1: measured 77 percent on C/D, nearest the 70 percent aim"
+  },
+  {
+   "sha": "837b378",
+   "who": "github-actions[bot]",
+   "when": "2026-08-15T06:42:06Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "ead75a6",
    "who": "alistaircranfield",
