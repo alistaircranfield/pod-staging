@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-15T08:21:33.459835+00:00",
- "build": "d9c566f",
+ "generated": "2026-08-15T20:14:28.276230+00:00",
+ "build": "554c7d2",
  "liveBuild": "35abf4e",
- "count": 253,
+ "count": 255,
  "changes": [
+  {
+   "sha": "554c7d2",
+   "who": "alistaircranfield",
+   "when": "2026-08-15T21:14:17+01:00",
+   "msg": "Add fallback rule for transfer when no airway present"
+  },
+  {
+   "sha": "24a4bb2",
+   "who": "github-actions[bot]",
+   "when": "2026-08-15T08:21:33Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "d9c566f",
    "who": "alistaircranfield",
