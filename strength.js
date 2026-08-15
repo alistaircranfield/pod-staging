@@ -132,6 +132,25 @@
        THE NEURO REGISTRAR IS NOT THIS. They are supernumerary and hard-locked to C and D by
        neuroPodOK, which refuses the move outright rather than pricing it. This row is about
        ordinary trainees on a neuro placement, who may go elsewhere and mostly should not. */
+    /* ── THE FALLBACK RULE: NO AIRWAY MEANS TRANSFER AT THE VERY LEAST ──────────────────────
+       Ali, 26.08.15: "if no airway must have transfer on."
+
+       This is the first requirement in the register that is CONDITIONAL — it asks nothing of a
+       pod that has airway cover, and asks firmly of one that does not. That shape matters, and
+       it is why it could not be expressed by tuning N01's weight: raising transfer everywhere
+       would push the planner to give every pod transfer whether it needed it or not, spending
+       scarce people on pods that are already covered by the stronger skill.
+
+       It works because of a fact about this unit, checked on the staff list: all 37 airway-trained
+       people are also transfer-trained, and 9 more are transfer-only. So transfer is a strictly
+       larger pool, and a pod that cannot be given airway can nearly always be given transfer. The
+       rule says: if you cannot have the best cover, you will not be left with none.
+
+       Weighted heavily rather than made a GATE, deliberately. A gate breaks the pod and refuses to
+       score it, and on a genuinely thin day that would paint half the board red for a situation
+       nobody could have avoided — the everything-is-broken fault in a new costume. A heavy aim
+       makes it the loudest thing the planner chases without pretending the day is unworkable. */
+    { id: "N07", scope: "pod",  kind: "aim",  label: "A pod without airway has transfer at least", short: "no airway, no transfer" },
     { id: "N06", scope: "pod",  kind: "aim",  label: "No neuro placement outside Pods C and D", short: "neuro off C/D" },
     { id: "N03", scope: "pod",  kind: "aim",  label: "Not everybody in their first weeks", short: "all new" },
     { id: "N04", scope: "pod",  kind: "aim",  label: "Keeps its people from yesterday", short: "pod broken up" },
@@ -181,7 +200,7 @@
        multiple of 20 (Ali: "still suspicious of algorithm with all the 100s and 80s and muliples
        of 10"). These are a proposal and the weakest part of the model — the override counter is
        what should set them, and it has only just started collecting. Editable from Setup. */
-    w: { R04: 3, N01: 2, N05: 1, N02: 1, N03: 3, N04: 1, N06: 1,
+    w: { R04: 3, N01: 2, N05: 1, N02: 1, N03: 3, N04: 1, N06: 1, N07: 3,
          R05: 1, R06: 1, R07: 1, R14: 1, R15: 1, R17: 1, R18: 1, R19: 1, R20: 1 },
 
     /* WHAT ONE PERSON IS WORTH TO A POD'S EXPERIENCE. Ali, 26.08.15: "nights even with 5 and 3
@@ -199,6 +218,16 @@
        Ali's ruling was asked for on this number; 3 is the starting point, editable in Setup. */
     coverPer: 3,
 
+    /* How steeply a second and third person carrying the same skill add value. 1 is linear; 0.5
+       makes the first one worth most, which is how cover really behaves. */
+    coverCurve: 0.5,
+
+    /* SUPERVISION. How many newcomers one experienced person can carry, and whether somebody in
+       their middle year counts as a full supervisor. Both are judgements the unit should make and
+       both are editable — 2 and 1 are a starting point, not a finding. */
+    newPerExp: 2,
+    midSupervises: 1,
+
     /* ── POD E IS A DIFFERENT KIND OF POD AND IS NOW SCORED LIKE ONE ────────────────────────
        Ali, 26.08.15: "E needs to be weighted differently somehoe or iwll aleways look terrible. the
        airway skill should cary less weight for pod E only." And earlier: "no transfer on E not
@@ -215,7 +244,11 @@
        multiplier of 1 is the default and means "same as any pod"; anything below it says this pod
        wants less of that thing. Per pod and per requirement, so if D ever needs its own treatment
        it is one line rather than a new mechanism. Editable from Setup like everything else. */
-    podWeight: { E: { R04: 0.4, N01: 0.25, N05: 0.6 } },
+    /* N07 gets E's lighter treatment too. The fallback exists so a pod that cannot have the best
+       cover is not left with none — but E is deliberately the pod that wants least of both, and
+       charging it the full weight would have the rule fighting the pod weights three lines above
+       it. Halved rather than zeroed: E having neither is still worth noticing. */
+    podWeight: { E: { R04: 0.4, N01: 0.25, N05: 0.6, N07: 0.5 } },
 
     /* Any requirement can be switched off from the front end. Off means not asked and not in the
      * denominator — never "asked and always passing", which would inflate every score. */
@@ -493,10 +526,26 @@ function tierOf(person, onDate, cfg, firstSeen) {
        A requirement can be PRESENT and still not score full: Pod A holds one airway person for
        three people and reads met on the list, 1.00 on the ring; the same one person in a pod of
        five reads met on the list and 0.50 on the ring. Nothing about the list gets fuzzy. */
+    /* ── HOW MUCH OF A SKILL A POD OF n WANTS ────────────────────────────────────────────────
+       Was `ceil(n / coverPer)`, which is a STEP: a pod of three wanted one airway person and
+       scored 1.00, and the moment a fourth arrived it wanted two and scored 0.50. Adding a pair
+       of hands halved the pod's airway score — the same "more people is worse" fault as the
+       experience mean, wearing a different hat, and the two compounded.
+
+       Now the requirement rises CONTINUOUSLY with size and the score is CONCAVE, so the first
+       person carrying a skill delivers most of the value and each extra one adds less. That is
+       how cover behaves: nobody to somebody is the difference that matters; two to three is a
+       nicety. */
     var coverNeed = function (n) {
       var per = Number(cfg.coverPer);
       if (!isFinite(per) || per < 1) per = 3;
-      return Math.max(1, Math.ceil(n / per));
+      return 1 + Math.max(0, n - 1) / per;
+    };
+    var coverVal = function (have, need) {
+      if (!have) return 0;
+      var k = Number(cfg.coverCurve);
+      if (!isFinite(k) || k <= 0 || k > 1) k = 0.5;
+      return Math.min(1, Math.pow(have / Math.max(1e-6, need), k));
     };
     var tierVal = function (t) {
       var v = (cfg.tierValue || {})[t];
@@ -513,12 +562,38 @@ function tierOf(person, onDate, cfg, firstSeen) {
          being special-cased, and it applies to a pod for exactly the same reason. The LIST keeps
          the plain question: is anybody here past their first weeks? */
       if (isOn(cfg, "N03")) {
-        var sum = 0, anyBeyond = false;
+        /* ── ENOUGH PEOPLE TO CARRY THE NEWCOMERS, NOT AN AVERAGE ─────────────────────────────
+           Ali, 26.08.15: "how can moving a newish person off improve the pod coming off and
+           decrease score of pod going to? that's crazy — even a new person is worth something."
+
+           He is right, and the old arithmetic was provably wrong rather than merely harsh. N03 was
+           the MEAN of everybody's tier value, and a mean falls whenever you add anybody below it.
+           Measured on the real board: Pod E holding a mid and a settled scored 0.88; add one
+           newcomer and it scored 0.70. THE POD GOT WORSE BY GAINING A PERSON. No rota is improved
+           by having fewer people on it, so a model that says so will keep producing answers
+           somebody has to argue with.
+
+           The real question is not how experienced a pod is ON AVERAGE. It is whether there are
+           enough experienced people to CARRY the newcomers it has — which is what supervision
+           means and what a consultant actually asks. So: no newcomers, nothing is asked and the
+           pod scores 1; newcomers present, it wants one experienced person per `newPerExp` of
+           them and scores the share of that it has.
+
+           A newcomer joining a pod with spare supervision now costs NOTHING. A pod of newcomers
+           with nobody experienced scores 0 rather than 0.35 — harsher and correct: that is Pod A
+           on 13 Aug, two people three weeks in, the worst thing on the board, which the old model
+           gave a third of a mark. */
+        var nNew = 0, nExp = 0, midW = Number(cfg.midSupervises);
+        if (!isFinite(midW) || midW < 0) midW = 1;
         for (j = 0; j < pe.length; j++) {
-          sum += tierVal(pe[j].tier);
-          if (pe[j].tier !== "new") anyBeyond = true;
+          if (pe[j].tier === "new") nNew++;
+          else nExp += (pe[j].tier === "mid" ? midW : 1);
         }
-        charge(pods[p], "N03", sum / pe.length, anyBeyond, wFor(cfg, "N03", p));
+        var perExp = Number(cfg.newPerExp);
+        if (!isFinite(perExp) || perExp < 1) perExp = 2;
+        var needExp = nNew ? Math.ceil(nNew / perExp) : 0;
+        charge(pods[p], "N03", !nNew ? 1 : Math.min(1, nExp / needExp),
+          nExp > 0 || !nNew, wFor(cfg, "N03", p));
       }
 
       /* ACCPs, counted as an EXCESS rather than a presence. One or none is what everybody gets; a
@@ -529,6 +604,17 @@ function tierOf(person, onDate, cfg, firstSeen) {
         for (j = 0; j < pe.length; j++) if (pe[j].accp) accps++;
         var over = Math.max(0, accps - 1);
         charge(pods[p], "N02", Math.max(0, 1 - over * 0.5), over === 0, wFor(cfg, "N02", p));
+      }
+
+      /* THE FALLBACK. Asked only of a pod that has no airway person; silent otherwise, so it
+         never competes for people a covered pod does not need. */
+      if (isOn(cfg, "N07")) {
+        var hasAir = false, hasTr = false;
+        for (j = 0; j < pe.length; j++) {
+          if (pe[j].airway) hasAir = true;
+          if (pe[j].transfer) hasTr = true;
+        }
+        if (!hasAir) charge(pods[p], "N07", hasTr ? 1 : 0, hasTr, wFor(cfg, "N07", p));
       }
 
       /* Neuro, counted the same way: what it costs to have somebody in the wrong place. C and D
@@ -599,8 +685,10 @@ function tierOf(person, onDate, cfg, firstSeen) {
         if (want2.indexOf(p) === -1 || !pods[p].people.length) continue;
         /* Airway and transfer scale with the size of the pod; the phone and an ACCP are one each,
            because two phone-trained people in a pod is not twice the phone. */
-        var wantN = (reg.id === "R04" || reg.id === "N01") ? coverNeed(pods[p].people.length) : 1;
-        charge(pods[p], reg.id, Math.min(1, countIn[p] / wantN), countIn[p] > 0, wFor(cfg, reg.id, p));
+        var scales = (reg.id === "R04" || reg.id === "N01");
+        var wantN = scales ? coverNeed(pods[p].people.length) : 1;
+        charge(pods[p], reg.id, scales ? coverVal(countIn[p], wantN) : Math.min(1, countIn[p] / wantN),
+          countIn[p] > 0, wFor(cfg, reg.id, p));
       }
       for (i = spare; i < ordered.length; i++)
         if (!betterHome(ordered[i])) pods[ordered[i]].unfixable.push(reg.id);
@@ -641,18 +729,22 @@ function tierOf(person, onDate, cfg, firstSeen) {
       }
       night.broken = nightBroken.slice();
       if (isOn(cfg, "N03") && night.people.length) {
-        var nSum = 0, nAny = false;
+        /* Same supervision question as a pod — a night team is a pod that works in the dark. */
+        var nNw = 0, nEx = 0, mW = Number(cfg.midSupervises);
+        if (!isFinite(mW) || mW < 0) mW = 1;
         for (nj = 0; nj < night.people.length; nj++) {
-          nSum += tierVal(night.people[nj].tier);
-          if (night.people[nj].tier !== "new") nAny = true;
+          if (night.people[nj].tier === "new") nNw++;
+          else nEx += (night.people[nj].tier === "mid" ? mW : 1);
         }
-        charge(night, "N03", nSum / night.people.length, nAny, wOf(cfg, "N03"));
+        var pEx = Number(cfg.newPerExp); if (!isFinite(pEx) || pEx < 1) pEx = 2;
+        var needN = nNw ? Math.ceil(nNw / pEx) : 0;
+        charge(night, "N03", !nNw ? 1 : Math.min(1, nEx / needN), nEx > 0 || !nNw, wOf(cfg, "N03"));
       }
       if (isOn(cfg, "R04") && night.people.length) {
         /* The night team wants airway cover in proportion to its size, exactly as a pod does. */
         var nAirC = 0;
         for (nj = 0; nj < night.people.length; nj++) if (night.people[nj].airway) nAirC++;
-        charge(night, "R04", Math.min(1, nAirC / coverNeed(night.people.length)), nAirC > 0, wOf(cfg, "R04"));
+        charge(night, "R04", coverVal(nAirC, coverNeed(night.people.length)), nAirC > 0, wOf(cfg, "R04"));
       }
       if (isOn(cfg, "R14")) {
         /* Only asked when there are two to split. One airway-trained on a night team is not a
