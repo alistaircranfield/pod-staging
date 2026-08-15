@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-15T07:13:29.384153+00:00",
- "build": "2e9665d",
+ "generated": "2026-08-15T07:27:33.290541+00:00",
+ "build": "1951674",
  "liveBuild": "35abf4e",
- "count": 247,
+ "count": 249,
  "changes": [
+  {
+   "sha": "1951674",
+   "who": "alistaircranfield",
+   "when": "2026-08-15T08:27:25+01:00",
+   "msg": "Five flat colour bands for the ring; standing slots recognised by name"
+  },
+  {
+   "sha": "cd2e0a6",
+   "who": "github-actions[bot]",
+   "when": "2026-08-15T07:13:29Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "2e9665d",
    "who": "alistaircranfield",
