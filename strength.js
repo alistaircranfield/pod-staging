@@ -253,7 +253,37 @@
      * counts as new: punishing a pod for a blank field is how Gutierrez would have been scored,
      * and a blank is a thing to go and fill in, not a thing to charge somebody for. It raises an
      * Attention row instead. */
-    capExperience: true
+    capExperience: true,
+
+    /* ── A STANDING SLOT IS RECOGNISED, NOT WAITED FOR ──────────────────────────────────────
+       Ali, 26.08.15, reading the real Attention list: "why are locum and neurology still coming
+       up — i thought we said ignore them."
+
+       They were being ignored, by a `placeholder` flag that nobody had ever ticked. The flag was
+       built on 15 Aug and the filter honours it correctly; the records on the live board simply
+       do not carry it, because setting it is a manual act on every locum line that will ever
+       exist. A rule that depends on somebody remembering to tick a box is not a rule, and the
+       list Ali was looking at is what that costs.
+
+       So the names are matched instead. These are STANDING SLOTS — a line on the rota that a
+       different person fills each time — and asking one of them how long it has been on the unit
+       is a category error, not a missing field. Editable from Setup because "what a locum line is
+       called" is exactly the sort of thing that changes without warning, and a hard-coded list
+       would put us straight back to a rule nobody can fix.
+
+       The flag still wins where it is set: somebody may tick a slot this list does not recognise,
+       and nothing here should un-tick them. */
+    slotNames: ["locum", "neurology registrar", "neuro registrar", "bank ", "nhsp", "agency"],
+
+    /* ── WHERE THE RING CHANGES COLOUR ──────────────────────────────────────────────────────
+       Five flat bands, low to high, each `[below this, this colour]`. Editable from Setup, and
+       deliberately the SAME list that band() reads, so the colour and the word are one decision
+       rather than two that drift. Change a number here and the whole board moves together. */
+    bands: [[55, "hsl(2,72%,48%)"],     /* under 55 — red, and it is actually red */
+            [70, "hsl(28,88%,50%)"],    /* 55-69   — orange */
+            [82, "hsl(46,94%,50%)"],    /* 70-81   — amber */
+            [92, "hsl(88,62%,42%)"],    /* 82-91   — green */
+            [101, "hsl(130,58%,33%)"]]  /* 92+     — deep green */
   };
 
   function cfgOf(over) {
@@ -303,7 +333,18 @@
     if (isNaN(a) || isNaN(b)) return null;
     return Math.floor((b - a) / 86400000);
   }
-  function tierOf(person, onDate, cfg, firstSeen) {
+  /* A line on the rota rather than a person: the flag if somebody set it, otherwise the name.
+   Exported, because the board's Attention list and this file's tiering must agree about who
+   counts as a person — they disagreed until 26.08.15 and the symptom was three rows asking a
+   locum line for its start date. */
+function isSlot(person, cfg) {
+  if (!person) return false;
+  if (person.placeholder) return true;
+  var list = (cfgOf(cfg).slotNames) || [], nm = String(person.name || "").toLowerCase(), i;
+  for (i = 0; i < list.length; i++) if (nm.indexOf(String(list[i]).toLowerCase()) !== -1) return true;
+  return false;
+}
+function tierOf(person, onDate, cfg, firstSeen) {
     cfg = cfgOf(cfg);
     if (!person) return "unknown";
     /* A STANDING SLOT HAS NO TIME ON THE UNIT, because it is not a person — it is a line on the
@@ -311,7 +352,7 @@
        never drags a pod's experience mix down, and never appears in the list of people to go and
        ask about. Ali, 26.08.15, on the locum and neurology registrar rows: "their attnetion things
        are annoying." */
-    if (person.placeholder) return "settled";
+    if (isSlot(person, cfg)) return "settled";
     if (person.returner) return "settled";
     if (cfg.substantive.indexOf(person.grade) !== -1 && !person.start) return "settled";
     var d = daysOn(person, onDate, firstSeen);
@@ -738,47 +779,52 @@
   }
 
   /* ── COLOUR ──────────────────────────────────────────────────────────────────────────────
-     Ali, 26.08.14: "just give each score a % with a gradient colour". A continuous ramp rather
-     than three buckets, so a pod at 69 and a pod at 71 do not look like different kinds of thing.
-     The stops are the board's own red, amber and green, so nothing new has to be learned. */
+     Was a continuous ramp, on Ali's 26.08.14 instruction: "just give each score a % with a
+     gradient colour", so a pod at 69 and one at 71 would not look like different kinds of thing.
+     That reasoning was sound and the result was not — see the note inside colourOf. Replaced
+     26.08.15 with five flat bands, and the original intent is recorded here because it is the
+     thing the replacement had to answer: 69 and 71 DO now draw the same colour, which is what
+     that sentence was asking for, but 55 and 81 no longer do. */
   function colourOf(pct) {
-    if (pct == null) return "#8a8f98";
-    /* HSL, NOT RGB, AND THE YELLOW BAND IS COMPRESSED ON PURPOSE.
-       Ali, 26.08.15: "85 pretty high, why sludgy green not helpful." He was right and it was an
-       arithmetic accident, not taste. Interpolating red to green in RGB walks straight through
-       olive, so every score in the eighties came out the colour of pond water — the exact range
-       where somebody most needs to know at a glance whether a day is fine.
+  if (pct == null) return "#8a8f98";
+  /* ── FIVE FLAT BANDS, NOT A GRADIENT. Ali, 26.08.15: "colour spectrum is seriously weird for
+     the rings... option 3", having been shown the alternatives side by side.
 
-       Hue moves instead, which keeps every step saturated, and the stops are placed so the yellows
-       are passed through quickly: 75 is still gold, 88 is properly green, and 85 lands on green
-       rather than halfway between the two. */
-    /* Lightness lifted through the middle, 26.08.15: "i dont like the dark mustart colour btw, use
-       brighter yellow for spectrums." At 43% lightness the yellows came out as mustard — the hue was
-       right and the value was too low, which is what makes a yellow look dirty. The number inside
-       the ring is black now, so the arc is free to be bright without anything having to read on it. */
-    var stops = [[0, 2, 72, 48], [50, 30, 92, 52], [75, 48, 96, 53], [88, 95, 58, 42], [100, 122, 52, 36]];
-    var v = Math.max(0, Math.min(100, Number(pct))), i, x, y, t;
-    for (i = 0; i < stops.length - 1; i++) {
-      x = stops[i]; y = stops[i + 1];
-      if (v <= y[0]) {
-        t = (y[0] === x[0]) ? 0 : (v - x[0]) / (y[0] - x[0]);
-        return "hsl(" + Math.round(x[1] + (y[1] - x[1]) * t) + ","
-                      + Math.round(x[2] + (y[2] - x[2]) * t) + "%,"
-                      + Math.round(x[3] + (y[3] - x[3]) * t) + "%)";
-      }
-    }
-    return "hsl(122,48%,34%)";
-  }
-  function band(pct) {
-    if (pct == null) return "unknown";
-    /* 85 is a good day, not a middling one — the bands follow the colour rather than the other
-       way round (Ali, 26.08.15: "85 pretty high"). */
-    if (pct >= 85) return "ok";
-    if (pct >= 65) return "thin";
-    return "bare";
-  }
+     He is right and the old ramp was measurably wrong rather than merely ugly. Interpolating
+     continuously meant NOTHING WAS EVER RED — 40% came out orange at hue 22 — and 55 through 72
+     were one indistinguishable yellow, which is the exact range where a pod is thin enough to
+     need doing something about. A ramp that cannot say "bad" and cannot separate its own middle
+     is not a signal, it is decoration.
 
-  /* ── THE DONOR SENTENCE ──────────────────────────────────────────────────────────────────
+     So the ring now takes one of five colours and nothing between. Two pods either match or they
+     do not, which is the question somebody scanning a week is actually asking — "are these the
+     same kind of day?" — and a continuous ramp answers it with a shrug.
+
+     THE NUMBER IS UNCHANGED AND STAYS EXACT. Ali: "you still display the % it's only the ring
+     colour that should change." Banding the colour must never band the score: 71 and 81 draw the
+     same amber and still read 71 and 81, because the arithmetic is what makes the difference
+     arguable and the colour is only what makes it noticeable.
+
+     The cut points live in DEFAULTS and are editable from Setup like every other number, and the
+     BANDS ARE THE SAME CUTS the words use — see band() — so the colour and the label can never
+     disagree, which they quietly did while one was a ramp and the other was a threshold. */
+  var cuts = (cfgOf(null).bands) || DEFAULTS.bands;
+  var v = Math.max(0, Math.min(100, Number(pct))), i;
+  for (i = 0; i < cuts.length; i++) if (v < cuts[i][0]) return cuts[i][1];
+  return cuts[cuts.length - 1][1];
+}
+function band(pct) {
+  if (pct == null) return "unknown";
+  /* THE SAME CUTS THE COLOUR USES, so a ring can never be green and labelled thin. Three CSS
+     names rather than five because the dial only needs to know red, amber or green — the fifth
+     colour is a shade of the same judgement, not a different one. */
+  var cuts = (cfgOf(null).bands) || DEFAULTS.bands;
+  var v = Number(pct);
+  if (v < cuts[0][0]) return "bare";
+  if (v < cuts[2][0]) return "thin";
+  return "ok";
+}
+/* ── THE DONOR SENTENCE ──────────────────────────────────────────────────────────────────
      Surplus is capacity, not score. "Pod A holds three transfer-trained, two more than it needs"
      is the fact that would have moved Gill to Pod C unprompted, and it is worth nothing as points
      — a pod is not better for hoarding. It is returned separately so the caller can put it where
@@ -792,7 +838,8 @@
     REGISTER: REGISTER, DEFAULTS: DEFAULTS, cfgOf: cfgOf,
     daysOn: daysOn, tierOf: tierOf,
     scoreDay: scoreDay, dayAimFor: dayAimFor,
-    rowOf: rowOf, labelOf: labelOf, shortOf: shortOf, podNamedIn: podNamedIn,
+    isSlot: isSlot,
+  rowOf: rowOf, labelOf: labelOf, shortOf: shortOf, podNamedIn: podNamedIn,
     colourOf: colourOf, band: band, donors: donors, wFor: wFor,
     indexStaff: byIdOf, isOn: isOn, wOf: wOf
   };
