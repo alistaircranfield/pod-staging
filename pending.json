@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-14T23:38:39.970260+00:00",
- "build": "e9a1b98",
+ "generated": "2026-08-15T06:08:53.117574+00:00",
+ "build": "0ac1a83",
  "liveBuild": "35abf4e",
- "count": 233,
+ "count": 235,
  "changes": [
+  {
+   "sha": "0ac1a83",
+   "who": "alistaircranfield",
+   "when": "2026-08-15T07:08:42+01:00",
+   "msg": "Weights learn from what people fix, leave and turn down: suggested, never applied"
+  },
+  {
+   "sha": "953638a",
+   "who": "github-actions[bot]",
+   "when": "2026-08-14T23:38:40Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "e9a1b98",
    "who": "alistaircranfield",
