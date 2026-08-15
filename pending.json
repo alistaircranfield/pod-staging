@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-15T07:32:05.214860+00:00",
- "build": "4e027f0",
+ "generated": "2026-08-15T08:21:33.459835+00:00",
+ "build": "d9c566f",
  "liveBuild": "35abf4e",
- "count": 251,
+ "count": 253,
  "changes": [
+  {
+   "sha": "d9c566f",
+   "who": "alistaircranfield",
+   "when": "2026-08-15T09:21:24+01:00",
+   "msg": "Audit fixes: one guarded door to a week, no cross-week drags, paged Look ahead, pinned draft flag"
+  },
+  {
+   "sha": "5ad5481",
+   "who": "github-actions[bot]",
+   "when": "2026-08-15T07:32:05Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "4e027f0",
    "who": "alistaircranfield",
