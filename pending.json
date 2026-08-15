@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-15T06:38:21.008547+00:00",
- "build": "3de509d",
+ "generated": "2026-08-15T06:42:06.886457+00:00",
+ "build": "ead75a6",
  "liveBuild": "35abf4e",
- "count": 237,
+ "count": 239,
  "changes": [
+  {
+   "sha": "ead75a6",
+   "who": "alistaircranfield",
+   "when": "2026-08-15T07:41:59+01:00",
+   "msg": "Trainees see two weeks; the rest is rota-team only, and the sync may not move anybody inside it"
+  },
+  {
+   "sha": "3c6b709",
+   "who": "github-actions[bot]",
+   "when": "2026-08-15T06:38:21Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "3de509d",
    "who": "alistaircranfield",
