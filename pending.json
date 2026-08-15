@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-15T07:02:58.376863+00:00",
- "build": "ab82869",
+ "generated": "2026-08-15T07:13:29.384153+00:00",
+ "build": "2e9665d",
  "liveBuild": "35abf4e",
- "count": 245,
+ "count": 247,
  "changes": [
+  {
+   "sha": "2e9665d",
+   "who": "alistaircranfield",
+   "when": "2026-08-15T08:13:18+01:00",
+   "msg": "Look ahead: a month at a glance for the rota team, firm/draft/open bands"
+  },
+  {
+   "sha": "041c3d0",
+   "who": "github-actions[bot]",
+   "when": "2026-08-15T07:02:58Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "ab82869",
    "who": "alistaircranfield",
