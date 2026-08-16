@@ -217,15 +217,17 @@
        a pod look worse (see the Attention rows that ask instead). */
     tierValue: { "new": 0.35, mid: 0.75, settled: 1, unknown: 0.75 },
 
-    /* HOW MANY OF A SKILL A POD OF n WANTS: one per this many people, minimum one. A pod of five
-       with a single airway-trained person is thinner than a pod of two with one, and a yes/no tick
-       cannot see the difference — which is the other half of why the old scale was so coarse.
-       Ali's ruling was asked for on this number; 3 is the starting point, editable in Setup. */
-    coverPer: 3,
+    /* WHAT THE FIRST PERSON CARRYING A SKILL IS WORTH. Every further one closes this share of
+       whatever gap is left, so 0.9 gives 0 -> 0, one -> 0.90, two -> 0.99, three -> 0.999. It is
+       Ali's own sentence as a number, 26.08.16: asked whether a pod wants one airway person or
+       two, "2nd adds something but minor ok."
 
-    /* How steeply a second and third person carrying the same skill add value. 1 is linear; 0.5
-       makes the first one worth most, which is how cover really behaves. */
-    coverCurve: 0.5,
+       WHAT IT REPLACED, AND WHY IT IS NOT COMING BACK: `coverPer` asked a pod of n people for
+       1 + (n-1)/3 carriers, so cover was measured per HEAD. "The number of patients doesnt
+       change" — a pod's need comes from its beds, and rostering another nurse does not add beds.
+       That formula marked a pod down for gaining somebody, twice over: it was found as a step,
+       smoothed into a slope, and only then seen for what it was. Editable in Setup, like everything. */
+    coverFirst: 0.9,
 
     /* SUPERVISION. How many newcomers one experienced person can carry, and whether somebody in
        their middle year counts as a full supervisor. Both are judgements the unit should make and
@@ -545,16 +547,37 @@ function tierOf(person, onDate, cfg, firstSeen) {
        person carrying a skill delivers most of the value and each extra one adds less. That is
        how cover behaves: nobody to somebody is the difference that matters; two to three is a
        nicety. */
-    var coverNeed = function (n) {
-      var per = Number(cfg.coverPer);
-      if (!isFinite(per) || per < 1) per = 3;
-      return 1 + Math.max(0, n - 1) / per;
-    };
-    var coverVal = function (have, need) {
-      if (!have) return 0;
-      var k = Number(cfg.coverCurve);
-      if (!isFinite(k) || k <= 0 || k > 1) k = 0.5;
-      return Math.min(1, Math.pow(have / Math.max(1e-6, need), k));
+    /* ── COVER DEPENDS ON WHO IS CARRYING IT, NOT ON HOW MANY PEOPLE ARE STANDING THERE ────────
+       Ali, 26.08.16: "the number of patients doesnt change."
+
+       That sentence retires the whole formula that was here. It read
+           need = 1 + (n - 1) / coverPer          // n = the number of STAFF in the pod
+       so a pod of two with one airway person scored 0.866, a pod of three scored 0.775, and a pod
+       of five scored 0.655 — the same one person, the same cover, marked down for standing next to
+       colleagues. Measured on the live board: Pod A went 0.87 -> 0.77 the moment Louise Hall
+       joined it, and she is not airway-trained.
+
+       `n` was SUPPLY being used as DEMAND. A pod's need for an airway-trained person comes from
+       its beds, and the beds do not multiply when somebody else is rostered. Nothing in the store
+       has ever held a bed count, so `coverPer: 3` was standing in for a number the system does not
+       know — and getting the sign wrong.
+
+       This is also the SECOND time this fault has been fixed here. The version before this one
+       turned a step into a slope, so that adding a person cost a little instead of a lot. It
+       smoothed the cliff and left the ground tilted the same way.
+
+       What replaces it is the unit's own sentence. Ali, asked whether a pod wants one carrier or
+       two: "2nd adds something but minor ok." So the first person carrying the skill is worth
+       `coverFirst`, and every further one closes that share of the gap that remains:
+           0 -> 0        1 -> 0.90        2 -> 0.99        3 -> 0.999
+       One editable number, no headcount anywhere in it, and monotone by construction: more
+       carriers can only ever raise it, more colleagues can never lower it. */
+    var coverNeed = function () { return 1; };          // kept so callers need not change
+    var coverVal = function (have) {
+      if (!have || have < 0) return 0;
+      var f = Number(cfg.coverFirst);
+      if (!isFinite(f) || f <= 0 || f >= 1) f = 0.9;
+      return Math.min(1, 1 - Math.pow(1 - f, have));
     };
     var tierVal = function (t) {
       var v = (cfg.tierValue || {})[t];
@@ -712,11 +735,11 @@ function tierOf(person, onDate, cfg, firstSeen) {
       for (i = 0; i < order.length; i++) {
         p = order[i];
         if (want2.indexOf(p) === -1 || !pods[p].people.length) continue;
-        /* Airway and transfer scale with the size of the pod; the phone and an ACCP are one each,
-           because two phone-trained people in a pod is not twice the phone. */
+        /* Airway and transfer get the diminishing-returns curve — a second carrier adds a little.
+           The phone and an ACCP are one each, because two phone-trained people in a pod is not
+           twice the phone. Neither reads the pod's headcount any more. */
         var scales = (reg.id === "R04" || reg.id === "N01");
-        var wantN = scales ? coverNeed(pods[p].people.length) : 1;
-        charge(pods[p], reg.id, scales ? coverVal(countIn[p], wantN) : Math.min(1, countIn[p] / wantN),
+        charge(pods[p], reg.id, scales ? coverVal(countIn[p]) : Math.min(1, countIn[p]),
           countIn[p] > 0, wFor(cfg, reg.id, p));
       }
       for (i = spare; i < ordered.length; i++)
@@ -773,7 +796,7 @@ function tierOf(person, onDate, cfg, firstSeen) {
         /* The night team wants airway cover in proportion to its size, exactly as a pod does. */
         var nAirC = 0;
         for (nj = 0; nj < night.people.length; nj++) if (night.people[nj].airway) nAirC++;
-        charge(night, "R04", coverVal(nAirC, coverNeed(night.people.length)), nAirC > 0, wOf(cfg, "R04"));
+        charge(night, "R04", coverVal(nAirC), nAirC > 0, wOf(cfg, "R04"));
       }
       if (isOn(cfg, "R14")) {
         /* Only asked when there are two to split. One airway-trained on a night team is not a
