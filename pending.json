@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-16T11:58:40.137983+00:00",
- "build": "41c0205",
+ "generated": "2026-08-16T12:07:49.679096+00:00",
+ "build": "4937dfa",
  "liveBuild": "35abf4e",
- "count": 259,
+ "count": 261,
  "changes": [
+  {
+   "sha": "4937dfa",
+   "who": "alistaircranfield",
+   "when": "2026-08-16T13:07:38+01:00",
+   "msg": "Weekly move cap and strict invariants: the 26.08.15 algorithm sweep"
+  },
+  {
+   "sha": "479d098",
+   "who": "github-actions[bot]",
+   "when": "2026-08-16T11:58:40Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "41c0205",
    "who": "alistaircranfield",
