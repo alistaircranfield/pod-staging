@@ -915,14 +915,23 @@ button.strdial:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .regrow .reglb{flex:1 1 auto;min-width:0;font-size:.85rem;line-height:1.3}
 .regrow .regsub{display:block;font-size:.66rem;color:var(--muted);letter-spacing:.03em}
 /* A chip that has changed pod since the week was published. Outline, not fill — the pod colours
-   own the fill and a second colour system on the same object reads as neither. */
-.chip.moved{box-shadow:0 0 0 2px var(--accent);border-radius:6px}
-/* THE DRAFT WEEK IS TINTED THROUGHOUT, so the caveat cannot be scrolled away from. The wash sits
-   BEHIND the table via a pseudo-element rather than as a background on the wrapper, because the
-   pod columns paint their own backgrounds and would cover a plain one. */
+   own the fill and a second colour system on the same object reads as neither.
+   Ali, 26.08.16: "the border of those changed is too prominent, make more subtle." It was a 2px
+   ring in the full accent, which on a board where nearly every chip in a reworked week carries
+   one shouted louder than the names. 1px, and the accent at a third — still unmistakable when
+   you look for it, no longer the first thing you see. */
+.chip.moved{box-shadow:0 0 0 1px color-mix(in srgb, var(--accent) 38%, transparent);border-radius:6px}
+/* THE DRAFT WEEK IS TINTED THROUGHOUT, so the caveat cannot be scrolled away from.
+   IT DID NOT COVER THE WHOLE WEEK, and that is what Ali was seeing when he asked why Monday to
+   Wednesday were darker than the other days. `position:absolute; inset:0` inside a container that
+   is `overflow:auto` sizes to the CLIENT box, not the scrolled content — measured on the real
+   board, 599px of 1,812px of table. So the top screenful was tinted and everything below it was
+   not, and which days looked "draft" depended on where you happened to be scrolled.
+   Tinting the CELLS fixes it: an inset shadow paints over each cell's own background, scrolls with
+   the content by definition, and needs no stacking context. The wash is lighter too, because it
+   now has to survive being read all day rather than glimpsed. */
 .rota-wrap.draftwk{position:relative;border:2px solid #e6b800;border-radius:8px}
-.rota-wrap.draftwk::after{content:"";position:absolute;inset:0;background:#e6b800;opacity:.10;
-  pointer-events:none;z-index:5}
+.rota-wrap.draftwk td,.rota-wrap.draftwk th{box-shadow:inset 0 0 0 9999px rgba(230,184,0,.055)}
 /* Quiet, always there, never in the way — the foot of the rail, where a version belongs. */
 .appver{margin-top:auto;padding:.5rem .2rem .2rem;font-size:.62rem;color:var(--muted);text-align:center;letter-spacing:.04em}
 .draftflag{position:sticky;top:0;z-index:6;display:block;background:#e6b800;color:#3d2f00;
@@ -1397,8 +1406,24 @@ const GRADES = ["CON","ACCP","SCF","JCF","RCF","ST","CT","ACCS","IMT","FY1","FY2
                   comment, because it is a smaller pod by design (its own minimum is 1 against 2).
    Both editable in Settings — hard rule 1. Drop spreadE to 2 and today's 4·4·4·3·2 starts
    suggesting a move; raise it to 4 and E goes quiet almost always. */
+/* ── TWO WEEKS, AND ONLY TWO WEEKS ARE EVER WRITTEN ────────────────────────────────────────────
+   Ali, 26.08.16: "nobody does look forward and so many things change and the allocator doesnt get
+   its best chance to fix... the current week is live, the next week is draft framed and then
+   everything forward is not written."
+
+   This was 3 and 2 as of 26.08.15, set so people could see far enough to book things. A day later
+   the cost of that showed: weeks were being allocated as soon as a roster arrived, which meant
+   allocations existed further out than anyone was allowed to SEE them — written from an incomplete
+   roster, never revisited, and orphaned by every change to the algorithm. w/c 31 Aug was written
+   under the old model and nothing in the system would ever have gone back to it.
+
+   So: 1 firm week (current, read and planned around, gate repairs only) and 1 draft week (written
+   last Sunday, free to improve all week as the roster settles). Beyond that the roster is pulled
+   and the pods are left EMPTY, and one week is written each Sunday as it enters the window. A week
+   therefore gets written once, under the algorithm of that night, and there is never a backlog of
+   weeks carrying an older model. Both still editable in Settings — hard rule 1. */
 const RULE_DEFAULTS = { podMin: 2, podEMin: 1, nightMin: 4, transferAim: 4, neuroTarget: 70, retentionDays: 400,
-                        spreadMax: 2, spreadE: 3, visibleWeeks: 3, firmWeeks: 2 };
+                        spreadMax: 2, spreadE: 3, visibleWeeks: 2, firmWeeks: 1 };
 /* Every number the checks argue about, editable from Settings — hard rule 1. The table above is
    only the FALLBACK, so a board nobody has touched behaves exactly as it always did. */
 /* ── WHAT A TRAINEE CAN SEE, AND WHY IT IS A NUMBER RATHER THAN A RULE ─────────────────────────
