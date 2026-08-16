@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-16T17:14:19.253307+00:00",
- "build": "9fd3f12",
+ "generated": "2026-08-16T17:21:31.036230+00:00",
+ "build": "843109d",
  "liveBuild": "7cd50e0",
- "count": 269,
+ "count": 271,
  "changes": [
+  {
+   "sha": "843109d",
+   "who": "alistaircranfield",
+   "when": "2026-08-16T18:21:22+01:00",
+   "msg": "Quieter top bar with two menus, and a quieter draft week"
+  },
+  {
+   "sha": "f4b7b2a",
+   "who": "github-actions[bot]",
+   "when": "2026-08-16T17:14:19Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "9fd3f12",
    "who": "alistaircranfield",
