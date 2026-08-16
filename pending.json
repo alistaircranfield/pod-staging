@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-16T16:05:32.824637+00:00",
- "build": "871471b",
- "liveBuild": "e3effee",
- "count": 267,
+ "generated": "2026-08-16T17:14:19.253307+00:00",
+ "build": "9fd3f12",
+ "liveBuild": "7cd50e0",
+ "count": 269,
  "changes": [
+  {
+   "sha": "9fd3f12",
+   "who": "alistaircranfield",
+   "when": "2026-08-16T18:14:07+01:00",
+   "msg": "N04 measures retention: a pod is never charged for gaining somebody"
+  },
+  {
+   "sha": "531c6c9",
+   "who": "github-actions[bot]",
+   "when": "2026-08-16T16:05:32Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "871471b",
    "who": "alistaircranfield",
