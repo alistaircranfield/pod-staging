@@ -5271,7 +5271,13 @@ function renderDayRow(day, di, dateISO, issues){
      should move on the day a new number arrives beside it. */
   { const dRing = strengthDayDial(dateISO); if (dRing) dlInner.append(dRing); }
   const dl = el("td", { class: "daylabel" }, dlInner);
-  if (canEdit() && (hard || soft) && !isEmpty) {
+  /* The chip was gated on `(hard || soft)` — a red or an amber — which hid it on exactly the days
+     this model was built for: the ones that break no rule and are still badly arranged. It is
+     offered now on any day that is not already perfect, and the dialog says plainly when there is
+     nothing worth doing. Deliberately NOT gated on running the planner: that is 80ms a day and
+     this runs on every redraw, so the cheap number already on the day is what decides. */
+  const dayPctNow = daySc && !daySc.isBroken ? daySc.pct : null;
+  if (canEdit() && !isEmpty && (hard || soft || dayPctNow == null || dayPctNow < 100)) {
     dlInner.append(el("button", { class: "fixday", title: "Correct this day with the fewest changes", onclick: () => fixDayDialog(di) },
       el("span", { html: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l6-6M14 5l5 5M12.5 6.5l5 5M9 9l6 6"/></svg>' }), "Fix"));
   }
@@ -8354,6 +8360,31 @@ function fixChangeRow(c){
     el("span", { class: "fixrow-ic", html: fixIcon(c.icon) }),
     el("div", {}, el("div", { class: "fixrow-t" }, c.text), c.reason ? el("div", { class: "fixrow-r" }, c.reason) : null));
 }
+/* ── WHETHER A PLAN IS WORTH OFFERING ──────────────────────────────────────────────────────────
+   The same doorman the nightly uses, and for the same reason it was given one on 26.08.15: fewer
+   broken gates wins outright, otherwise the percentage has to actually go up. planDayFix already
+   refuses any single move worth less than MIN_GAIN, but its gate repairs run unconditionally and
+   can cost percentage to buy a long day, so the whole plan is still judged as a whole. */
+function dayRating(day, iso, di, wk){
+  const iss = checkDay(day, iso, di, wk).filter(x => !x.empty);
+  let pct = 0;
+  try {
+    if (window.Strength && Strength.scoreDay && data) {
+      const prev = di > 0 ? wk.days[di - 1] : null;
+      const sc = Strength.scoreDay({ day: day, dateISO: iso, byId: Strength.indexStaff(data.staff),
+        firstSeen: strFirstSeen(), counts: strCounts(day), prevCounts: prev ? strCounts(prev) : null,
+        issues: iss, cfg: strengthCfg() });
+      pct = sc.day.pct == null ? 0 : sc.day.pct;
+    }
+  } catch (e) {}
+  return { brk: iss.filter(x => x.hard).length, pct: pct };
+}
+function fixWorthTaking(plan, di, wk){
+  if (!plan || !plan.changes || !plan.changes.length) return false;
+  const iso = addDays(currentWeekKey, di);
+  const a = dayRating(wk.days[di], iso, di, wk), b = dayRating(plan.fixed, iso, di, wk);
+  return b.brk < a.brk || (b.brk === a.brk && b.pct > a.pct);
+}
 function fixDayDialog(di){
   const plan = planDayFix(di);
   const m = $("#modal"); m.innerHTML = "";
@@ -8375,10 +8406,20 @@ async function fixWeekDialog(){
   const wk = getWeek(currentWeekKey);
   const plans = [];
   wk.days.forEach((day, di) => {
+    /* ── THIS USED TO ASK checkDay AND NOTHING ELSE ─────────────────────────────────────────────
+       `if (!issues.some(hard || soft)) return;` — so Fix week would not even CALL the planner on a
+       day that broke no rule, and answered "Nothing to fix automatically this week." Ali hit it on
+       26.08.16 on the week of 17 Aug: every day passed the rules, the planner had six changes worth
+       six points waiting on the Tuesday alone, and the button said there was nothing to do.
+
+       It is the same fault the nightly had until 26.08.15 — an acceptance test that counted red
+       flags while the planner had started optimising a percentage — and it is the fault this whole
+       model exists to catch, because Thursday 13 August broke no rule either. So every non-empty
+       day is now planned, and the plan is kept if it clears a gate or moves the number. */
     const issues = checkDay(day, addDays(currentWeekKey, di), di, wk);
-    if (!issues.some(i => i.hard || (!i.info && !i.empty))) return;   // only days with something to fix
+    if (issues.some(i => i.empty)) return;                    // nothing allocated on this day at all
     const plan = planDayFix(di);
-    if (plan.changes.length) plans.push({ di, plan });
+    if (fixWorthTaking(plan, di, wk)) plans.push({ di, plan });
   });
   const m = $("#modal"); m.innerHTML = "";
   m.append(el("h3", {}, "Fix the week"));
