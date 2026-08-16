@@ -4666,13 +4666,21 @@ function strengthCfg(){
                 been there often lately. 0 is off. Fairness over a rota period rather than a day. */
 function planCfg(){
   var o = (data && data.planCfg) || {};
+  /* THE DEFAULTS ARE THE 26.08.15 SWEEP'S ANSWER, not the shape the code grew into. Measured over
+     the twenty whole weeks the store actually holds: this is the only configuration tried that
+     satisfies both agreed limits — mean moves per person per week under 1.6, and nobody moved more
+     than twice in any week — with zero third pods. Every one of them is editable from Setup. */
   return { minGain: o.minGain == null ? 1 : +o.minGain,
            maxMoves: o.maxMoves == null ? 4 : +o.maxMoves,
            maxDeal: o.maxDeal == null ? 4 : +o.maxDeal,
            dealWhenAmple: !!o.dealWhenAmple,
-           weekMoveCap: o.weekMoveCap == null ? 0 : +o.weekMoveCap,
+           weekMoveCap: o.weekMoveCap == null ? 1 : +o.weekMoveCap,
            weakPodMemory: o.weakPodMemory == null ? 0 : +o.weakPodMemory,
-           weakPodWindow: o.weakPodWindow == null ? 14 : +o.weakPodWindow };
+           weakPodWindow: o.weakPodWindow == null ? 14 : +o.weakPodWindow,
+           strictInvariants: o.strictInvariants == null ? true : !!o.strictInvariants,
+           thirdPodAbsolute: o.thirdPodAbsolute == null ? true : !!o.thirdPodAbsolute,
+           spreadRotate: o.spreadRotate == null ? "week" : o.spreadRotate,
+           thirdPodEscape: o.thirdPodEscape == null ? 2000 : +o.thirdPodEscape };
 }
 /* TIME ON THE UNIT COMES FROM TWO PLACES AND THIS IS THE SECOND. A stated start date covers 44 of
    87 people; the Optima roster in the store runs back to 18 Aug 2025, and first-appearance in it
@@ -7245,7 +7253,17 @@ function autoFillDay(wk, di, wkKey, opts){
   // week so no single pod (previously always A) ends up consistently bigger over time.
   const AD = ["A", "B", "C", "D"];
   const wkOrd = Math.floor((Date.parse(key) || 0) / 6048e5);
-  const startOff = (((di + wkOrd) % 4) + 4) % 4;
+  /* ── WHICH POD CARRIES THE SPARE PERSON, AND HOW OFTEN THAT CHANGES ────────────────────────
+     The remainder was rotated BY DAY so that no one pod is always the big one. Measured on the
+     real roster 26.08.15, that is where the churn is made: with the extra head moving A→B→C→D on
+     consecutive days, somebody has to change pod every single day to satisfy it, and the balance
+     penalty (-5000) outranks continuity (+12) and the weekly move cap alike. It is a fairness
+     rule that pays for itself in other people's disruption.
+
+     Rotating by WEEK answers the same fairness question — no pod is consistently bigger over a
+     month — and asks nobody to move on a Tuesday to achieve it. "day" restores the old behaviour. */
+  const spreadRotate = planCfg().spreadRotate;
+  const startOff = spreadRotate === "week" ? ((wkOrd % 4) + 4) % 4 : (((di + wkOrd) % 4) + 4) % 4;
   const remPods = new Set(AD.slice(startOff).concat(AD.slice(0, startOff)).slice(0, Math.min(remCount, 4)));
   const target = {};
   PODS.forEach(p => target[p] = base + (remPods.has(p) ? 1 : 0));
@@ -7280,6 +7298,35 @@ function autoFillDay(wk, di, wkKey, opts){
     }
     weekPodsSoFar[id] = set;
   }
+  /* ── HOW MANY TIMES THIS PERSON HAS ALREADY BEEN MOVED THIS WEEK ──────────────────────────
+     Measured 26.08.15 on the real roster, over the 20 weeks the store actually holds: the day
+     the allocator WRITES already carries a mean of 1.00 moves per person per week, a worst
+     individual of 4, and 47 weeks in which somebody sees a third pod. planDayFix then brings
+     those down to 0.71, 3 and 9 — the fixer was never the source. It could only ever be the
+     writer, because the writer is what puts people somewhere in the first place, and until now
+     the only thing it knew about yesterday was a +12 nudge towards the same pod: no weight at
+     all against the -5000 that evens the pods up. So one person gets bounced A-C-E-A across a
+     week to balance head counts, and every existing measure called each of those days correct.
+
+     Two distinct patterns fall out and only one of them is a third pod. "E-A-E-A" is two pods and
+     three moves — legal under the never-a-third-pod rule and exactly the ping-pong nobody wants.
+     Counting pods could never have caught it; counting moves does. */
+  const weekMovesSoFar = {}, prevPodOf = {};
+  (function () {
+    const last = {};
+    for (let k = 0; k < di; k++) {
+      const seen = {}, dd = wk.days[k];
+      for (const q of PODS) for (const a of (dd.pods[q].assign || [])) if (a.id) seen[a.id] = q;
+      for (const id in seen) {
+        if (last[id] && last[id] !== seen[id]) weekMovesSoFar[id] = (weekMovesSoFar[id] || 0) + 1;
+        last[id] = seen[id];
+      }
+    }
+    for (const id in last) prevPodOf[id] = last[id];
+  })();
+  const PCFG = planCfg();
+  const overCapFill = (id, p) => !!PCFG.weekMoveCap && !!prevPodOf[id] && prevPodOf[id] !== p &&
+                                 (weekMovesSoFar[id] || 0) >= PCFG.weekMoveCap;
   /* IDEMPOTENCE. A reallocation photographs where everybody is and is meant to put them back unless
      a rule says otherwise. But the snapshot was only a +200 nudge that evaporated the moment a pod
      reached its share, and the placement queue was itself derived from days this same pass had
@@ -7326,6 +7373,29 @@ function autoFillDay(wk, di, wkKey, opts){
     const isLD = poolState(pool[id]) === "LD";
     const prior = priorMap[id];
     let bestP = null, bestScore = -Infinity;
+    /* ── THE ESCAPE HATCH HAS TO MEAN WHAT IT SAYS ────────────────────────────────────────────
+       Never-a-third-pod, and now the weekly move cap, both yield "unless the pod is short-handed
+       and the alternatives are full". Written that way the exception fired on nearly every
+       placement, because an auto-fill starts with five EMPTY pods: whichever pod is being filled
+       is below its share and is the emptiest, so the condition was true almost every time. It
+       cost exactly what you would expect — 47 of 140 person-weeks with a third pod, and a weekly
+       move cap that changed the worst individual not at all (4 with it, 4 without).
+
+       So the exception is now a second pass rather than a condition. First every pod is scored
+       with the rule absolute. Only if that leaves nowhere to stand does the pod get scored again
+       with the rule as a heavy preference — which is what "the alternatives are full" was always
+       trying to say, and it can only be known after looking at all five. */
+    /* THREE PASSES, AND THE ORDER IS THE RANKING. Pass 0 satisfies everything. If nothing can,
+       pass 1 lets Pod E be the biggest for a day. Only if that still leaves nowhere does pass 2
+       buy a third pod or an extra move. That order is a judgement and it is the point: E briefly
+       being the largest is an organisational untidiness somebody notices once; a third pod in a
+       week, or a fourth move, is a person's week. Measured 26.08.15 — making E-smallest absolute
+       WITHOUT this ordering put four third pods straight back, because the two rules were
+       competing rather than ranked. */
+    for (var pass = 0; pass < 3 && bestP === null; pass++) {
+    const relaxE = pass >= 1 || !PCFG.strictInvariants;
+    const relax = pass >= 2 || !PCFG.strictInvariants;
+    bestScore = -Infinity;
     for (const p of PODS) {
       let score = (target[p] - counts[p]) * 3 - Math.max(0, counts[p] + 1 - target[p]) * 50 - counts[p] * 0.05;
       // HARD: never put a fifth person in Pod A while Pod E is still empty. The -50 above was only a
@@ -7354,9 +7424,18 @@ function autoFillDay(wk, di, wkKey, opts){
       // next to a pod of one) is a red on the board every day of the week; somebody seeing a third
       // pod once is not. Only ever bought to top up the pod that's furthest behind — never to shave
       // one off a pod that's merely a person light.
-      const emptiest = counts[p] <= Math.min(...PODS.map(q => counts[q]));
-      if (wkSoFar && wkSoFar.size >= 2 && !wkSoFar.has(p))
-        score -= (counts[p] < target[p] && emptiest ? 2000 : 100000);
+      /* On the first pass a third pod is simply not available. On the second — reached only when
+         no pod was available at all — it costs thirdPodEscape and balance can buy it. */
+      if (wkSoFar && wkSoFar.size >= 2 && !wkSoFar.has(p)) {
+        if (!relax) continue;
+        score -= (PCFG.strictInvariants ? PCFG.thirdPodEscape
+                  : (counts[p] < target[p] && counts[p] <= Math.min(...PODS.map(q => counts[q])) ? PCFG.thirdPodEscape : 100000));
+      }
+      /* NEVER MORE THAN TWO MOVES IN A WEEK — the direct enforcement of the limit that was agreed
+         and that nothing has ever applied. Same two-pass shape as the third-pod rule above, and
+         off (0) by default so the page behaves as it always has until the unit sets a number. */
+      if (PCFG.weekMoveCap && prevPodOf[id] && prevPodOf[id] !== p &&
+          (weekMovesSoFar[id] || 0) >= PCFG.weekMoveCap) { if (!relax) continue; score -= PCFG.thirdPodEscape; }
       // Senior airway residents (ST/CT/Anaes/ICM) stay off Pod E unless there's truly nowhere else.
       if (p === "E" && ["ST", "CT", "Anaes", "ICM"].includes(s.grade)) score -= 40;
       if (airwayOn(s)) {
@@ -7384,8 +7463,14 @@ function autoFillDay(wk, di, wkKey, opts){
       // so any spare cover goes A → B → C → D before E. Decisive penalty so E is never the largest.
       // Must outrank the balance penalty below it, or evening the pods up can itself make E the
       // biggest — which is the one thing E is never allowed to be.
-      if (p === "E" && counts.E + 1 > Math.min(...PODS.filter(q => q !== "E").map(q => counts[q]))) score -= 50000;
+      /* Absolute on the first pass, like the two rules above it — otherwise a person whom the
+         third-pod rule and the move cap have shut out of A-D lands in E and makes E the biggest,
+         which is the one thing E is never allowed to be. Caught by rule-tests' twelve-month
+         simulation on 26.08.15: eleven days out of 260. */
+      if (p === "E" && counts.E + 1 > Math.min(...PODS.filter(q => q !== "E").map(q => counts[q])))
+        { if (!relaxE) continue; score -= 50000; }
       if (score > bestScore) { bestScore = score; bestP = p; }
+    }
     }
     day.pods[bestP].assign.push({ id, shift: isLD ? "LD" : "SD" });
     // Supernumeraries don't count towards pod numbers, LD cover, or airway cover — they're learning/extra.
@@ -7401,6 +7486,12 @@ function autoFillDay(wk, di, wkKey, opts){
     for (let k = 0; k < di; k++) for (const q of PODS) if ((wk.days[k].pods[q].assign || []).some(a => a.id === id)) set.add(q);
     return set; };
   const wouldBeThird = (id, p) => { const set = podsEarlier(id); return set.size >= 2 && !set.has(p); };
+  /* The repairs below prefer somebody who is neither picking up a third pod nor over their weekly
+     move budget, and fall back to sending whoever can go. That fallback is deliberate and is
+     documented in each step: a pod with people and no long day is a red on the board, and it
+     outranks both. It is also where the last of the residual breaches come from — measured
+     26.08.15, one person-week over the cap and two third pods across twenty weeks. */
+  const spare = (id, p) => !wouldBeThird(id, p) && !overCapFill(id, p);
   /* Every step below shuffles people between pods to satisfy one rule, and each one was capable of
      quietly breaking another — Pod E ending up the biggest, or E holding a long day while A–D had
      none. Rather than trusting each step to police itself, do the move and put it straight back if
@@ -7453,14 +7544,16 @@ function autoFillDay(wk, di, wkKey, opts){
       let donor = null, ld = null;
       for (const q of PODS.filter(q => q !== p && ldIn(q) > 1).sort((a, b) => ldIn(b) - ldIn(a) || a.localeCompare(b))) {
         const pool_ = day.pods[q].assign.filter(a => a.id && a.shift === "LD" && a.id !== day.phone).sort(byName);
-        const cand = pool_.find(a => !wouldBeThird(a.id, p)) || pool_[0];
+        const cand = pool_.find(a => spare(a.id, p)) || pool_.find(a => !wouldBeThird(a.id, p)) ||
+                     (PCFG.thirdPodAbsolute ? null : pool_[0]);
         if (cand) { donor = q; ld = cand; break; }
       }
       if (!ld) continue;
       // Strictly a swap. Moving somebody in without sending anybody back grows the pod, and if that
       // pod is E it immediately breaks the rule that E is never the biggest.
       const sdPool = day.pods[p].assign.filter(a => a.id && a.shift !== "LD").sort(byName);
-      const sd = sdPool.find(a => !wouldBeThird(a.id, donor)) || sdPool[0];
+      const sd = sdPool.find(a => spare(a.id, donor)) || sdPool.find(a => !wouldBeThird(a.id, donor)) ||
+                 (PCFG.thirdPodAbsolute ? null : sdPool[0]);
       tryMove(() => {
         day.pods[donor].assign = day.pods[donor].assign.filter(x => x !== ld);
         if (sd) {
@@ -7485,9 +7578,10 @@ function autoFillDay(wk, di, wkKey, opts){
       if (donor) {
         const byName = (x, y) => (nameOf(x.id) || "").localeCompare(nameOf(y.id) || "");
         const pool2 = day.pods[donor].assign.filter(a => a.id && a.shift === "LD" && a.id !== day.phone).sort(byName);
-        const ld = pool2.find(a => !wouldBeThird(a.id, hPod)) || pool2[0];
+        const ld = pool2.find(a => spare(a.id, hPod)) || pool2.find(a => !wouldBeThird(a.id, hPod)) ||
+                   (PCFG.thirdPodAbsolute ? null : pool2[0]);
         const back = day.pods[hPod].assign.filter(a => a.id && a.shift !== "LD").sort(byName)
-          .find(a => !wouldBeThird(a.id, donor)) || day.pods[hPod].assign.filter(a => a.id && a.shift !== "LD").sort(byName)[0];
+          .find(a => spare(a.id, donor)) || day.pods[hPod].assign.filter(a => a.id && a.shift !== "LD").sort(byName)[0];
         if (ld && back) tryMove(() => {
           day.pods[donor].assign = day.pods[donor].assign.filter(x => x !== ld);
           day.pods[hPod].assign = day.pods[hPod].assign.filter(x => x !== back);
@@ -7715,6 +7809,27 @@ function planDayFix(di){
     for (let k = 0; k < di; k++) for (const q of PODS) if ((wk.days[k].pods[q].assign || []).some(a => a.id === id)) set.add(q);
     return set; };
   const wouldBeThirdPod = (id, p) => { const set = podsEarlierThisWeek(id); return set.size >= 2 && !set.has(p); };
+  /* ── HOW OFTEN THIS PERSON HAS ALREADY BEEN MOVED THIS WEEK ───────────────────────────────
+     Counted once from the days already written rather than re-walked per candidate. A move is a
+     pod change between one day and the next inside the same Monday-to-Sunday week — the thing a
+     person actually notices — so Friday to Monday is not one. Computed here, above the gate
+     repairs, because the gate repairs move people too and were the last place the cap leaked. */
+  const PCFG = planCfg();
+  const priorMoves = {}, prevPodOf = {};
+  (function () {
+    const last = {};
+    for (let k = 0; k < di; k++) {
+      const seen = {};
+      for (const q of PODS) for (const a of (wk.days[k].pods[q].assign || [])) if (a.id) seen[a.id] = q;
+      for (const id in seen) {
+        if (last[id] && last[id] !== seen[id]) priorMoves[id] = (priorMoves[id] || 0) + 1;
+        last[id] = seen[id];
+      }
+    }
+    for (const id in last) prevPodOf[id] = last[id];
+  })();
+  const overCap = (id, p) => !!PCFG.weekMoveCap && !!prevPodOf[id] && prevPodOf[id] !== p &&
+                             (priorMoves[id] || 0) >= PCFG.weekMoveCap;
   let guard = 0;
 
   // 1) Day phone — must be a long-day holder (not a learner)
@@ -7737,13 +7852,13 @@ function planDayFix(di){
       const donors = PODS.filter(q => q !== p && podCount(q) > minFor(q)).sort((a,b) => (podCount(b)-minFor(b)) - (podCount(a)-minFor(a)));
       let moved = false;
       for (const q of donors) {
-        const people = day.pods[q].assign.filter(a => a.id && countsIn(a.id) && !wouldBeThirdPod(a.id, p));
+        const people = day.pods[q].assign.filter(a => a.id && countsIn(a.id) && !wouldBeThirdPod(a.id, p) && !overCap(a.id, p));
         let a = needLD ? people.find(x => x.shift === "LD" && podLDs(q) > 1) : null;
         if (!a) a = people.find(x => x.shift !== "LD") || people[0];
         if (a) { day.pods[q].assign = day.pods[q].assign.filter(x => x !== a); day.pods[p].assign.push({ id: a.id, shift: a.shift }); moved = true; break; }
       }
       if (!moved) {
-        const bench = dayIds.filter(id => !placedNow().has(id) && !wouldBeThirdPod(id, p));
+        const bench = dayIds.filter(id => !placedNow().has(id) && !wouldBeThirdPod(id, p) && !overCap(id, p));
         const b = (needLD && bench.find(isLDpool)) || bench[0];
         if (b) { day.pods[p].assign.push({ id: b, shift: isLDpool(b) ? "LD" : "SD" }); moved = true; }
       }
@@ -7754,10 +7869,11 @@ function planDayFix(di){
   // 3) Every non-empty pod needs a long-day person — swap one in where one can be spared
   for (const p of PODS) {
     if (podCount(p) >= 1 && podLDs(p) === 0 && guard++ < 120) {
-      const donor = PODS.find(q => q !== p && podLDs(q) > 1);
+      const donor = PODS.find(q => q !== p && podLDs(q) > 1 &&
+        day.pods[q].assign.some(a => a.shift === "LD" && a.id && !wouldBeThirdPod(a.id, p) && !overCap(a.id, p)));
       if (donor) {
-        const ld = day.pods[donor].assign.find(a => a.shift === "LD");
-        const sd = day.pods[p].assign.find(a => a.shift !== "LD");
+        const ld = day.pods[donor].assign.find(a => a.shift === "LD" && a.id && !wouldBeThirdPod(a.id, p) && !overCap(a.id, p));
+        const sd = day.pods[p].assign.find(a => a.shift !== "LD" && a.id && !wouldBeThirdPod(a.id, donor) && !overCap(a.id, donor));
         day.pods[donor].assign = day.pods[donor].assign.filter(x => x !== ld);
         day.pods[p].assign.push({ id: ld.id, shift: "LD" });
         if (sd) { day.pods[p].assign = day.pods[p].assign.filter(x => x !== sd); day.pods[donor].assign.push({ id: sd.id, shift: sd.shift }); }
@@ -7797,31 +7913,11 @@ function planDayFix(di){
      optimising the aims, which is exactly the behaviour this page had before today. A missing
      score must degrade the plan, never throw inside it. */
   if (typeof Strength !== "undefined" && Strength && Strength.scoreDay && data) {
-    var PC = planCfg();
+    var PC = PCFG;
     var MIN_GAIN = PC.minGain; // percentage points — below this it is churn, not improvement
     var MAX_MOVES = PC.maxMoves; // the plan stays small enough to read
     var byIdX = Strength.indexStaff(data.staff), fsX = strFirstSeen(), cfgX = strengthCfg();
 
-    /* ── HOW OFTEN THIS PERSON HAS ALREADY BEEN MOVED THIS WEEK ───────────────────────────────
-       Counted from the days already written, once, rather than re-walked for every candidate.
-       A "move" is a pod change between one day and the next inside the same Monday-to-Sunday
-       week — the thing a person actually notices — so Friday to Monday is not one. */
-    var priorMoves = {}, prevPodOf = {};
-    (function () {
-      var last = {}, k, q, a, arr;
-      for (k = 0; k < di; k++) {
-        var seen = {};
-        for (q = 0; q < PODS.length; q++) {
-          arr = (wk.days[k].pods[PODS[q]].assign || []);
-          for (a = 0; a < arr.length; a++) if (arr[a].id) seen[arr[a].id] = PODS[q];
-        }
-        for (var id in seen) {
-          if (last[id] && last[id] !== seen[id]) priorMoves[id] = (priorMoves[id] || 0) + 1;
-          last[id] = seen[id];
-        }
-      }
-      prevPodOf = last;
-    })();
     /* The cap is a filter on whole candidate days rather than on single moves, because the dealer
        moves several people at once and a per-move check would let a deal through that a sequence
        of the same moves would have been refused. */
