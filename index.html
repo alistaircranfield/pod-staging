@@ -185,9 +185,9 @@ body.phone-dragging .chip{outline:1.5px dashed #b9c3ee;outline-offset:1px}
 .chip.fgh{cursor:default;background:#fbfbf9;color:var(--muted);border:1px dotted #d5d8de;box-shadow:none}
 .chip.fgh .tagx{background:var(--hair);color:var(--muted)}
 button:focus-visible,a:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.viewonly #btnSave,.viewonly #btnUndo,.viewonly #btnRedo,.viewonly #btnWho,.viewonly #btnPublish,.viewonly #btnAutoFill,.viewonly #btnFixWeek,.viewonly #btnDone{display:none}
+.viewonly #btnSave,.viewonly #btnUndo,.viewonly #btnRedo,.viewonly #btnWho,.viewonly #btnPublish,.viewonly #btnAutoFill,.viewonly #btnFixWeek,.viewonly #btnFixAhead,.viewonly #btnDone{display:none}
 body.viewmode .x,body.viewmode .ptoken,body.viewmode .trayadd,body.viewmode .addbtn,body.viewmode .mini,
-body.viewmode #btnSave,body.viewmode #btnUndo,body.viewmode #btnRedo,body.viewmode #btnWho,body.viewmode #btnAutoFill,body.viewmode #btnFixWeek,body.viewmode #saveState,body.viewmode #btnDone{display:none}
+body.viewmode #btnSave,body.viewmode #btnUndo,body.viewmode #btnRedo,body.viewmode #btnWho,body.viewmode #btnAutoFill,body.viewmode #btnFixWeek,body.viewmode #btnFixAhead,body.viewmode #saveState,body.viewmode #btnDone{display:none}
 body:not(.viewmode) #btnEdit{display:none}
 /* When the board is locked, Edit is the one thing to press — make it look like it. */
 body.viewmode #btnEdit{background:var(--accent);color:#fff;box-shadow:0 0 0 3px var(--accent-bg)}
@@ -1046,6 +1046,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
       <span class="spacer"></span>
       <button class="btn sec" id="btnAutoFill" style="font-size:.78rem;padding:.35rem .7rem" title="Distribute everyone on each day's bench into pods, as fairly as possible. Keeps anyone you've already placed.">Auto-fill week</button>
       <button class="btn sec" id="btnFixWeek" style="font-size:.78rem;padding:.35rem .7rem" title="Correct every day that has issues with the fewest changes — you see the plan before it's applied.">Fix week</button>
+      <button class="btn sec" id="btnFixAhead" style="font-size:.78rem;padding:.35rem .7rem" title="Bring every week from today onwards up to the current algorithm. Published weeks are left alone unless a day is actually broken — you see the whole plan before it's applied.">Fix ahead</button>
       <span class="spacer"></span>
     </div>
     <div id="summaryBanner"></div>
@@ -8402,6 +8403,110 @@ function fixDayDialog(di){
     el("button", { class: "btn", onclick: () => { applyFixedDay(di, plan.fixed, plan.changes); closeModal(); toast("Fixed " + DAYNAMES[di].slice(0,3) + " — Undo reverses it"); } }, "Apply " + plan.changes.length + " change" + (plan.changes.length>1?"s":""))));
   $("#modalBg").style.display = "flex";
 }
+/* ── FIX AHEAD: EVERY WEEK FROM TODAY, NOT JUST THE ONE ON SCREEN ──────────────────────────────
+   Ali, 26.08.16: "just apply the new algorithm to all future weeks, find a way."
+
+   The way did not exist, and the reason is worth writing down because it looks like it did. The
+   nightly rewrites future days — but only ones it has just touched: its optimise step lives INSIDE
+   the loop over people Optima has newly added, so a day allocated last week under the old model
+   and untouched since is never revisited by anything. And the board could only ever fix the week
+   you were standing on, which stops at the published window: weeks past it are reachable only
+   through Look ahead, behind the rota team password. So a change to the algorithm reached the days
+   somebody happened to open, and no others.
+
+   This walks the store instead of the screen. Two rules, both already agreed and neither invented
+   here:
+
+   THE PAST IS HISTORY. Days before today are never touched.
+
+   A PUBLISHED WEEK IS A PROMISE. Inside the visible-and-firm window the rota has been read and
+   planned around, so this may repair a BROKEN day and may not chase a better number — the same
+   line the nightly draws (26.08.15) and for the same reason. Beyond it, the board itself labels
+   the week DRAFT and says people may still move, so the tidy is taken.
+
+   It needs no password, and that is deliberate rather than an oversight: the nightly already
+   rewrites unpublished future days unattended with no password at all, so "the algorithm may
+   arrange a week nobody has read yet" is this system's existing policy, not a new one. What the
+   rota team password protects is a HUMAN dragging people around in a week trainees cannot see.
+   Every day this touches is logged by name, and Undo reverses the lot. */
+function fixAheadScan(){
+  const today = todayISO(), orig = currentWeekKey, out = [];
+  try {
+    for (const k of Object.keys(data.weeks || {}).sort()) {
+      if (addDays(k, 6) < today) continue;                 // week finished before today
+      currentWeekKey = k;
+      const wk = getWeek(k);
+      for (let di = 0; di < 7; di++) {
+        const iso = addDays(k, di);
+        if (iso < today) continue;
+        const day = wk.days[di];
+        const issues = checkDay(day, iso, di, wk);
+        if (issues.some(i => i.empty)) continue;           // nothing allocated on it at all
+        const plan = planDayFix(di);
+        if (!fixWorthTaking(plan, di, wk)) continue;
+        const gate = dayRating(plan.fixed, iso, di, wk).brk < dayRating(day, iso, di, wk).brk;
+        const published = iso >= visibleFrom() && iso <= firmTo();
+        if (published && !gate) continue;                  // read and planned around: leave it
+        out.push({ k, di, iso, n: plan.changes.length, gate, published });
+      }
+    }
+  } finally { currentWeekKey = orig; }
+  return out;
+}
+async function fixAheadDialog(){
+  const found = fixAheadScan();
+  const m = $("#modal"); m.innerHTML = "";
+  m.append(el("h3", {}, "Fix ahead"));
+  if (!found.length) {
+    m.append(el("p", { style: "color:var(--muted);font-size:.9rem" },
+      "Every week from today onwards is already as good as the current settings can make it."));
+    m.append(el("div", { class: "dlg-btns" }, el("button", { class: "btn", onclick: closeModal }, "Close")));
+    $("#modalBg").style.display = "flex"; return;
+  }
+  const weeks = [...new Set(found.map(f => f.k))];
+  const total = found.reduce((n, f) => n + f.n, 0);
+  m.append(el("p", { class: "fixsub" }, total + " change" + (total > 1 ? "s" : "") + " across " +
+    found.length + " day" + (found.length > 1 ? "s" : "") + " in " + weeks.length + " week" +
+    (weeks.length > 1 ? "s" : "") + ". Published weeks are only touched where a day is broken."));
+  const wrap = el("div", { class: "fixweek" });
+  for (const k of weeks) {
+    const inWk = found.filter(f => f.k === k);
+    wrap.append(el("div", { class: "fixday-h" }, fmtDate(k) + " to " + fmtDate(addDays(k, 6)) +
+      " — " + inWk.reduce((n, f) => n + f.n, 0) + " change" + (inWk.reduce((n, f) => n + f.n, 0) > 1 ? "s" : "")));
+    for (const f of inWk)
+      wrap.append(el("div", { class: "fixrow" }, el("div", {},
+        el("div", { class: "fixrow-t" }, DAYNAMES[f.di] + " " + fmtDate(f.iso) + " · " + f.n + " change" + (f.n > 1 ? "s" : "")),
+        el("div", { class: "fixrow-r" }, f.published ? "published week, and this day is broken" : "not published yet"))));
+  }
+  m.append(wrap);
+  m.append(el("div", { class: "dlg-btns" },
+    el("button", { class: "btn ghost", onclick: closeModal }, "Cancel"),
+    el("button", { class: "btn", onclick: () => { fixAheadApply(found); closeModal(); } },
+      "Apply " + total + " change" + (total > 1 ? "s" : ""))));
+  $("#modalBg").style.display = "flex";
+}
+/* THE PLAN IS RECOMPUTED AT THE MOMENT IT IS APPLIED, not reused from the scan. Fixing Tuesday
+   changes what Wednesday's continuity is measured against, so a plan made before Tuesday moved is
+   answering a question that is no longer being asked. Costs one more pass; buys correctness. */
+function fixAheadApply(found){
+  const orig = currentWeekKey;
+  let days = 0, moves = 0;
+  try {
+    for (const f of found) {
+      currentWeekKey = f.k;
+      const wk = getWeek(f.k);
+      const plan = planDayFix(f.di);
+      if (!fixWorthTaking(plan, f.di, wk)) continue;
+      applyFixedDay(f.di, plan.fixed, plan.changes);
+      days++; moves += plan.changes.length;
+    }
+  } finally { currentWeekKey = orig; }
+  logEntry("Fix ahead: " + moves + " change" + (moves === 1 ? "" : "s") + " across " + days +
+           " day" + (days === 1 ? "" : "s") + " from today onwards", "auto");
+  markDirty(); saveFile(true); renderAll();
+  toast(days ? ("Fixed " + days + " day" + (days === 1 ? "" : "s") + " ahead — Undo reverses it")
+             : "Nothing needed changing");
+}
 async function fixWeekDialog(){
   const wk = getWeek(currentWeekKey);
   const plans = [];
@@ -10495,6 +10600,7 @@ $("#btnNextWeek").onclick = () => stepWeek(1);
 $("#btnToday").onclick = () => { currentWeekKey = mondayOf(todayISO()); renderWeek(); };
 $("#btnAutoFill").onclick = autoFillWeek;
 $("#btnFixWeek").onclick = fixWeekDialog;
+$("#btnFixAhead").onclick = fixAheadDialog;
 $("#btnAddStaff").onclick = async () => {
   if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
   staffModal(null);
