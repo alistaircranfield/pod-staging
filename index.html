@@ -568,6 +568,25 @@ body.testmode main{padding-bottom:4rem}
 .cc-sub{font-size:.72rem;color:var(--muted);margin:.6rem 0 .3rem;line-height:1.5}
 .sheetbtn.plain{border-color:transparent;background:transparent;color:var(--muted)}
 .sheetbtn.plain:hover{background:var(--hair);color:var(--ink)}
+/* THE POD ROW. Five squares, in the pod's own colour, sized so a thumb cannot land between two.
+   44px is the smallest target Apple and Google both call reliable, and this is the control that
+   gets used at 5am in the dark, so it is the floor and not the aim. */
+.sheetlabel{font-size:.72rem;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;margin:1rem 0 .4rem}
+.sheetpods{display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem}
+.podbtn{min-height:46px;padding:0;font-size:1.05rem;font-weight:700;justify-content:center;letter-spacing:0}
+/* The pod they are already in is shown, not offered — a flat tinted tile with no border, so it
+   reads as a label among buttons rather than as a button that has stopped working. */
+.podbtn.here{opacity:1;border-style:dashed;color:var(--muted);font-weight:600;cursor:default;box-shadow:none}
+.podbtn:disabled{pointer-events:none}
+/* On a phone the sheet comes up from the bottom edge, where the thumb already is, instead of
+   floating in the middle of the screen. Same markup, same code — only where it sits changes. */
+@media (max-width:820px){
+  .dlg-bg{align-items:flex-end}
+  .dlg{width:100%;max-width:none;border-radius:20px 20px 0 0;padding:1.2rem 1.1rem calc(1.1rem + env(safe-area-inset-bottom));animation:sheetin .18s ease}
+  .sheetbtn{padding:.85rem}
+  .podbtn{min-height:54px;font-size:1.15rem}
+}
+@keyframes sheetin{from{transform:translateY(14px);opacity:.6}to{transform:none;opacity:1}}
 .combolist{max-height:190px;overflow:auto;border:1px solid var(--line,#e2e4e8);border-radius:10px;margin-top:.5rem}
 .comboopt{padding:.55rem .8rem;cursor:pointer;font-size:.9rem;border-bottom:1px solid var(--line,#eef0f3)}
 .comboopt:last-child{border-bottom:none}
@@ -4189,6 +4208,9 @@ function personSheet(s, di, day){
   const shut = () => { sheetClosedAt = Date.now(); bg.remove(); window.removeEventListener("keydown", esc); };
   const esc = e => { if (e.key === "Escape") shut(); };
   const where = placeOnDay(day, s.id);
+  /* The pod they are in RIGHT NOW, or null. Read from assign only: a supernumerary sitting in
+     Pod C's Super box is not in Pod C's numbers, so Pod C is still a real destination for them. */
+  const inPod = PODS.find(p => day.pods[p].assign.some(a => a.id === s.id)) || null;
   const shift = (() => {
     for (const p of PODS) { const a = day.pods[p].assign.find(x => x.id === s.id); if (a) return a.shift; }
     return null;
@@ -4204,13 +4226,43 @@ function personSheet(s, di, day){
         takeOffDay(day, di, s.id);
         markDirty(); renderWeek();
         afterChangeCard(di, s.name + " is off today.");
-      } }, "Not in today"),
-    el("button", { class: "btn sec sheetbtn", onclick: () => {
+      } }, "Not in today"));
+  /* THE PODS ARE BUTTONS, NOT A SECOND GESTURE. This used to say "Move to another pod", which
+     armed tapPick and asked for a tap on the pod column — two gestures, the second of them onto a
+     target a few millimetres wide on a phone, with a toast as the only instruction. Ali chose
+     this shape on 16 Aug. One tap, one move, and the pod they are already in is shown as their
+     place rather than offered as a destination they could pointlessly pick.
+     Every button below runs movePersonToPod, the same function a drag runs. */
+  const dateISO = addDays(currentWeekKey, di);
+  const pool = poolFor(day, dateISO);
+  const row = el("div", { class: "sheetpods" });
+  for (const p of PODS) {
+    const here = p === inPod;
+    /* `disabled` is set on the element, NOT passed to el(): el() calls setAttribute for every key
+       it is handed, so `disabled: null` becomes disabled="null" — which is a PRESENT attribute
+       and disables the button. Passing it that way disabled all five pods and the sheet became a
+       dialog that could do nothing. Caught by the tests below, not by looking at it. */
+    const b = el("button", {
+      class: "btn sec podbtn col-" + p + (here ? " here" : ""),
+      title: here ? s.name + " is already in Pod " + p : "Move " + s.name + " to Pod " + p,
+      onclick: () => {
         shut();
-        tapPick = { id: s.id, di }; tapPhone = null;
-        renderWeek();
-        toast("Now tap the pod to move " + s.name.split(" ")[0] + " to");
-      } }, "Move to another pod"),
+        if (movePersonToPod(day, di, dateISO, pool, p, s.id) === false) { renderWeek(); return; }
+        markDirty(); renderWeek();
+        afterChangeCard(di, s.name.split(" ")[0] + " is in Pod " + p + ".");
+      } }, p);
+    if (here) b.disabled = true;
+    row.append(b);
+  }
+  box.append(el("div", { class: "sheetlabel" }, inPod ? "Move to" : "Put in"), row,
+    /* Only offered when there is something to come off. On the bench already, it would do
+       nothing and say nothing, which is worse than not being there. */
+    where === "bench" ? null : el("button", { class: "btn sec sheetbtn", onclick: () => {
+        shut();
+        if (movePersonToBench(day, di, s.id) === false) return;
+        markDirty(); renderWeek();
+        afterChangeCard(di, s.name.split(" ")[0] + " is on the bench, still on today.");
+      } }, "Just out of this pod"),
     el("button", { class: "btn sec sheetbtn plain", onclick: shut }, "Cancel"));
   bg.append(box);
   bg.onclick = e => { if (e.target === bg) shut(); };
@@ -4431,6 +4483,14 @@ function chip(s, opts){
     if (e.target.closest(".tagx") || e.target.closest(".x") || e.target.closest(".phoneicon")) return;
     if (tapPhone && day && tapPhone.di === opts.di) { await assignPhoneTo(day, tapPhone.type, s); return; }
     if (opts.di == null) return;
+    /* ON A PHONE, A TAP OPENS THE SHEET. The pick-up-then-tap-the-pod dance is a desktop
+       interaction that was inherited by touch because it was the only one there: it needs a
+       second accurate tap on a pod column, which on a 390px screen is about a centimetre wide and
+       often off the bottom of the view. The sheet reaches every pod in one tap and cannot miss.
+       Press-and-hold still opens the same sheet, so the gesture people have learned keeps working,
+       and drag still wins over both because a drag says what somebody wants without asking.
+       Desktop is untouched: tap still picks up, and hold or right-click still opens the sheet. */
+    if (isMobile() && day) { personSheet(s, opts.di, day); return; }
     tapPick = (tapPick && tapPick.id === s.id && tapPick.di === opts.di) ? null : { id: s.id, di: opts.di };
     tapPhone = null;
     renderWeek();
@@ -4642,6 +4702,49 @@ function currentAssignShift(day, id){
   }
   // Coming back OUT of a Super box: they keep the shift they went in with.
   return superShiftOf(day, id);
+}
+/* MOVING SOMEBODY INTO A POD, in one place. This was the body of the pod column's drop handler
+   and nothing else could reach it, so the mobile sheet's "Pod C" button would have had to be a
+   second copy of the neuro rule, the supernumerary branch, the shift it keeps, what gets logged
+   and what gets recorded as an override. Two copies of that would drift, and the one that drifted
+   would be the one nobody was watching. Returns false if a rule refused the move — callers must
+   not mark the board dirty on a false. */
+function movePersonToPod(day, di, dateISO, pool, p, id){
+  const pod = day.pods[p];
+  const s = staffById(id);
+  if (!neuroPodOK(s, p)) { toast(s.name + " — neurology registrars go on Pods C and D only"); return false; }
+  if (s && isSupernumerary(s)) {
+    const wasIn = (PODS.find(q => day.pods[q].assign.some(a => a.id === id)
+                              || (day.pods[q].super || []).includes(id)) || "")
+                  || nightSpotOf(day, id);
+    const keepShift = currentAssignShift(day, id) || shiftFromPool(pool, id);
+    removeAssign(day, id);
+    pod.super = pod.super || [];
+    if (!pod.super.includes(id)) pod.super.push(id);
+    setSuperShift(day, id, keepShift);
+    logEntry(s.name + " → Pod " + p + " (supernumerary) (" + dayShort(di) + ")", "manual", dateOfDi(di), null,
+      { act: "move", subj: s.name, from: wasIn, to: p, super: true, bench: !wasIn });
+    return;
+  }
+  const keepShift = currentAssignShift(day, id);
+  const fromPod = PODS.find(q => day.pods[q].assign.some(a => a.id === id)) || null;
+  const wasIn = fromPod || nightSpotOf(day, id);
+  removeAssign(day, id);
+  pod.assign.push({ id, shift: keepShift != null ? keepShift : shiftFromPool(pool, id) });
+  logEntry(s.name + " → Pod " + p + " (" + dayShort(di) + ")", "manual", dateOfDi(di), null,
+    { act: "move", subj: s.name, from: wasIn, to: p, bench: !wasIn });
+  recordOverride(dateISO, id, fromPod, p, keepShift);
+}
+/* Same again for the bench: on the day, off every pod and every night team. */
+function movePersonToBench(day, di, id){
+  const s = staffById(id);
+  const wasIn = (PODS.find(q => day.pods[q].assign.some(a => a.id === id)
+                            || (day.pods[q].super || []).includes(id)) || "")
+                || nightSpotOf(day, id);
+  if (!wasIn) return false;
+  removeAssign(day, id);
+  logEntry(s.name + " → bench (" + dayShort(di) + ")", "manual", dateOfDi(di), null,
+    { act: "move", subj: s.name, from: wasIn, to: "", bench: true });
 }
 function poolState(p){ return p.kind === "night" ? "N" : (p.code && p.code.toUpperCase().startsWith("LD") ? "LD" : "SD"); }
 // bench ordering: LD first, then SD, each by seniority (edit the ranking here if the pecking order changes)
@@ -5457,46 +5560,16 @@ function renderDayRow(day, di, dateISO, issues){
     if (strDial) col.append(strDial);
     /* Supernumeraries and observers are never part of a pod's numbers, so dropping them into the
        pod itself makes it look staffed when it isn't. They go in the Super box underneath instead. */
-    makeZone(col, di, id => {
-      const s = staffById(id);
-      if (!neuroPodOK(s, p)) { toast(s.name + " — neurology registrars go on Pods C and D only"); return false; }
-      if (s && isSupernumerary(s)) {
-        /* Where they were has to be read BEFORE removeAssign clears it. This drop wrote no From
-           at all, so every supernumerary move showed as "not recorded" — which said we didn't
-           know, when the truth is nobody asked (Ali, 4 Aug: "why are there still so many not
-           recorded, this isnt acceptable"). */
-        const wasIn = (PODS.find(q => day.pods[q].assign.some(a => a.id === id)
-                                  || (day.pods[q].super || []).includes(id)) || "")
-                      || nightSpotOf(day, id);
-        const keepShift = currentAssignShift(day, id) || shiftFromPool(pool, id);
-        removeAssign(day, id);
-        pod.super = pod.super || [];
-        if (!pod.super.includes(id)) pod.super.push(id);
-        setSuperShift(day, id, keepShift);
-        logEntry(s.name + " → Pod " + p + " (supernumerary) (" + dayShort(di) + ")", "manual", dateOfDi(di), null,
-          { act: "move", subj: s.name, from: wasIn, to: p, super: true, bench: !wasIn });
-        return;
-      }
-      const keepShift = currentAssignShift(day, id);
-      const fromPod = PODS.find(q => day.pods[q].assign.some(a => a.id === id)) || null;
-      /* THE NIGHT COLUMN IS A PLACE TOO. fromPod only ever looked at the pods, so dragging
-         somebody OUT OF the night team and into a pod logged from:"" — which the log draws as
-         "bench", meaning "they were unallocated". They were not: they were standing in the wrong
-         shift, which is the opposite of unallocated and the whole reason for the drag.
-         Antony Taylor Gutierrez, 9 Aug: Optima moved him off Wed/Thu nights onto LD on the Friday,
-         the board left him on nights, Nick moved him by hand — and the only record of the fix
-         reads "bench → C", i.e. as though nothing had been wrong (Ali: "it should all be
-         explainable"). The bench zone (see makeZone above) and the night zone both already fall
-         back to nightSpotOf; this one did not. recordOverride still gets the pod-only value: an
-         override means a pod-to-pod choice the allocator should respect, and coming off nights
-         is not that. */
-      const wasIn = fromPod || nightSpotOf(day, id);
-      removeAssign(day, id);
-      pod.assign.push({ id, shift: keepShift != null ? keepShift : shiftFromPool(pool, id) });
-      logEntry(s.name + " → Pod " + p + " (" + dayShort(di) + ")", "manual", dateOfDi(di), null,
-        { act: "move", subj: s.name, from: wasIn, to: p, bench: !wasIn });
-      recordOverride(dateISO, id, fromPod, p, keepShift);
-    }, oid => { const o = (day.obs || []).find(x => x.oid === oid); if (o) { const was = o.pod || ""; o.pod = p;
+    /* The move itself lives in movePersonToPod so the mobile sheet's pod buttons run exactly the
+       same code path as a drag. The notes that used to sit inline here have gone with it:
+         - where somebody WAS has to be read before removeAssign clears it, or a supernumerary
+           move logs no From at all (Ali, 4 Aug: "why are there still so many not recorded");
+         - the night column is a place too, so fromPod falls back to nightSpotOf — otherwise
+           dragging out of a night team logs "bench → C", i.e. as though nothing had been wrong;
+         - recordOverride still gets the pod-only value, because an override means a pod-to-pod
+           choice the allocator should respect and coming off nights is not that. */
+    makeZone(col, di, id => movePersonToPod(day, di, dateISO, pool, p, id),
+      oid => { const o = (day.obs || []).find(x => x.oid === oid); if (o) { const was = o.pod || ""; o.pod = p;
       logEntry("Observer " + o.name + " → Pod " + p + " (" + dayShort(di) + ")", "manual", dateOfDi(di), null,
         { act: "move", subj: "Observer " + o.name, from: was, to: p, bench: !was }); } });
     /* The list is now Cover's, keyed by initials. `cur` is normalised through consKey so a day
