@@ -185,9 +185,9 @@ body.phone-dragging .chip{outline:1.5px dashed #b9c3ee;outline-offset:1px}
 .chip.fgh{cursor:default;background:#fbfbf9;color:var(--muted);border:1px dotted #d5d8de;box-shadow:none}
 .chip.fgh .tagx{background:var(--hair);color:var(--muted)}
 button:focus-visible,a:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.viewonly #btnSave,.viewonly #btnUndo,.viewonly #btnRedo,.viewonly #btnWho,.viewonly #btnPublish,.viewonly #btnAutoFill,.viewonly #btnFixWeek,.viewonly #btnFixAhead,.viewonly #btnDone{display:none}
+.viewonly #btnSave,.viewonly #btnUndo,.viewonly #btnRedo,.viewonly #btnWho,.viewonly #btnPublish,.viewonly #btnAutoFill,.viewonly #btnFixWeek,.viewonly #btnFixAhead,.viewonly #btnFixMenu,.viewonly #btnDone{display:none}
 body.viewmode .x,body.viewmode .ptoken,body.viewmode .trayadd,body.viewmode .addbtn,body.viewmode .mini,
-body.viewmode #btnSave,body.viewmode #btnUndo,body.viewmode #btnRedo,body.viewmode #btnWho,body.viewmode #btnAutoFill,body.viewmode #btnFixWeek,body.viewmode #btnFixAhead,body.viewmode #saveState,body.viewmode #btnDone{display:none}
+body.viewmode #btnSave,body.viewmode #btnUndo,body.viewmode #btnRedo,body.viewmode #btnWho,body.viewmode #btnAutoFill,body.viewmode #btnFixWeek,body.viewmode #btnFixAhead,body.viewmode #btnFixMenu,body.viewmode #btnMore,body.viewmode #saveState,body.viewmode #btnDone{display:none}
 body:not(.viewmode) #btnEdit{display:none}
 /* When the board is locked, Edit is the one thing to press — make it look like it. */
 body.viewmode #btnEdit{background:var(--accent);color:#fff;box-shadow:0 0 0 3px var(--accent-bg)}
@@ -930,12 +930,39 @@ button.strdial:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
    Tinting the CELLS fixes it: an inset shadow paints over each cell's own background, scrolls with
    the content by definition, and needs no stacking context. The wash is lighter too, because it
    now has to survive being read all day rather than glimpsed. */
-.rota-wrap.draftwk{position:relative;border:2px solid #e6b800;border-radius:8px}
-.rota-wrap.draftwk td,.rota-wrap.draftwk th{box-shadow:inset 0 0 0 9999px rgba(230,184,0,.055)}
+/* Ali, 26.08.16: "draft bit is too shouty". It was a 2px amber frame, a full-caps banner and a
+   10% wash over every cell — three marks all saying the same thing at full volume, on the one
+   week people look at most. Turned down to two quiet ones that between them do the whole job:
+   a wash at a QUARTER strength, so two weeks side by side still read as different at a glance,
+   and a stripe down the LEFT EDGE of every row, which travels with the scroll and so keeps the
+   caveat on screen — the thing the wash was originally invented for and the reason it could not
+   simply be deleted. No frame, no shouting. */
+.rota-wrap.draftwk{position:relative;border-radius:8px}
+.rota-wrap.draftwk td,.rota-wrap.draftwk th{box-shadow:inset 0 0 0 9999px rgba(230,184,0,.025)}
+.rota-wrap.draftwk tr>td:first-child,.rota-wrap.draftwk tr>th:first-child{
+  box-shadow:inset 3px 0 0 0 rgba(230,184,0,.55),inset 0 0 0 9999px rgba(230,184,0,.025)}
+/* ── TWO SMALL MENUS, SO THE BAR STOPS BEING A LIST ───────────────────────────────────────────
+   Ali, 26.08.16: "the top buttons getting too many and too confusing." Eleven controls in edit
+   mode, three of them telling the same story. Nothing is removed — the buttons are MOVED into
+   these popovers at start-up, keeping their own ids and their own handlers, so every existing
+   binding, test and keyboard shortcut still finds them. A menu that rebuilt the buttons would
+   have quietly dropped whichever handler nobody remembered. */
+.menuwrap{position:relative;display:inline-flex}
+.menupop{display:none;position:absolute;right:0;top:calc(100% + .35rem);z-index:60;min-width:11rem;
+  background:#fff;border:0.5px solid var(--hair);border-radius:10px;box-shadow:0 8px 24px rgba(29,31,36,.14);
+  padding:.25rem;flex-direction:column;gap:.1rem}
+.menupop.open{display:flex}
+.menupop>button{display:flex;align-items:center;gap:.45rem;width:100%;text-align:left;justify-content:flex-start;
+  border:0;background:transparent;border-radius:7px;padding:.42rem .55rem;font-size:.78rem;opacity:1}
+.menupop>button:hover{background:var(--hair)}
+.menupop>button:disabled{opacity:.35}
 /* Quiet, always there, never in the way — the foot of the rail, where a version belongs. */
 .appver{margin-top:auto;padding:.5rem .2rem .2rem;font-size:.62rem;color:var(--muted);text-align:center;letter-spacing:.04em}
-.draftflag{position:sticky;top:0;z-index:6;display:block;background:#e6b800;color:#3d2f00;
-  font-size:.68rem;font-weight:700;letter-spacing:.09em;padding:.25rem .8rem;text-align:center}
+/* Sentence case, left aligned, a wash instead of a solid bar. It still sticks to the top of the
+   wrap so it cannot be scrolled away from, which was always its job; it just stops shouting. */
+.draftflag{position:sticky;top:0;z-index:6;display:block;background:rgba(230,184,0,.09);color:#6b5200;
+  font-size:.7rem;font-weight:500;letter-spacing:0;padding:.3rem .8rem;text-align:left}
+.draftflag b{font-weight:600}
 /* Look ahead is the same board on a different page, so it needs one line saying which page you
    are on — otherwise the only difference from the public board is that the arrows do not stop,
    and a control that silently changes behaviour is the thing that started this. */
@@ -1042,6 +1069,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
   <button class="hbtn ghost" id="btnDone" title="Back to read-only view">Done</button>
   <button class="hbtn ghost" id="btnUndo" title="Undo last change (Ctrl+Z)">↩ Undo</button>
   <button class="hbtn ghost" id="btnRedo" title="Redo (Ctrl+Y / Ctrl+Shift+Z)">↪ Redo</button>
+  <div class="menuwrap"><button class="hbtn ghost hicon" id="btnMore" title="More" aria-label="More"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></button><div class="menupop" id="moreMenu"></div></div>
   <button class="hbtn ghost" id="btnSave" style="opacity:.7;font-size:.75rem" title="Everything saves on its own — this only forces an immediate save">Save now</button>
   <button class="hbtn hicon" id="btnPublish" title="Print copy — a clean read-only copy of this week for the wall or Teams" aria-label="Print copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9V4h10v5"/><path d="M7 18H5.5A1.5 1.5 0 014 16.5v-5A1.5 1.5 0 015.5 10h13a1.5 1.5 0 011.5 1.5v5a1.5 1.5 0 01-1.5 1.5H17"/><rect x="7" y="15" width="10" height="6" rx="1"/></svg></button>
 </div>
@@ -1056,6 +1084,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
       <button class="btn sec" id="btnAutoFill" style="font-size:.78rem;padding:.35rem .7rem" title="Distribute everyone on each day's bench into pods, as fairly as possible. Keeps anyone you've already placed.">Auto-fill week</button>
       <button class="btn sec" id="btnFixWeek" style="font-size:.78rem;padding:.35rem .7rem" title="Correct every day that has issues with the fewest changes — you see the plan before it's applied.">Fix week</button>
       <button class="btn sec" id="btnFixAhead" style="font-size:.78rem;padding:.35rem .7rem" title="Bring every week from today onwards up to the current algorithm. Published weeks are left alone unless a day is actually broken — you see the whole plan before it's applied.">Fix ahead</button>
+      <div class="menuwrap"><button class="btn sec" id="btnFixMenu" style="font-size:.78rem;padding:.35rem .7rem" title="Let the allocator do it — you see the plan before anything is applied">Fix ▾</button><div class="menupop" id="fixMenu"></div></div>
       <span class="spacer"></span>
     </div>
     <div id="summaryBanner"></div>
@@ -1863,7 +1892,10 @@ const uiPrompt = (body, o={}) => uiDialog({ body, input: true, ...o });
 function editorName(){ return store.get("rotaEditorName") || "(name not set)"; }
 function updateWhoBtn(){
   const b = $("#btnWho");
-  if (b) b.textContent = "Editing as " + editorName();
+  /* Was "Editing as Alistair Cranfield", sitting next to a separate "Saving…" — two controls
+     telling one story, which is half of why the bar felt crowded (Ali, 26.08.16). The name alone,
+     with the save state beside it, reads as one line: "Alistair Cranfield · saved 14:07". */
+  if (b) b.textContent = editorName();
 }
 /* Who can put their name to an edit: consultants, and the residents senior enough to carry the
    referral phone on their own. Everybody on the unit used to be listed, which made the picker long
@@ -3701,8 +3733,8 @@ function renderWeekInner(){
      reads as "the week of 24 Aug settles on 24 Aug", circular, and it is reachable because Setup
      lets firmWeeks be 1. When the date is not in the future it says so in words instead. */
   if (isDraftWeek)
-    wrap.append(el("div", { class: "draftflag" }, el("b", {}, "DRAFT"),
-      " \u00b7 not settled \u00b7 people may still move before this week is worked"));
+    wrap.append(el("div", { class: "draftflag" }, el("b", {}, "Draft"),
+      " \u00b7 people may still move before this week is worked"));
   const tbl = el("table", { class: "rota" });
   const headRow = el("tr", {}, el("th", {}, ""), el("th", { class: "trayth", style: "width:13%" }, "To allocate"));
   for (const p of PODS) headRow.append(el("th", { class: "podth", style: "border-top-color:var(--pod" + p + "b)" }, "Pod " + p));
@@ -10626,6 +10658,36 @@ $("#btnToday").onclick = () => { currentWeekKey = mondayOf(todayISO()); renderWe
 $("#btnAutoFill").onclick = autoFillWeek;
 $("#btnFixWeek").onclick = fixWeekDialog;
 $("#btnFixAhead").onclick = fixAheadDialog;
+
+/* ── THE BAR, TIDIED (26.08.16) ───────────────────────────────────────────────────────────────
+   The buttons are relocated, not rebuilt: each keeps its id, its handler, its disabled state and
+   its keyboard shortcut. Redo still disables itself through updateUndoRedoButtons; Save now still
+   forces a save; print still prints. What changes is only where your eye has to go.
+
+   What stays on the bar is what you might press in the next ten seconds: Undo (the safety net
+   behind every drag and every Fix), Fix (the whole reason the allocator exists) and Done. The
+   rest are things you press once a week. */
+(function tidyTopBar(){
+  const into = (popId, ids) => {
+    const pop = document.getElementById(popId); if (!pop) return;
+    for (const id of ids) { const b = document.getElementById(id); if (b) pop.appendChild(b); }
+  };
+  into("moreMenu", ["btnRedo", "btnSave", "btnPublish", "btnKey"]);
+  into("fixMenu",  ["btnAutoFill", "btnFixWeek", "btnFixAhead"]);
+  const wire = (btnId, popId) => {
+    const b = document.getElementById(btnId), pop = document.getElementById(popId);
+    if (!b || !pop) return;
+    b.onclick = e => { e.stopPropagation();
+      document.querySelectorAll(".menupop.open").forEach(m => { if (m !== pop) m.classList.remove("open"); });
+      pop.classList.toggle("open"); };
+    /* A menu that stays open after you have chosen is a menu you close by accident later. */
+    pop.addEventListener("click", () => setTimeout(() => pop.classList.remove("open"), 0));
+  };
+  wire("btnMore", "moreMenu");
+  wire("btnFixMenu", "fixMenu");
+  document.addEventListener("click", () => document.querySelectorAll(".menupop.open").forEach(m => m.classList.remove("open")));
+  document.addEventListener("keydown", e => { if (e.key === "Escape") document.querySelectorAll(".menupop.open").forEach(m => m.classList.remove("open")); });
+})();
 $("#btnAddStaff").onclick = async () => {
   if (!EDIT_MODE) { await enterEdit(); if (!EDIT_MODE) return; }
   staffModal(null);
