@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-16T12:59:09.894287+00:00",
- "build": "0b59f1e",
- "liveBuild": "5b79185",
- "count": 263,
+ "generated": "2026-08-16T14:20:17.969173+00:00",
+ "build": "ab22962",
+ "liveBuild": "f3a4cb9",
+ "count": 265,
  "changes": [
+  {
+   "sha": "ab22962",
+   "who": "alistaircranfield",
+   "when": "2026-08-16T15:20:08+01:00",
+   "msg": "Fix ahead: apply the algorithm to every week from today onwards"
+  },
+  {
+   "sha": "260158d",
+   "who": "github-actions[bot]",
+   "when": "2026-08-16T12:59:09Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "0b59f1e",
    "who": "alistaircranfield",
