@@ -573,10 +573,22 @@ body.testmode main{padding-bottom:4rem}
    gets used at 5am in the dark, so it is the floor and not the aim. */
 .sheetlabel{font-size:.72rem;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;margin:1rem 0 .4rem}
 .sheetpods{display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem}
-.podbtn{min-height:46px;padding:0;font-size:1.05rem;font-weight:700;justify-content:center;letter-spacing:0}
-/* The pod they are already in is shown, not offered — a flat tinted tile with no border, so it
-   reads as a label among buttons rather than as a button that has stopped working. */
-.podbtn.here{opacity:1;border-style:dashed;color:var(--muted);font-weight:600;cursor:default;box-shadow:none}
+.podbtn{min-height:46px;padding:0;font-size:1.05rem;font-weight:700;justify-content:center;letter-spacing:0;border:1px solid transparent}
+.podbtn.podA{background:var(--podA);color:var(--podAb)}
+.podbtn.podB{background:var(--podB);color:var(--podBb)}
+.podbtn.podC{background:var(--podC);color:var(--podCb)}
+.podbtn.podD{background:var(--podD);color:var(--podDb)}
+.podbtn.podE{background:var(--podE);color:var(--podEb)}
+/* The pod they are already in is shown, not offered. It keeps its colour — it is still that pod —
+   but loses the fill and is drawn as an outline with a tick, so it reads as "you are here" and
+   not as a button that has stopped working. */
+.podbtn.here{background:transparent;border-style:dashed;font-weight:600;cursor:default;box-shadow:none}
+.podbtn.here::after{content:" ✓";font-size:.8em;opacity:.75}
+.podbtn.podA.here{border-color:var(--podAb);color:var(--podAb)}
+.podbtn.podB.here{border-color:var(--podBb);color:var(--podBb)}
+.podbtn.podC.here{border-color:var(--podCb);color:var(--podCb)}
+.podbtn.podD.here{border-color:var(--podDb);color:var(--podDb)}
+.podbtn.podE.here{border-color:var(--podEb);color:var(--podEb)}
 .podbtn:disabled{pointer-events:none}
 /* On a phone the sheet comes up from the bottom edge, where the thumb already is, instead of
    floating in the middle of the screen. Same markup, same code — only where it sits changes. */
@@ -4243,7 +4255,12 @@ function personSheet(s, di, day){
        and disables the button. Passing it that way disabled all five pods and the sheet became a
        dialog that could do nothing. Caught by the tests below, not by looking at it. */
     const b = el("button", {
-      class: "btn sec podbtn col-" + p + (here ? " here" : ""),
+      /* `pod` + letter, NOT `col-` + letter. The col- classes are scoped `td.col-A{...}` in the
+         stylesheet, so putting them on a button set no colour at all and the five tiles came out
+         identically white — which is the one thing this row must not be, because the colour is
+         how the pod is recognised everywhere else on the board. Caught by reading the computed
+         style on staging; it is invisible in the markup. */
+      class: "btn sec podbtn pod" + p + (here ? " here" : ""),
       title: here ? s.name + " is already in Pod " + p : "Move " + s.name + " to Pod " + p,
       onclick: () => {
         shut();
