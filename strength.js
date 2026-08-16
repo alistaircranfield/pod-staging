@@ -634,11 +634,31 @@ function tierOf(person, onDate, cfg, firstSeen) {
         if (nro) charge(pods[p], "N06", Math.max(0, 1 - nro * 0.5), false, wFor(cfg, "N06", p));
       }
 
-      /* Continuity. Share of the pod that was in it yesterday, against the share we ask for. */
-      if (isOn(cfg, "N04") && prevP) {
+      /* ── CONTINUITY IS ABOUT WHAT THE POD KEPT, NOT ABOUT WHO ELSE TURNED UP ──────────────────
+         Ali, 26.08.16, moving Louise Hall from C into A on Wed 19 Aug: "As score went down,
+         impossible. its alwats better to have an extra person." He was right, and this was one of
+         the two reasons. Measured on the live board: Pod A 93% -> 87%, and N04 went from met at
+         1.00 to missed at 0.50 for no reason except that a third person had arrived.
+
+         The denominator was TODAY'S pod size: `want = ceil(pe.length * keepShare)`. So a pod of
+         two that kept both of yesterday's people scored full marks, and the moment a third person
+         joined, the same two people were suddenly not enough. The pod had lost nobody. It was
+         charged for gaining somebody.
+
+         It is the same fault that was found in N03 on 26.08.15 — a pod scoring worse for gaining a
+         person — and it survived one requirement along, in a formula that reads correctly until
+         you ask what the denominator is FOR.
+
+         Continuity asks: of the people who were here yesterday, how many are still here? So the
+         denominator is YESTERDAY'S pod. Arrivals cannot move it, which makes N04 monotone: adding
+         a person can never lower it. A pod that had nobody yesterday is not asked at all — there
+         was nothing to keep, and scoring that as a failure is the unmeetable-aim fault the model
+         threw out on 26.08.14. */
+      var hadY = prevP ? (prevP[p] || []).length : 0;
+      if (isOn(cfg, "N04") && prevP && hadY) {
         var kept = 0;
         for (j = 0; j < pe.length; j++) if ((prevP[p] || []).indexOf(pe[j].id) !== -1) kept++;
-        var want = Math.max(1, Math.ceil(pe.length * Number(cfg.keepShare)));
+        var want = Math.max(1, Math.ceil(hadY * Number(cfg.keepShare)));
         charge(pods[p], "N04", Math.min(1, kept / want), kept >= want, wFor(cfg, "N04", p));
       } else if (isOn(cfg, "N04")) {
         pods[p].dropped.push("N04");
