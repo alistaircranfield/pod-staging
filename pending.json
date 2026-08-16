@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-16T12:07:49.679096+00:00",
- "build": "4937dfa",
- "liveBuild": "35abf4e",
- "count": 261,
+ "generated": "2026-08-16T12:59:09.894287+00:00",
+ "build": "0b59f1e",
+ "liveBuild": "5b79185",
+ "count": 263,
  "changes": [
+  {
+   "sha": "0b59f1e",
+   "who": "alistaircranfield",
+   "when": "2026-08-16T13:59:00+01:00",
+   "msg": "Enhance day rating and fix worth evaluation"
+  },
+  {
+   "sha": "363f8dd",
+   "who": "github-actions[bot]",
+   "when": "2026-08-16T12:07:49Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "4937dfa",
    "who": "alistaircranfield",
