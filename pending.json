@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-16T17:21:31.036230+00:00",
- "build": "843109d",
+ "generated": "2026-08-16T17:29:32.344021+00:00",
+ "build": "8b5c2be",
  "liveBuild": "7cd50e0",
- "count": 271,
+ "count": 273,
  "changes": [
+  {
+   "sha": "8b5c2be",
+   "who": "alistaircranfield",
+   "when": "2026-08-16T18:29:24+01:00",
+   "msg": "Cover depends on who carries the skill, not on how many people stand there"
+  },
+  {
+   "sha": "7fabcf0",
+   "who": "github-actions[bot]",
+   "when": "2026-08-16T17:21:31Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "843109d",
    "who": "alistaircranfield",
