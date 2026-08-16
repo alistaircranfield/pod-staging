@@ -200,7 +200,12 @@
        multiple of 20 (Ali: "still suspicious of algorithm with all the 100s and 80s and muliples
        of 10"). These are a proposal and the weakest part of the model — the override counter is
        what should set them, and it has only just started collecting. Editable from Setup. */
-    w: { R04: 3, N01: 2, N05: 1, N02: 1, N03: 3, N04: 1, N06: 1, N07: 3,
+    /* R04 5, from 3, on the 26.08.15 sweep against the real roster. Airway is the binding
+       constraint and transfer very nearly takes care of itself — every airway-trained person on
+       this unit is transfer-trained, so R04 and N01 were charging twice for one capability at 3
+       and 2. Moving the weight onto airway took days where an A-D pod has NEITHER from 7.1% to
+       3.6% and two-or-more-of-A-D-bare from 4.3% to 2.9%, at no cost in churn. */
+    w: { R04: 5, N01: 2, N05: 1, N02: 1, N03: 3, N04: 1, N06: 1, N07: 3,
          R05: 1, R06: 1, R07: 1, R14: 1, R15: 1, R17: 1, R18: 1, R19: 1, R20: 1 },
 
     /* WHAT ONE PERSON IS WORTH TO A POD'S EXPERIENCE. Ali, 26.08.15: "nights even with 5 and 3
@@ -248,7 +253,11 @@
        cover is not left with none — but E is deliberately the pod that wants least of both, and
        charging it the full weight would have the rule fighting the pod weights three lines above
        it. Halved rather than zeroed: E having neither is still worth noticing. */
-    podWeight: { E: { R04: 0.4, N01: 0.25, N05: 0.6, N07: 0.5 } },
+    /* E's airway weight is 0, from 0.4, on the 26.08.15 sweep. Ali has said plainly that an E
+       without airway is not what worries him; a bare A-D pod is. Asking E for airway at all was
+       pulling scarce carriers into the pod that wants them least. Pod E bare goes 30.7% -> 46.7%
+       of its pod-days and that is the price, paid deliberately. */
+    podWeight: { E: { R04: 0, N01: 0.25, N05: 0.6, N07: 0.5 } },
 
     /* Any requirement can be switched off from the front end. Off means not asked and not in the
      * denominator — never "asked and always passing", which would inflate every score. */
