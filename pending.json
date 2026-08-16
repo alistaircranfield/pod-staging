@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-16T17:29:32.344021+00:00",
- "build": "8b5c2be",
- "liveBuild": "7cd50e0",
- "count": 273,
+ "generated": "2026-08-16T19:23:34.556601+00:00",
+ "build": "fc77606",
+ "liveBuild": "b369c60",
+ "count": 275,
  "changes": [
+  {
+   "sha": "fc77606",
+   "who": "alistaircranfield",
+   "when": "2026-08-16T20:23:24+01:00",
+   "msg": "Person sheet: every pod is one tap on a phone"
+  },
+  {
+   "sha": "bfbdcfb",
+   "who": "github-actions[bot]",
+   "when": "2026-08-16T17:29:32Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "8b5c2be",
    "who": "alistaircranfield",
