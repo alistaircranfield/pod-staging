@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-16T14:20:17.969173+00:00",
- "build": "ab22962",
- "liveBuild": "f3a4cb9",
- "count": 265,
+ "generated": "2026-08-16T16:05:32.824637+00:00",
+ "build": "871471b",
+ "liveBuild": "e3effee",
+ "count": 267,
  "changes": [
+  {
+   "sha": "871471b",
+   "who": "alistaircranfield",
+   "when": "2026-08-16T17:05:23+01:00",
+   "msg": "Two week write window; subtler change marker; draft tint covers the whole week"
+  },
+  {
+   "sha": "f3ac0e2",
+   "who": "github-actions[bot]",
+   "when": "2026-08-16T14:20:18Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "ab22962",
    "who": "alistaircranfield",
