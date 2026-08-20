@@ -520,6 +520,10 @@ aside button .ic{position:relative}
 #testbar span{opacity:.92;flex:1;min-width:0}
 #testbar .hbtn{background:rgba(255,255,255,.16);color:#fff;border:0;flex-shrink:0}
 body.testmode main{padding-bottom:4rem}
+/* fairness — the unit's own totals, ruled off from the people above them */
+tr.fairtot td{border-top:2px solid var(--line);background:var(--hair)}
+tr.fairtot-hi td{background:#f0f0ec}
+tr.fairtot td:first-child{white-space:nowrap}
 /* fairness */
 #driftBox:empty{display:none}
 #driftBox{margin-top:1.4rem;border-top:1px solid var(--hair);padding-top:1rem}
@@ -1148,7 +1152,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
   <section id="tab-ahead" style="display:none">
     <div class="aheadbar">
       <b>Look ahead</b>
-      <span>the whole rota as written so far &middot; trainees see <span id="aheadVis"></span></span>
+      <span>written to <span id="aheadWritten"></span> &middot; trainees see <span id="aheadVis"></span></span>
     </div>
     <div id="aheadHost"></div>
   </section>
@@ -1453,6 +1457,7 @@ pre.rawlog{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monos
 
 <script src="core.js?v=20260810-04"></script>
 <script src="strength.js?v=20260815-09"></script>
+<script src="planner.js?v=20260820-01"></script>
 <script src="k.js"></script>
 <script>/*ROTA_DATA_START*/window.ROTA_DATA = null;/*ROTA_DATA_END*/</script>
 <script>
@@ -1489,7 +1494,8 @@ const GRADES = ["CON","ACCP","SCF","JCF","RCF","ST","CT","ACCS","IMT","FY1","FY2
    therefore gets written once, under the algorithm of that night, and there is never a backlog of
    weeks carrying an older model. Both still editable in Settings — hard rule 1. */
 const RULE_DEFAULTS = { podMin: 2, podEMin: 1, nightMin: 4, transferAim: 4, neuroTarget: 70, retentionDays: 400,
-                        spreadMax: 2, spreadE: 3, visibleWeeks: 2, firmWeeks: 1 };
+                        spreadMax: 2, spreadE: 3, visibleWeeks: 2, firmWeeks: 1,
+                        writeDay: 1, writeHour: 14, publishDay: 4, publishHour: 7 };
 /* Every number the checks argue about, editable from Settings — hard rule 1. The table above is
    only the FALLBACK, so a board nobody has touched behaves exactly as it always did. */
 /* ── WHAT A TRAINEE CAN SEE, AND WHY IT IS A NUMBER RATHER THAN A RULE ─────────────────────────
@@ -1532,7 +1538,45 @@ const RULE_DEFAULTS = { podMin: 2, podEMin: 1, nightMin: 4, transferAim: 4, neur
    the Look ahead board, and the rota team reaches it exactly as they reach the log or the staff
    list. Nothing is hidden from anybody who is allowed to change it. */
 function visibleFrom(){ return mondayOf(todayISO()); }
-function visWeeks(){ return Math.max(1, rule("visibleWeeks")); }
+/* ── NEXT WEEK APPEARS AT 07:00 ON THE FRIDAY, NOT WHEN THE WEEK ROLLS OVER ────────────────────
+   Ali, 26.08.20: the following week is written at 14:00 on the Tuesday and sits on Look ahead
+   behind the rota-team password until Friday 07:00, when it goes public. So the published window
+   is a clock as well as a count: this week always, next week only once Friday morning has come.
+   It CAPS the "weeks trainees can see" setting rather than replacing it — the setting still owns
+   how far the window can ever reach, and this owns when the last week of it opens.
+
+   Both clocks are one function: has this weekday-and-hour been reached yet this week? Monday is 0
+   because that is how the rota counts, and both numbers come from rule() so they are data rather
+   than code — hard rule 1. (The Settings screen has no row for them yet; that is the gap, and it
+   is logged in JOBS.md rather than left to be discovered.) */
+function weekClockPassed(dayK, hourK){
+  const d = new Date(), day = (d.getDay() + 6) % 7;      // 0 = Monday
+  const wantDay = rule(dayK), wantHour = rule(hourK);
+  return day > wantDay || (day === wantDay && d.getHours() >= wantHour);
+}
+function publishedWeeks(){ return weekClockPassed("publishDay", "publishHour") ? 2 : 1; }
+/* ── AND THE WEEK IS WRITTEN THREE DAYS BEFORE ANYBODY SEES IT ─────────────────────────────────
+   Ali, 26.08.20: the following week is allocated at 14:00 on the Tuesday, sits on Look ahead
+   behind the rota-team password, and goes public at 07:00 on the Friday. Two clocks, same shape,
+   and the gap between them is the rota team's window to look at it before anybody else does.
+
+   THIS IS THE WRITE GATE AND IT IS NOT A DISPLAY RULE. Nothing may allocate a week before its
+   Tuesday — not Auto-fill, not Fix week, not Fix ahead, not a re-allocation after a skill change,
+   and not the headless nightly, which reaches every one of those through this page's own
+   functions. One rule, one file, and allocate_auto.py inherits it by construction rather than by
+   keeping a second copy in step. Weeks already gone are always writable: the past is guarded
+   separately, by the sync's own floor at this Monday. */
+function writableWeeks(){ return weekClockPassed("writeDay", "writeHour") ? 2 : 1; }
+function writableTo(){ return addDays(visibleFrom(), 7 * writableWeeks() - 1); }
+function weekIsWritable(wkKey){ return wkKey <= mondayOf(writableTo()); }
+function dayIsWritable(iso){ return weekIsWritable(mondayOf(iso)); }
+/* Why a week is not writable yet, in the words somebody would use to ask. */
+function writeGateWhy(wkKey){
+  return "The week of " + fmtDate(wkKey) + " is not written yet. It is allocated at " +
+         String(rule("writeHour")).padStart(2, "0") + ":00 on " + DAYNAMES[rule("writeDay")] +
+         " " + fmtDate(addDays(wkKey, -7 + rule("writeDay"))) + ".";
+}
+function visWeeks(){ return Math.max(1, Math.min(rule("visibleWeeks"), publishedWeeks())); }
 /* Never more firm than visible: a week protected from change that nobody can see protects nothing
    and would quietly make the sync more timid than anybody asked for. */
 function firmWeeks(){ return Math.max(1, Math.min(visWeeks(), rule("firmWeeks"))); }
@@ -4864,6 +4908,25 @@ function planCfg(){
            strictInvariants: o.strictInvariants == null ? true : !!o.strictInvariants,
            thirdPodAbsolute: o.thirdPodAbsolute == null ? true : !!o.thirdPodAbsolute,
            spreadRotate: o.spreadRotate == null ? "week" : o.spreadRotate,
+           /* Step 2, 26.08.19: pods within one of each other and E the smallest, but free which
+              pod carries the spare person.
+
+              BUILT, MEASURED, AND OFF BY DEFAULT UNTIL HOME PODS EXIST. On its own it makes
+              things worse, not better: 1.51 pods and 0.53 moves per person-week against 1.46 and
+              0.48 for the pinned rule, Pod E biggest on 17 days of 260 instead of 11, and the
+              Saturday-to-Sunday hold broken for three people instead of two.
+
+              The reason is worth keeping. Freeing which pod carries the spare only helps if
+              something wants the person to stay put — and continuity is worth +12 against a
+              placement score dominated by "go to the emptiest pod". So the extra head simply
+              follows whichever pod happens to be emptiest as the queue reaches each person, which
+              is a different arbitrary rule, not a better one. Home pods are the thing that gives
+              continuity something to hold on to; turn this on with them, not before. */
+           looseBalance: o.looseBalance == null ? false : !!o.looseBalance,
+           /* Step 2, 26.08.19: settle a pod per person for the whole week, weekend first, and let
+              each day inherit it instead of chaining continuity off yesterday. */
+           homePods: o.homePods == null ? false : !!o.homePods,
+           homeBonus: o.homeBonus == null ? 300 : +o.homeBonus,
            thirdPodEscape: o.thirdPodEscape == null ? 2000 : +o.thirdPodEscape };
 }
 /* TIME ON THE UNIT COMES FROM TWO PLACES AND THIS IS THE SECOND. A stated start date covers 44 of
@@ -6610,6 +6673,47 @@ function renderFairness(){
   }
   if (!rows.length) body.append(el("tr", {}, el("td", { colspan: "9", class: "empty" }, "No allocations saved yet.")));
   tbl.append(body);
+  /* ── THE NUMBER THE WHOLE TABLE WAS MISSING ───────────────────────────────────────────────
+     Every row says how much ONE person is moved about. Nothing said what the unit does, so
+     there was no way to tell a person having a bad week from the board having a bad month, and
+     no way to see whether a change to the allocator made things better or worse. Ali,
+     26.08.19: "so i can see av churn across pods live each week."
+
+     Pooled, not the mean of the per-person means: one person-week is one person-week, so
+     somebody here for four weeks does not count the same as somebody here for forty. Two rows,
+     because the twelve-month figure is the baseline and this week is the thing that moves. */
+  const pairs = [];
+  for (const { c } of rows)
+    for (const k in c.wkPods) pairs.push({ wk: k, n: c.wkPods[k].size });
+  if (pairs.length) {
+    const curWk = mondayOf(todayISO());
+    const mean = a => a.reduce((n, x) => n + x.n, 0) / a.length;
+    const three = a => Math.round(100 * a.filter(x => x.n >= 3).length / a.length);
+    const grand = rows.reduce((n, r) => n + r.total, 0);
+    const foot = el("tfoot");
+    const line = (label, set, strong) => {
+      if (!set.length) return null;
+      const tr = el("tr", { class: "fairtot" + (strong ? " fairtot-hi" : "") });
+      tr.append(el("td", { style: "font-weight:700;text-align:left" }, label));
+      for (const p of PODS) {
+        const n = rows.reduce((t, r) => t + r.c.pods[p], 0);
+        tr.append(el("td", { title: n + " pod day" + (n === 1 ? "" : "s") + " in Pod " + p },
+                    strong && grand ? Math.round(n / grand * 100) + "%" : ""));
+      }
+      tr.append(el("td", { style: "text-align:left" }, strong ? el("b", {}, String(grand)) : ""));
+      const av = mean(set);
+      tr.append(el("td", { style: "font-weight:700" + (av > 2 ? ";color:#b45309" : ""),
+                  title: set.length + " person-week" + (set.length === 1 ? "" : "s") + " · " +
+                         three(set) + "% across three or more pods" }, av.toFixed(2)));
+      tr.append(el("td", {}, ""), el("td", {}, ""));
+      return tr;
+    };
+    const all = line("All staff · 12 months", pairs, true);
+    const now = line("This week", pairs.filter(x => x.wk === curWk), false);
+    if (all) foot.append(all);
+    if (now) foot.append(now);
+    if (foot.children.length) tbl.append(foot);
+  }
   renderDrift(rows);
 }
 
@@ -7164,6 +7268,123 @@ function priorPodFor(id, wk, beforeDi, wkKey){
   }
   return null;
 }
+/* ═══ STEP 2: A HOME POD FOR THE WEEK, DECIDED FROM THE WEEKEND BACKWARDS ═══════════════════
+   The board has always built a week forwards, one day at a time, and asked each day "where does
+   this person go, given who is already placed today". Nothing ever asked "where does this person
+   belong this week". Two things follow from that and both of them hurt.
+
+   FIRST, CONTINUITY CHAINS OFF YESTERDAY. Today's preferred pod is wherever you were yesterday,
+   so one deviation on a Wednesday quietly becomes your new home for Thursday, Friday and the rest
+   of the week. Nobody ever goes back. That is drift, and it is most of the difference between the
+   algorithm's 1.46 pods a week and the rota team's 1.35 by hand.
+
+   SECOND, THE WEEKEND ARRIVES LAST AND HAS NO ROOM LEFT. Weekdays run 15 to 17 people; weekends
+   run 9 to 11, in paired crews, across the same five pods. There is almost no freedom in a
+   weekend. Solve it on the Saturday, after five weekdays have already fixed where everybody
+   belongs, and the only way to cover it is a chain of moves — which is exactly what the
+   Sunday-holds-Saturday rule (worth −3000) exists to paper over.
+
+   So: settle the hardest days FIRST and let the easy ones absorb what is left.
+
+     Saturday and Sunday   together — one problem, not two
+     Friday and Monday     they touch the weekend
+     Tuesday, Wednesday, Thursday   the most people and the most slack
+
+   The result is one pod per person for the whole week. A day may still move somebody off it when
+   a rule demands, but it is a DEVIATION rather than a new home, so the next day brings them back.
+   Out and back, instead of drift. (Ali, 26.08.19.)
+
+   This function decides nothing about a specific day and places nobody — it only says where each
+   person belongs. Supernumeraries are not in it at all: they are never in a pod's numbers, so
+   they cannot unbalance anything and they are placed at the very end (Step 3). */
+const HOME_ORDER = [5, 6, 4, 0, 1, 2, 3];   // Sat Sun · Fri Mon · Tue Wed Thu
+/* Days spent on Pod E over a rolling window, so the short straw is shared. Ali, 26.08.19: Pod E
+   IS the short straw and people see it that way, but it is a real learning opportunity, so
+   everybody does their share — except that AIRWAY-TRAINED PEOPLE DO A LOWER SHARE, because the
+   skill is least relevant there. That last part is why the day scoring has always pushed airway
+   away from E; it was never an accident. */
+function podEHistory(beforeKey, weeks){
+  const out = {}, from = addDays(beforeKey, -7 * (weeks || 8));
+  for (const [k, w] of Object.entries(data.weeks || {})) {
+    if (k < from || k >= beforeKey) continue;
+    w.days.forEach(dd => { for (const a of ((dd.pods.E || {}).assign || [])) if (a.id) out[a.id] = (out[a.id] || 0) + 1; });
+  }
+  return out;
+}
+function weekHomePods(wk, key){
+  if (!wk || !wk.days) return {};
+  // Who is on, and on what, for each of the seven days — read from the roster, not from any
+  // allocation, so this is a statement about the week rather than about a board already written.
+  const on = {};
+  let sig = "";
+  for (let di = 0; di < 7; di++) {
+    const iso = addDays(key, di), m = {};
+    let pool = {};
+    try { pool = poolFor(wk.days[di], iso) || {}; } catch (e) { pool = {}; }
+    for (const id in pool) {
+      const v = pool[id];
+      if (!v || v.kind !== "day") continue;
+      if (!countsInNumbers(id)) continue;              // supernumeraries are Step 3's job
+      if (inFairfield(wk.days[di], iso, id)) continue; // Fairfield is never a pod
+      m[id] = poolState(v) === "LD" ? "LD" : "SD";
+    }
+    on[di] = m;
+    sig += di + ":" + Object.keys(m).sort().join(",") + ";";
+  }
+  if (wk.__homePods && wk.__homePods.sig === sig) return wk.__homePods.map;
+
+  const eHist = podEHistory(key, 8);
+  /* The day scoring reads these off the closure it lives in; here they have to take the date,
+     because a skill can be held back until a given day and this is planning seven of them. */
+  const airAt = (s, iso) => !!s && s.airway && !skillHeldBack(s.id, "airway", iso);
+  const neuAt = (s, iso) => !!s && s.neuro && !skillHeldBack(s.id, "neuro", iso);
+  const home = {};
+  for (const di of HOME_ORDER) {
+    const m = on[di], ids = Object.keys(m), iso = addDays(key, di);
+    if (!ids.length) continue;
+    const n = ids.length, base = Math.floor(n / 5), rem = n % 5;
+    const cap = {}, cnt = {}, ld = {}, air = {};
+    PODS.forEach(p => { cap[p] = base + (p === "E" ? 0 : (rem > 0 ? 1 : 0)); cnt[p] = 0; ld[p] = 0; air[p] = 0; });
+    const note = (p, id) => { cnt[p]++; if (m[id] === "LD") ld[p]++; if (airAt(staffById(id), iso)) air[p]++; };
+    // People who already have a home keep it, so the hardest days set the pattern and the easy
+    // days fit round it — which is the entire point of the ordering above.
+    const todo = [];
+    for (const id of ids) {
+      const h = home[id];
+      if (h && cnt[h] < cap[h]) note(h, id); else todo.push(id);
+    }
+    /* Long days first so every pod can be given one, then airway so cover is spread while there
+       is still room, then by name so the same week always plans the same way. */
+    todo.sort((a, b) => ((m[b] === "LD") - (m[a] === "LD")) ||
+                        ((airAt(staffById(b), iso) ? 1 : 0) - (airAt(staffById(a), iso) ? 1 : 0)) ||
+                        (nameOf(a) || "").localeCompare(nameOf(b) || ""));
+    for (const id of todo) {
+      const s = staffById(id);
+      let best = null, bestScore = -Infinity;
+      for (const p of PODS) {
+        if (cnt[p] >= cap[p]) continue;
+        if (!neuroPodOK(s, p)) continue;
+        let sc = (cap[p] - cnt[p]) * 4;                       // fill the emptiest first
+        if (m[id] === "LD") {
+          if (!ld[p]) sc += 30;                               // a long day in every pod
+          if (p === "E") sc -= 25;                            // ...but E last of all
+        }
+        if (airAt(s, iso)) {
+          if (p !== "E" && !air[p]) sc += 14;                 // cover in A–D
+          if (p === "E") sc -= 18;                            // airway does a lower share of E
+        }
+        if (neuAt(s, iso) && (p === "C" || p === "D")) sc += 12;  // 60–70%, per person
+        if (p === "E") sc -= (eHist[id] || 0) * 2;             // the short straw, shared
+        if (sc > bestScore) { bestScore = sc; best = p; }
+      }
+      if (!best) best = PODS.filter(p => neuroPodOK(s, p)).sort((a, b) => cnt[a] - cnt[b])[0] || "A";
+      home[id] = best;
+      note(best, id);
+    }
+  }
+  wk.__homePods = { sig, map: home };
+  return home;
+}
 function historicCount(fn){
   const n = {};
   for (const w of Object.values(data.weeks)) w.days.forEach(dd => { const id = fn(dd); if (id) n[id] = (n[id] || 0) + 1; });
@@ -7336,6 +7557,11 @@ function autoFillDay(wk, di, wkKey, opts){
   const key = wkKey || currentWeekKey;
   const day = wk.days[di];
   const dateISO = addDays(key, di);
+  /* THE WRITE GATE, at the day door as well as the week door. The nightly reaches this function
+     directly, day by day, so gating only fillWeekWithPlanner would leave the one caller the gate
+     exists for standing outside an open window. Refusing here leaves the day exactly as it was —
+     empty — which is the state the rota team and the board both expect before the Tuesday. */
+  if (!dayIsWritable(dateISO)) return;
   const pool = poolFor(day, dateISO);
   const assigned = assignedIds(day);
   // The allocator's view of skills: anything queued to start later doesn't exist yet for IT —
@@ -7422,17 +7648,47 @@ function autoFillDay(wk, di, wkKey, opts){
 
      Rotating by WEEK answers the same fairness question — no pod is consistently bigger over a
      month — and asks nobody to move on a Tuesday to achieve it. "day" restores the old behaviour. */
-  const spreadRotate = planCfg().spreadRotate;
-  const startOff = spreadRotate === "week" ? ((wkOrd % 4) + 4) % 4 : (((di + wkOrd) % 4) + 4) % 4;
-  const remPods = new Set(AD.slice(startOff).concat(AD.slice(0, startOff)).slice(0, Math.min(remCount, 4)));
+  /* ── STEP 2: STOP PINNING WHICH POD CARRIES THE SPARE PERSON ──────────────────────────────
+     Rotating by week rather than by day was the 26.08.15 fix and it helped. But it still NAMES
+     the pod that gets the extra head, and naming it is itself a reason to move somebody: if the
+     spare belongs to Pod B this week and the person who would naturally stay in Pod C is the one
+     spare, somebody has to move to satisfy a rule that exists only to stop one pod being
+     permanently the big one.
+
+     Ali, 26.08.19, choosing the looser rule: no pod more than one bigger than any other, Pod E
+     the smallest, and FREE WHICH POD CARRIES THE EXTRA. Fairness is still met — over a month no
+     pod is consistently biggest, because which pod carries the spare follows whoever happens to
+     be there, which varies daily on its own. And the cost disappears, because the pod that
+     carries the extra becomes the pod that already had that person yesterday.
+
+     Every pod must reach `base` before any may exceed it (the −5000 gate below, unchanged), and
+     `capOf` stops any of A–D reaching base + 2. Pod E is capped at base and keeps its own rule. */
   const target = {};
-  PODS.forEach(p => target[p] = base + (remPods.has(p) ? 1 : 0));
+  PODS.forEach(p => target[p] = base);
+  const capOf = p => p === "E" ? base : base + (remCount > 0 ? 1 : 0);
+  /* The old behaviour is still reachable — set spreadRotate to "day" or "week" AND looseBalance
+     to false — because it is what twenty weeks of measurement were done against. */
+  const LOOSE = planCfg().looseBalance;
+  if (!LOOSE) {
+    const spreadRotate = planCfg().spreadRotate;
+    const startOff = spreadRotate === "week" ? ((wkOrd % 4) + 4) % 4 : (((di + wkOrd) % 4) + 4) % 4;
+    const remPods = new Set(AD.slice(startOff).concat(AD.slice(0, startOff)).slice(0, Math.min(remCount, 4)));
+    PODS.forEach(p => target[p] = base + (remPods.has(p) ? 1 : 0));
+  }
   // Pod consistency: people who already have a pod this week get placed FIRST (so nobody
   // else takes their slot), and the keep-same-pod bonus below is strong enough to win
   // whenever their pod still has room under the even-spread targets.
   const priorMap = {};
   const stick = STICK_TO && STICK_TO[dateISO];
-  for (const id of unplaced) priorMap[id] = (stick && stick[id]) || priorPodFor(id, wk, di, key);
+  /* ── HOME POD BEATS YESTERDAY'S POD, AND THAT IS THE WHOLE FIX ────────────────────────────
+     `priorPodFor` returns wherever the person was yesterday, so continuity chained: move somebody
+     once on a Wednesday and Wednesday's pod became their preference for Thursday, and Thursday's
+     for Friday. Nobody ever went back, and a single forced deviation turned into a week of drift.
+     The home pod is fixed for the week, so a deviation stays a deviation — out on Wednesday, back
+     on Thursday. Falls through to the old behaviour for any week with no plan (everything already
+     in the store), so nothing that works today stops working. */
+  const HOME = planCfg().homePods ? weekHomePods(wk, key) : {};
+  for (const id of unplaced) priorMap[id] = (stick && stick[id]) || HOME[id] || priorPodFor(id, wk, di, key);
   /* WEEKEND PAIRS. Saturday and Sunday are covered by the same small group — in practice one long
      day and one short day per pod, the two swapping roles between the days. The ordinary rules broke
      that pairing every Sunday: the long days fall on a different five people, so one pod inherits two
@@ -7563,10 +7819,23 @@ function autoFillDay(wk, di, wkKey, opts){
       // after person until A finished with four and E with none. Nobody may go into a pod that has
       // already met its share while another pod is still short of its own.
       if (counts[p] >= target[p] && PODS.some(q => q !== p && counts[q] < target[q])) score -= 5000;
+      /* ...and under the loose rule, nothing may reach two more than the smallest pod. This is the
+         other half of "free which pod carries the extra": free, but only ever ONE extra. */
+      if (LOOSE && counts[p] >= capOf(p)) { if (!relaxE) continue; score -= 50000; }
       // Sunday: hold the Saturday pod (see WEEKEND PAIRS above).
       if (weekendHold[id] && weekendHold[id] !== p) score -= 3000;
       if (isLD && !hasLD[p]) score += 8;
       if (prior === p) score += 12;
+      /* ── THE HOME POD HAS TO BE WORTH SOMETHING OR IT IS JUST A DIFFERENT GUESS ───────────
+         Measured 26.08.19: feeding home pods in as the preferred pod, while "preferred" was
+         still worth +12 against a balance rule worth 5,000, made churn WORSE — 1.70 pods a week
+         against 1.62. Of course it did. All it changed was which arbitrary pod lost the vote.
+
+         So the home pod gets a weight of its own, sized deliberately: comfortably above the
+         fill-the-emptiest gradient (about 9 at most) and the over-share penalty (50), and far
+         below the 5,000 that stops a pod being filled while another is short. It can decide
+         which legal pod you land in. It can never make the pods uneven to get its way. */
+      if (HOME[id] === p) score += PCFG.homeBonus;
       // Reallocating after a skills change: hold everybody in the pod they were already in unless
       // a hard rule makes it impossible. Ordinary continuity (+12) is only a nudge and lets people
       // drift for no reason — nobody should find their pod changed because somebody else got a tick.
@@ -7613,7 +7882,14 @@ function autoFillDay(wk, di, wkKey, opts){
       // short, so never give E a long-day resident while any A–D pod still has none.
       // -4000, not -1000: it has to outrank the weekend Saturday-pod hold (-3000) or a Sunday long
       // day whose Saturday pod was E would stay put while A-D went without one. Still yields to balance.
-      if (isLD && p === "E" && PODS.filter(q => q !== "E").some(q => !hasLD[q])) score -= 4000;
+      /* STEP 1: THIS IS A RULE, NOT A PREFERENCE, AND −4000 NEVER MADE IT ONE. The twelve-month
+         simulation had Pod E taking a long day before A–D on 2 days out of 260 — small, but the
+         rule reads as absolute and it is ranked above both the third-pod rule and the move cap.
+         A number, however large, can always be outvoted by a combination; a refusal cannot. So it
+         refuses on the first two passes and can only be bought on the last one, where it costs
+         more than a third pod does, because it outranks it. */
+      if (isLD && p === "E" && PODS.filter(q => q !== "E").some(q => !hasLD[q]))
+        { if (!relax) continue; score -= PCFG.thirdPodEscape * 2; }
       /* The phone holder stays on A–D. Pod E is deliberately the smallest, so putting the holder
          there works against the whole point of them being where the unit's activity is — and it
          contradicts the phone-to-busiest rule below, since E is never the busiest. Ranked just under
@@ -7652,17 +7928,105 @@ function autoFillDay(wk, di, wkKey, opts){
      outranks both. It is also where the last of the residual breaches come from — measured
      26.08.15, one person-week over the cap and two third pods across twenty weeks. */
   const spare = (id, p) => !wouldBeThird(id, p) && !overCapFill(id, p);
+  /* ── WHO GETS SHUFFLED, AND WHY IT WAS THE WRONG PERSON ───────────────────────────────────
+     Every repair below used to pick its candidate in NAME ORDER. That is deterministic, which
+     was the point — the same rota built twice got the same repair — but it means nothing about
+     the person makes them the right one to move. Ali, 26.08.19, on an ST4 moved three days
+     running: "nothing about that resident made him the right person to move — he was next on
+     the list."
+
+     So order by how many times this person has already been moved this week, and keep the name
+     only as the tie-break, which preserves determinism exactly. It does not reduce the number of
+     moves — the repairs still have the same work to do — it stops the same names absorbing all
+     of them. The count is the one the move cap is measured against, so the two agree. */
+  const movedSoFar = id => (weekMovesSoFar[id] || 0);
+  const leastMoved = (x, y) => movedSoFar(x.id) - movedSoFar(y.id) ||
+                     (nameOf(x.id) || "").localeCompare(nameOf(y.id) || "");
   /* Every step below shuffles people between pods to satisfy one rule, and each one was capable of
      quietly breaking another — Pod E ending up the biggest, or E holding a long day while A–D had
      none. Rather than trusting each step to police itself, do the move and put it straight back if
      an invariant broke. */
   const nCount = q => day.pods[q].assign.filter(a => a.id && countsInNumbers(a.id)).length;
   const hasLDin = q => day.pods[q].assign.some(a => a.id && a.shift === "LD" && countsInNumbers(a.id));
-  const invariantsHold = () => {
+  /* ── STEP 1: WHAT IS A RULE, AND WHAT IS MERELY PREFERRED ─────────────────────────────────
+     The repairs below used to be policed by two checks — Pod E not the biggest, and E not taking
+     a long day before A-D. Everything else they were free to break, and they did: four passes a
+     day, each moving two people, neither of them counted against the weekly move cap or the
+     never-a-third-pod rule. That is where somebody ends up on four pods in a week.
+
+     The rules now live in one place, in the order they give way (ratified 26.08.19, and written
+     out in docs/POD-STRENGTH-ALGORITHM.md):
+
+       1  a long day in every pod that has people in it        never yields
+       2  airway or, failing that, transfer cover in A-D       POD E IS EXCLUDED — E needs neither
+       3  Pod E never the biggest, and no long day before A-D
+       4  the day phone never on Pod E
+       5  nobody on three pods in a week
+       6  the weekly move cap
+
+     A pass repairing a rule may break a LOWER-ranked rule to do it, and the breach is recorded so
+     the board can say so. A pass serving a mere preference — the phone in the busiest pod, the
+     spare long day beside the holder — may break nothing at all. That distinction is the whole of
+     Step 1: it is why `allow` is a parameter of tryMove and not a constant. */
+  const RULE_ORDER = ["longDay", "cover", "podE", "phoneE", "thirdPod", "moveCap"];
+  /* Pod E is deliberately kept clear of airway — the scoring pushes airway-trained people away
+     from it and senior airway grades harder still, because E is the quiet pod and airway skills
+     are least relevant there. So E is NOT part of the cover rule and must never be reported as a
+     cover gap. (Ali has had to say this twice; see the ratified rules.) */
+  const COVER_PODS = PODS.filter(q => q !== "E");
+  const coverIn = q => day.pods[q].assign.some(a => a.id && (airwayOn(staffById(a.id)) ||
+                                                             !!(staffById(a.id) || {}).transfer));
+  /* Pods and moves for the whole week INCLUDING today as it currently stands — the earlier
+     helpers only look at the days already written, which is what let a repair hand somebody a
+     third pod without anything noticing. */
+  const weekState = () => {
+    const seen = {}, st = {};
+    for (let k = 0; k <= di; k++) {
+      const dd = k === di ? day : wk.days[k], on = {};
+      for (const q of PODS) for (const a of (dd.pods[q].assign || [])) if (a.id) on[a.id] = q;
+      for (const id in on) {
+        const s = st[id] = st[id] || { pods: new Set(), moves: 0, last: null };
+        s.pods.add(on[id]);
+        if (s.last && s.last !== on[id]) s.moves++;
+        s.last = on[id];
+      }
+      seen[k] = on;
+    }
+    return st;
+  };
+  const breachesNow = () => {
+    const st = weekState(), out = { thirdPod: [], moveCap: [] };
+    for (const id in st) {
+      if (st[id].pods.size > 2) out.thirdPod.push(id);
+      if (PCFG.weekMoveCap && st[id].moves > PCFG.weekMoveCap) out.moveCap.push(id);
+    }
+    return out;
+  };
+  /* Recorded rather than swallowed. Ali chose this over an absolute ban (26.08.19): a pod with
+     people and no long day is a clinical problem all day; somebody seeing a third pod is an
+     annoyance. So the priority stands — but it stops being invisible, which is what it was. */
+  const BREACH = (day.__breaches = []);
+  const invariantsHold = (allow) => {
+    allow = allow || [];
     const smallestOther = Math.min(...PODS.filter(q => q !== "E").map(nCount));
-    if (nCount("E") > smallestOther) return false;
+    if (nCount("E") > smallestOther) return false;                      // rule 3
     if (hasLDin("E") && PODS.filter(q => q !== "E").some(q => !hasLDin(q))) return false;
+    if (day.phone && !allow.includes("phoneE") &&                       // rule 4
+        PODS.find(q => day.pods[q].assign.some(a => a.id === day.phone)) === "E") return false;
+    const b = breachesNow();
+    if (b.thirdPod.length && !allow.includes("thirdPod")) return false; // rule 5
+    if (b.moveCap.length && !allow.includes("moveCap")) return false;   // rule 6
     return true;
+  };
+  /* Called after a repair that WAS allowed to break something, so the board can show it. */
+  const noteBreaches = (why) => {
+    const b = breachesNow();
+    for (const id of b.thirdPod)
+      if (!BREACH.some(x => x.id === id && x.rule === "thirdPod"))
+        BREACH.push({ id, rule: "thirdPod", why });
+    for (const id of b.moveCap)
+      if (!BREACH.some(x => x.id === id && x.rule === "moveCap"))
+        BREACH.push({ id, rule: "moveCap", why });
   };
   /* A pod holding people but no long day is exactly what the pass below exists to fix — yet nothing
      stopped a LATER pass undoing it. The phone-to-busiest swap and the airway swap both move long
@@ -7672,11 +8036,17 @@ function autoFillDay(wk, di, wkKey, opts){
      signature of a fix being applied and then undone. So: count the gaps before and after. A move
      may close one, it may never open one. */
   const ldGaps = () => PODS.filter(q => nCount(q) > 0 && !hasLDin(q)).length;
-  const tryMove = fn => {
+  /* `allow` names the rules this particular repair is permitted to break, because it is fixing
+     something ranked above them. Omit it and the repair may break nothing — which is the correct
+     setting for anything serving a preference rather than a rule. */
+  const tryMove = (fn, allow) => {
     const gapsBefore = ldGaps();
     const snap = PODS.map(q => day.pods[q].assign.slice());
     fn();
-    if (invariantsHold() && ldGaps() <= gapsBefore) return true;
+    if (invariantsHold(allow) && ldGaps() <= gapsBefore) {
+      if (allow && allow.length) noteBreaches(allow.join("+"));
+      return true;
+    }
     PODS.forEach((q, i) => { day.pods[q].assign = snap[i]; });
     return false;
   };
@@ -7698,9 +8068,10 @@ function autoFillDay(wk, di, wkKey, opts){
          smallest. And no pod is stripped of its own last long day to plug another — that just moves
          the gap — hence ldIn(q) > 1. If nothing qualifies, the pod is left short and the day check
          flags it, rather than a chain of swaps to paper over one missing long day. */
-      // Ordered by name, not by position in the pod's list — that list is in the order people were
-      // placed, so the same rota built two different ways used to get two different repairs.
-      const byName = (x, y) => (nameOf(x.id) || "").localeCompare(nameOf(y.id) || "");
+      // Ordered by who has moved least this week, then by name — never by position in the pod's
+      // list, which is the order people were placed, so the same rota built two different ways
+      // used to get two different repairs.
+      const byName = leastMoved;
       let donor = null, ld = null;
       for (const q of PODS.filter(q => q !== p && ldIn(q) > 1).sort((a, b) => ldIn(b) - ldIn(a) || a.localeCompare(b))) {
         const pool_ = day.pods[q].assign.filter(a => a.id && a.shift === "LD" && a.id !== day.phone).sort(byName);
@@ -7714,6 +8085,8 @@ function autoFillDay(wk, di, wkKey, opts){
       const sdPool = day.pods[p].assign.filter(a => a.id && a.shift !== "LD").sort(byName);
       const sd = sdPool.find(a => spare(a.id, donor)) || sdPool.find(a => !wouldBeThird(a.id, donor)) ||
                  (PCFG.thirdPodAbsolute ? null : sdPool[0]);
+      // RULE 1, the top of the order: this repair may break a third pod or the move cap, and the
+      // breach is recorded so the board says so rather than swallowing it.
       tryMove(() => {
         day.pods[donor].assign = day.pods[donor].assign.filter(x => x !== ld);
         if (sd) {
@@ -7721,7 +8094,7 @@ function autoFillDay(wk, di, wkKey, opts){
           day.pods[donor].assign.push({ id: sd.id, shift: sd.shift });
         }
         day.pods[p].assign.push({ id: ld.id, shift: "LD" });
-      });
+      }, ["thirdPod", "moveCap"]);
     }
   }
 
@@ -7736,7 +8109,7 @@ function autoFillDay(wk, di, wkKey, opts){
     if (hPod && totalLD > PODS.length && ldIn2(hPod) < 2) {
       const donor = PODS.filter(q => q !== hPod && ldIn2(q) > 1).sort((a, b) => ldIn2(b) - ldIn2(a) || a.localeCompare(b))[0];
       if (donor) {
-        const byName = (x, y) => (nameOf(x.id) || "").localeCompare(nameOf(y.id) || "");
+        const byName = leastMoved;
         const pool2 = day.pods[donor].assign.filter(a => a.id && a.shift === "LD" && a.id !== day.phone).sort(byName);
         const ld = pool2.find(a => spare(a.id, hPod)) || pool2.find(a => !wouldBeThird(a.id, hPod)) ||
                    (PCFG.thirdPodAbsolute ? null : pool2[0]);
@@ -7759,7 +8132,10 @@ function autoFillDay(wk, di, wkKey, opts){
     if (hPod) {
       const busiest = PODS.slice().sort((a,b) => counts[b] - counts[a] || (a==="E") - (b==="E"))[0];
       if (busiest !== hPod && counts[busiest] > counts[hPod]) {
-        const swap = day.pods[busiest].assign.find(a => a.id && a.id !== day.phone && a.shift === "LD" && !wouldBeThird(a.id, hPod));
+        // Least-moved first (see the note by leastMoved): the person who partners the holder's
+        // swap is chosen by the same fairness order as every other repair, not by list position.
+        const swap = day.pods[busiest].assign.filter(a => a.id && a.id !== day.phone && a.shift === "LD" && !wouldBeThird(a.id, hPod))
+          .sort((x, y) => (spare(x.id, hPod) ? 0 : 1) - (spare(y.id, hPod) ? 0 : 1) || leastMoved(x, y))[0];
         const h = day.pods[hPod].assign.find(a => a.id === day.phone);
         if (swap && h && !wouldBeThird(day.phone, busiest)) {
           tryMove(() => {
@@ -7788,9 +8164,13 @@ function autoFillDay(wk, di, wkKey, opts){
     const podPeople = p => day.pods[p].assign.filter(a => a.id);
     const airIn = p => podPeople(p).filter(a => airwayOn(staffById(a.id))).length;
     const countedIn = p => podPeople(p).filter(a => countsInNumbers(a.id)).length;
-    for (const p of PODS) {
-      if (countedIn(p) < 1 || airIn(p) > 0) continue;
-      const donor = PODS.filter(q => q !== p && airIn(q) > 1).sort((a, b) => airIn(b) - airIn(a) || a.localeCompare(b))[0];
+    /* RULE 2, AND POD E IS NOT IN IT. E is deliberately kept clear of airway — it is the quiet
+       pod and the skill is least relevant there, which is why the scoring pushes airway away from
+       it. Repairing a "gap" on E therefore moves people to fix something that was never wrong.
+       Transfer counts as cover when no airway person can be spared (Ali, 26.08.19). */
+    for (const p of COVER_PODS) {
+      if (countedIn(p) < 1 || airIn(p) > 0 || coverIn(p)) continue;
+      const donor = COVER_PODS.filter(q => q !== p && airIn(q) > 1).sort((a, b) => airIn(b) - airIn(a) || a.localeCompare(b))[0];
       if (!donor) continue;
       // Don't undo the neuro placement while fixing airway: take someone off C/D last, and send
       // someone to C/D first, if they're on a neuro placement.
@@ -7804,7 +8184,7 @@ function autoFillDay(wk, di, wkKey, opts){
         .filter(a => a.id && airwayOn(staffById(a.id)) && !wouldBeThird(a.id, p))
         .filter(a => !(a.shift === "LD" && ldDonor <= 1
                        && !day.pods[p].assign.some(x => x.id && x.shift === "LD" && !airwayOn(staffById(x.id)))))
-        .sort((x, y) => (rank(x, donor, p) - rank(y, donor, p)) || (nameOf(x.id) || "").localeCompare(nameOf(y.id) || ""));
+        .sort((x, y) => (rank(x, donor, p) - rank(y, donor, p)) || leastMoved(x, y));
       const air = airCands[0];
       if (!air) continue;
       // Swap like for like on shift where we can, so the long-day balance above isn't undone.
@@ -7815,15 +8195,16 @@ function autoFillDay(wk, di, wkKey, opts){
         .filter(a => a.id && !airwayOn(staffById(a.id)) && !wouldBeThird(a.id, donor))
         .filter(a => air.shift === "LD" || !(a.shift === "LD" && ldHere <= 1))
         .sort((x, y) => (rank(x, p, donor) - rank(y, p, donor)) || ((y.shift === air.shift) - (x.shift === air.shift))
-                     || (nameOf(x.id) || "").localeCompare(nameOf(y.id) || ""));
+                     || leastMoved(x, y));
       const back = backCands[0];
       if (!back) continue;
+      // Rule 2 outranks the third-pod rule and the cap, so this repair may break them — recorded.
       tryMove(() => {
         day.pods[donor].assign = day.pods[donor].assign.filter(x => x !== air);
         day.pods[p].assign = day.pods[p].assign.filter(x => x !== back);
         day.pods[p].assign.push({ id: air.id, shift: air.shift });
         day.pods[donor].assign.push({ id: back.id, shift: back.shift });
-      });
+      }, ["thirdPod", "moveCap"]);
     }
   }
 
@@ -7917,8 +8298,39 @@ function autoFillDay(wk, di, wkKey, opts){
   }
   nightAirwayFix();
 }
+/* ── THE PLANNER WRITES THE WEEK ────────────────────────────────────────────────────────────────
+   One door. Everything that used to fill a week a day at a time now comes through here, so the
+   board, Fix week and the headless nightly all write the rota the same way — the planner plans the
+   WHOLE week at once and then leaves it alone. If planner.js has not loaded for any reason the old
+   day-at-a-time path still runs, so a missing file degrades rather than breaks.
+
+   `data.plannerHistory` is what carries Pod E fairness, the phone rota and the home-pod rotation
+   from one week to the next. It lives in the store and is saved with the rota. */
+function fillWeekWithPlanner(wk, key){
+  const k = key || currentWeekKey;
+  /* THE WRITE GATE. A week is allocated once, at 14:00 on the Tuesday of the week before, and
+     never before. Refusing here rather than at each of the callers is the whole point: Auto-fill,
+     Fix week, Fix ahead, a skills re-allocation and the headless nightly all come through this
+     door, so they all inherit the rule and none of them can forget it. */
+  if (!weekIsWritable(k)) return null;
+  if (typeof Planner === "undefined" || !Planner || !Planner.writeWeek) {
+    wk.days.forEach((day, di) => autoFillDay(wk, di, k));
+    return null;
+  }
+  wk.key = k;
+  data.plannerHistory = data.plannerHistory || Planner.blankHistory();
+  try {
+    return Planner.writeWeek(wk, data.staff, { history: data.plannerHistory, weekKey: k });
+  } catch (e) {
+    wk.days.forEach((day, di) => autoFillDay(wk, di, k));
+    return null;
+  }
+}
 async function autoFillWeek(){
   const wk = getWeek(currentWeekKey);
+  /* Say so rather than doing nothing. A button that shrugs is the fault this project has been
+     bitten by twice — work done, screen updated, nothing written, no error anywhere. */
+  if (!weekIsWritable(currentWeekKey)) { uiAlert(writeGateWhy(currentWeekKey), { title: "Not written yet" }); return; }
   const perDay = wk.days.map((day, di) => {
     const pool = poolFor(day, addDays(currentWeekKey, di));
     const assigned = assignedIds(day);
@@ -7934,7 +8346,7 @@ async function autoFillWeek(){
       : "Everyone still on a bench (" + breakdown + ") gets placed into pods — long days spread out, airway balanced, same pod kept through the week, phones rotated. Anyone already placed stays put. Undo reverses it.",
     { title: small ? "Place the remaining " + total + (total === 1 ? " person?" : " people?") : "Auto-fill the week?", okLabel: small ? "Place " + (total === 1 ? "them" : "them all") : "Auto-fill" }
   ))) return;
-  wk.days.forEach((day, di) => autoFillDay(wk, di));
+  fillWeekWithPlanner(wk, currentWeekKey);
   logEntry("Auto-filled week " + weekLabel(currentWeekKey), "auto", currentWeekKey);
   markDirty();
   renderWeek();
@@ -8587,6 +8999,7 @@ function fixAheadScan(){
   try {
     for (const k of Object.keys(data.weeks || {}).sort()) {
       if (addDays(k, 6) < today) continue;                 // week finished before today
+      if (!weekIsWritable(k)) continue;                    // not allocated yet: nothing to fix
       currentWeekKey = k;
       const wk = getWeek(k);
       for (let di = 0; di < 7; di++) {
@@ -8885,10 +9298,30 @@ function reallocateFrom(monISO, touchesPods){
         day.phone = null; day.phoneSup = null; day.shadow = [];
         if (day.night) day.night.phone = null;
       }
+      fillWeekWithPlanner(wk, key);
     } else {
+      /* ── A CHANGE THAT DOES NOT TOUCH PODS MUST NOT REWRITE THEM — 26.08.20 ────────────────
+         The old day-at-a-time path got this for free: the pods were left populated and
+         autoFillDay steps over anybody already placed, so clearing the phones and refilling
+         moved nobody. The planner does not work that way — it plans the WHOLE week from the
+         roster and does not read STICK_TO — so routing this branch through it turned every
+         phone-class change into a full re-plan.
+
+         Measured 26.08.20 on the render fixture: adding a phone SHADOW, which by design costs
+         nothing, reported 28 moves. That is Ali's own hypothesis from 4 Aug ("phone shadow would
+         hardly change anything") coming back false, and it breaks the ratified rule that a week
+         is planned once and repaired after — a re-plan moves people for no reason, which is the
+         fault the whole rebuild exists to remove.
+
+         So this branch keeps the call it had before the planner was wired in — the FULL
+         autoFillDay, not a phones-only pass. That distinction cost a run: phonesOnly skips the
+         long-day and airway repair passes as well as the pod filling, and the ten-year simulation
+         answered immediately — 18 new reds for "Pod E has no long-day person" and pods dropping
+         under their minimum. autoFillDay steps over anybody already placed, so calling it in full
+         redoes the phones, repairs what the phone change disturbed, and moves nobody else. */
       for (const day of wk.days) { day.phone = null; day.phoneSup = null; day.shadow = []; if (day.night) day.night.phone = null; }
+      wk.days.forEach((day, di) => autoFillDay(wk, di, key));
     }
-    wk.days.forEach((day, di) => autoFillDay(wk, di, key));
     changed++;
   }
   STICK_TO = null; STICK_PHONE = null;
@@ -8947,6 +9380,15 @@ function nameOf(id){ const s = id && staffById(id); return s ? s.name : ""; }
 function trialSkillFrom(monISO, sId, sName, addMap, touchesPods, keep){
   const snapWeeks = JSON.stringify(data.weeks);
   const snapPend = JSON.stringify(data.pendingSkills || []);
+  /* ── AND THE PLANNER'S MEMORY, ADDED 26.08.20 ────────────────────────────────────────────────
+     This function exists to answer "what would that cost?" without costing anything, and from the
+     day the planner was wired in it stopped keeping that promise. `data.plannerHistory` carries
+     Pod E fairness, the phone rota and the home-pod rotation, and reallocateFrom writes to it —
+     so a trial left it permanently advanced. Measured 26.08.20: the same trial run twice in a row
+     reported 28 moves and then 56, because the second run was planning against a history the
+     first had already moved on. The number on that button is what Ali picks a start week from, so
+     a number that changes each time you look at it is worse than no number. */
+  const snapHist = JSON.stringify(data.plannerHistory || null);
   const before = JSON.parse(snapWeeks);
   data.pendingSkills = (data.pendingSkills || [])
     .filter(x => !(x.id === sId && x.add && Object.keys(addMap).every(k => x.add[k])));
@@ -8960,7 +9402,11 @@ function trialSkillFrom(monISO, sId, sName, addMap, touchesPods, keep){
     }
     moves = diffWeeks(before, monISO);
   } catch (e) { moves = []; }
-  if (!keep) { data.weeks = JSON.parse(snapWeeks); data.pendingSkills = JSON.parse(snapPend); }
+  /* The history goes back whether or not the weeks do. `keep` means "this trial is the real
+     change", and in that case the history the planner just built IS the right one to carry
+     forward — but a discarded trial must leave nothing behind at all. */
+  if (!keep) { data.weeks = JSON.parse(snapWeeks); data.pendingSkills = JSON.parse(snapPend);
+               data.plannerHistory = JSON.parse(snapHist) || undefined; }
   return moves;
 }
 /* The written weeks that may still be rewritten: NEXT Monday and the two after it.
@@ -10256,6 +10702,9 @@ function weekExists(dateISO){ return !!(data && data.weeks && data.weeks[mondayO
 function goToWeekFor(dateISO){
   const wk = mondayOf(dateISO);
   if (!AHEAD_VIEW && !weekIsVisible(wk)) { toast(lookAheadWhy(wk)); return false; }
+  /* Every route into a week goes through here, so the write gate does too — otherwise Go to a
+     date would be the hole in the wall the arrows are not. */
+  if (!weekIsWritable(wk)) { toast(writeGateWhy(wk)); return false; }
   /* Standing on Look ahead, stay on Look ahead — switching to "rota" would move the board back
      out from under them and then refuse to show the week they just picked. */
   currentWeekKey = wk;
@@ -10637,6 +11086,10 @@ function setAheadView(on){
     board.style.display = "";
     document.body.classList.add("aheadview");
     const vis = $("#aheadVis"); if (vis) vis.textContent = "to " + fmtDate(visibleTo());
+    /* The bar used to say "the whole rota as written so far", which was a claim the page could not
+       check. Now the arrows stop at the written edge, so print the edge itself — a date the rota
+       team can compare against the arrow that just refused to move. */
+    const wr = $("#aheadWritten"); if (wr) wr.textContent = fmtDate(writableTo());
   } else {
     anchor.parentNode.insertBefore(board, anchor);
     document.body.classList.remove("aheadview");
@@ -10739,6 +11192,16 @@ function stepWeek(n){
      Not edit mode: edit mode is open to anybody (see AHEAD_VIEW). Not staffUnlocked(): that is
      session-wide and would leak the public board open for the rest of the day. */
   if (!AHEAD_VIEW && !weekIsVisible(want)) { toast(lookAheadWhy(want)); return; }
+  /* ── AND LOOK AHEAD STOPS AT THE LAST WEEK THAT HAS BEEN WRITTEN ─────────────────────────
+     Ali, 26.08.20: nobody, rota team included, can page past the week that has been written.
+
+     This one is NOT lifted by AHEAD_VIEW, and that is the point — every other stop on this
+     board is about permission, and this one is about there being nothing there. Past the write
+     gate the weeks are genuinely empty, so letting the arrow through would draw a blank grid
+     that looks like a rota with everybody missing. The rota team asking "why is next month
+     empty?" is the same bad answer as a trainee seeing a week that will be rearranged: a page
+     making a claim it cannot support. The arrow stopping says the true thing in one move. */
+  if (!weekIsWritable(want)) { toast(writeGateWhy(want)); return; }
   currentWeekKey = want; renderWeek();
 }
 function lookAheadWhy(wkKey){
