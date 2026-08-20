@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-20T11:33:50.832311+00:00",
- "build": "f4d1e11",
+ "generated": "2026-08-20T11:44:46.625986+00:00",
+ "build": "b33361b",
  "liveBuild": "89a14ce",
- "count": 281,
+ "count": 283,
  "changes": [
+  {
+   "sha": "b33361b",
+   "who": "alistaircranfield",
+   "when": "2026-08-20T12:44:36+01:00",
+   "msg": "Add planner.js: the week planner the board now allocates with"
+  },
+  {
+   "sha": "d04460d",
+   "who": "github-actions[bot]",
+   "when": "2026-08-20T11:33:50Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "f4d1e11",
    "who": "alistaircranfield",
