@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-16T19:37:08.375148+00:00",
- "build": "3bbaa03",
- "liveBuild": "b369c60",
- "count": 279,
+ "generated": "2026-08-20T11:33:50.832311+00:00",
+ "build": "f4d1e11",
+ "liveBuild": "89a14ce",
+ "count": 281,
  "changes": [
+  {
+   "sha": "f4d1e11",
+   "who": "alistaircranfield",
+   "when": "2026-08-20T12:33:41+01:00",
+   "msg": "Wire the planner into the board, gate the write to Tuesday 14:00, stop Look ahead at the written week"
+  },
+  {
+   "sha": "9862584",
+   "who": "github-actions[bot]",
+   "when": "2026-08-16T19:37:08Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "3bbaa03",
    "who": "alistaircranfield",
