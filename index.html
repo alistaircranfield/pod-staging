@@ -90,6 +90,10 @@ table{border-collapse:collapse;width:100%}
 .navarrow{background:var(--card);border:1px solid var(--line);border-radius:999px;width:36px;height:36px;cursor:pointer;color:var(--muted);display:inline-flex;align-items:center;justify-content:center;transition:background .12s,color .12s,border-color .12s}
 .navarrow:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
 .navarrow:hover{background:var(--hair)}
+/* An arrow with nowhere to go says so before it is pressed, rather than after (Ali, 26.08.20).
+   Kept VISIBLE and dimmed rather than hidden: a control that vanishes is a bug to the person
+   looking for it, and "there is more, and it is not written yet" is the true answer. */
+.navarrow[disabled]{opacity:.3;cursor:default;pointer-events:none}
 /* rota table */
 .rota-wrap{background:var(--card);border:0.5px solid var(--line);border-radius:18px;overflow:visible;max-width:100%}
 table.rota{border-collapse:collapse;width:100%;min-width:1080px}
@@ -962,26 +966,13 @@ button.strdial:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
    one shouted louder than the names. 1px, and the accent at a third — still unmistakable when
    you look for it, no longer the first thing you see. */
 .chip.moved{box-shadow:0 0 0 1px color-mix(in srgb, var(--accent) 38%, transparent);border-radius:6px}
-/* THE DRAFT WEEK IS TINTED THROUGHOUT, so the caveat cannot be scrolled away from.
-   IT DID NOT COVER THE WHOLE WEEK, and that is what Ali was seeing when he asked why Monday to
-   Wednesday were darker than the other days. `position:absolute; inset:0` inside a container that
-   is `overflow:auto` sizes to the CLIENT box, not the scrolled content — measured on the real
-   board, 599px of 1,812px of table. So the top screenful was tinted and everything below it was
-   not, and which days looked "draft" depended on where you happened to be scrolled.
-   Tinting the CELLS fixes it: an inset shadow paints over each cell's own background, scrolls with
-   the content by definition, and needs no stacking context. The wash is lighter too, because it
-   now has to survive being read all day rather than glimpsed. */
-/* Ali, 26.08.16: "draft bit is too shouty". It was a 2px amber frame, a full-caps banner and a
-   10% wash over every cell — three marks all saying the same thing at full volume, on the one
-   week people look at most. Turned down to two quiet ones that between them do the whole job:
-   a wash at a QUARTER strength, so two weeks side by side still read as different at a glance,
-   and a stripe down the LEFT EDGE of every row, which travels with the scroll and so keeps the
-   caveat on screen — the thing the wash was originally invented for and the reason it could not
-   simply be deleted. No frame, no shouting. */
-.rota-wrap.draftwk{position:relative;border-radius:8px}
-.rota-wrap.draftwk td,.rota-wrap.draftwk th{box-shadow:inset 0 0 0 9999px rgba(230,184,0,.025)}
-.rota-wrap.draftwk tr>td:first-child,.rota-wrap.draftwk tr>th:first-child{
-  box-shadow:inset 3px 0 0 0 rgba(230,184,0,.55),inset 0 0 0 9999px rgba(230,184,0,.025)}
+/* ── THE DRAFT TINT AND ITS FLAG ARE GONE — 26.08.20 ──────────────────────────────────────────
+   Ali: "the draft warning can be removed i think now." The two rules that shaped it are kept here
+   rather than left in the history, because they were learned the hard way and the next caveat
+   anybody paints on this board will need them: `position:absolute; inset:0` inside an
+   `overflow:auto` container sizes to the CLIENT box and not the scrolled content, so a full-week
+   tint has to be painted on the CELLS; and three marks all saying the same thing at once reads as
+   shouting rather than as emphasis. */
 /* ── TWO SMALL MENUS, SO THE BAR STOPS BEING A LIST ───────────────────────────────────────────
    Ali, 26.08.16: "the top buttons getting too many and too confusing." Eleven controls in edit
    mode, three of them telling the same story. Nothing is removed — the buttons are MOVED into
@@ -999,11 +990,6 @@ button.strdial:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .menupop>button:disabled{opacity:.35}
 /* Quiet, always there, never in the way — the foot of the rail, where a version belongs. */
 .appver{margin-top:auto;padding:.5rem .2rem .2rem;font-size:.62rem;color:var(--muted);text-align:center;letter-spacing:.04em}
-/* Sentence case, left aligned, a wash instead of a solid bar. It still sticks to the top of the
-   wrap so it cannot be scrolled away from, which was always its job; it just stops shouting. */
-.draftflag{position:sticky;top:0;z-index:6;display:block;background:rgba(230,184,0,.09);color:#6b5200;
-  font-size:.7rem;font-weight:500;letter-spacing:0;padding:.3rem .8rem;text-align:left}
-.draftflag b{font-weight:600}
 /* Look ahead is the same board on a different page, so it needs one line saying which page you
    are on — otherwise the only difference from the public board is that the arrows do not stop,
    and a control that silently changes behaviour is the thing that started this. */
@@ -3757,6 +3743,7 @@ function renderWeekInner(){
     today.setAttribute("aria-current", isNow ? "true" : "false");
     today.title = isNow ? "You are on this week" : "Jump back to this week";
   }
+  paintWeekArrows();
   /* The week badge's tint is driven from here rather than from a class on the bar itself, so the
      stylesheet can hint at it in any way it likes without this function knowing how. Three states
      and not two: a week already worked is a different thing from one still to come. */
@@ -3802,20 +3789,24 @@ function renderWeekInner(){
      being looked at, so it read "the week of 24 Aug is not settled until 24 Aug" — circular, and
      it told nobody anything. A week enters the firm window once it is within firmWeeks of the
      current Monday, so the answer is this week's Monday minus (firmWeeks - 1) weeks. */
-  const isDraftWeek = weekIsDraft(currentWeekKey);
-  const wrap = el("div", { class: "rota-wrap" + (isDraftWeek ? " draftwk" : "") });
-  /* THE FLAG GOES INSIDE THE SCROLLER, PINNED. Audited on a phone 26.08.15: appended to the grid
-     it sat above the sticky day strip, scrolled away on the first swipe, and left only a 10%
-     wash — which is the "read once and scrolled past" fault the wash was meant to cure, moved
-     four lines down. Sticky inside the wrap, it is on screen for as long as the week is.
+  /* ── THE DRAFT WARNING IS GONE — 26.08.20 ────────────────────────────────────────────────
+     Ali: "the draft warning can be removed i think now." It can, and it is the publication
+     window that has made it unnecessary rather than merely unfashionable.
 
-     AND THE DATE IT NAMES IS SANE IN BOTH DIRECTIONS. `currentWeekKey - 7*(firmWeeks()-1)` is
-     next Monday when firmWeeks is 2, but it is the week's OWN Monday when firmWeeks is 1 — which
-     reads as "the week of 24 Aug settles on 24 Aug", circular, and it is reachable because Setup
-     lets firmWeeks be 1. When the date is not in the future it says so in words instead. */
-  if (isDraftWeek)
-    wrap.append(el("div", { class: "draftflag" }, el("b", {}, "Draft"),
-      " \u00b7 people may still move before this week is worked"));
+     The wash and its flag existed to caveat a week trainees could see but nobody had settled.
+     From today a week is not visible to a trainee until it has been WRITTEN (Tuesday 14:00) and
+     then PUBLISHED (Friday 07:00), and nothing further ahead is reachable by anybody — so every
+     week a trainee can now see has been through both gates. Tinting those would be caveating a
+     rota the system is telling them to rely on, which is the opposite of what the tint was for.
+
+     It also settles Ali's own rule from 26.08.19 the right way round: "if it needs a caption
+     saying it is provisional, don't show it." The window means we no longer show it, so the
+     caption has nothing left to attach to. Project rule 2 agrees.
+
+     `weekIsDraft` is deliberately LEFT IN PLACE — it still answers a real question about whether
+     a week has been worked yet, and deleting a predicate because its last caller went away is
+     how the next person ends up re-deriving it. */
+  const wrap = el("div", { class: "rota-wrap" });
   const tbl = el("table", { class: "rota" });
   const headRow = el("tr", {}, el("th", {}, ""), el("th", { class: "trayth", style: "width:13%" }, "To allocate"));
   for (const p of PODS) headRow.append(el("th", { class: "podth", style: "border-top-color:var(--pod" + p + "b)" }, "Pod " + p));
@@ -10125,13 +10116,19 @@ function renderSettings(){
   box.append(src);
 
   box.append(h("Pod rules"));
+  /* ── "weeks trainees can see" IS NO LONGER HERE — 26.08.20 ────────────────────────────────
+     Ali, looking at this list: "can all be removed from settings not sure it serves any purpose."
+     Of these it was the one that had genuinely stopped meaning anything. Since the publication
+     window landed, `visWeeks()` is `min(visibleWeeks, publishedWeeks)` and publishedWeeks is 1 or
+     2 — so the setting can only ever NARROW the window, never widen it, and the two weeks people
+     were actually setting it to is what it does anyway. A control whose only remaining effect is
+     to make things worse is not a control.
+
+     The stored number is untouched and still read, so a board that has one keeps it. Recorded in
+     JOBS.md as a deliberate narrowing of hard rule 1 rather than left to be discovered. */
   const nums = [["podMin","staff per pod, minimum",""],["podEMin","Pod E minimum",""],
     ["nightMin","night team minimum",""],["transferAim","transfer-trained on days, aim for",""],
-    ["neuroTarget","neuro shifts on Pods C/D","%"],["retentionDays","keep past weeks for","days"],
-    /* How much of the rota is published. Everything past this is one shield away on Look ahead,
-       and the sync will not move anybody inside it without being asked — so raising this number
-       makes the board calmer for trainees and the rota harder to improve, in that order. */
-    ["visibleWeeks","weeks trainees can see","weeks"]];
+    ["neuroTarget","neuro shifts on Pods C/D","%"],["retentionDays","keep past weeks for","days"]];
   const grid = el("div", { style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.55rem" });
   for (const [k, label, unit] of nums) {
     const inp = el("input", { type: "number", value: String(rule(k)),
@@ -10149,6 +10146,58 @@ function renderSettings(){
       el("div", { style: "font-size:.76rem;color:var(--muted);line-height:1.35;margin-top:.15rem" }, label)));
   }
   box.append(grid);
+
+  /* ── THE TWO CLOCKS — 26.08.20 ─────────────────────────────────────────────────────────────
+     Ali: "the Tuesday and Friday clocks are data now rather than code... build into settings too."
+     Hard rule 1 says every functional thing is changeable from the front end by an authorised
+     person, and until this grid existed these two were data the store could hold but no screen
+     could reach — which is the rule half-met, and the half that gets forgotten.
+
+     Weekday and hour as pick-lists rather than numbers. `writeDay: 1` is a true and useless thing
+     to show somebody; the question being asked is "which day", and a list of days answers it
+     without a legend explaining that Monday is nought (project rule 2).
+
+     THE ONE INVARIANT IS THAT PUBLISHING CANNOT COME BEFORE WRITING. Both moments sit in the week
+     BEFORE the week they act on, so they are directly comparable — and a publish moment earlier
+     than the write moment would put a blank week in front of every trainee at 07:00 on a morning
+     nobody was expecting. Refused rather than clamped: silently moving the other clock to make
+     room is a second change nobody asked for. */
+  box.append(h("When next week is written and published"));
+  const hh = n => String(n).padStart(2, "0") + ":00";
+  const clocks = el("div", { style: "display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:.55rem" });
+  const mkClock = (dayKey, hourKey, label) => {
+    const selStyle = "font-size:1.05rem;font-weight:600;border:0;background:transparent;padding:0";
+    const daySel = el("select", { style: selStyle });
+    DAYNAMES.forEach((n, i) => daySel.append(el("option", { value: String(i) }, n)));
+    daySel.value = String(rule(dayKey));
+    const hourSel = el("select", { style: selStyle });
+    for (let i = 0; i < 24; i++) hourSel.append(el("option", { value: String(i) }, hh(i)));
+    hourSel.value = String(rule(hourKey));
+    const revert = () => { daySel.value = String(rule(dayKey)); hourSel.value = String(rule(hourKey)); };
+    const apply = () => {
+      const d = Number(daySel.value), hr = Number(hourSel.value);
+      const wasD = rule(dayKey), wasH = rule(hourKey);
+      if (d === wasD && hr === wasH) return;
+      const cand = { writeDay: rule("writeDay"), writeHour: rule("writeHour"),
+                     publishDay: rule("publishDay"), publishHour: rule("publishHour") };
+      cand[dayKey] = d; cand[hourKey] = hr;
+      if (cand.publishDay * 24 + cand.publishHour < cand.writeDay * 24 + cand.writeHour) {
+        toast("A week cannot go public before it has been written");
+        revert(); return;
+      }
+      data.rules = data.rules || {}; data.rules[dayKey] = d; data.rules[hourKey] = hr;
+      save("Setting: " + label + " moved from " + DAYNAMES[wasD] + " " + hh(wasH) +
+           " to " + DAYNAMES[d] + " " + hh(hr));
+      renderAll();
+    };
+    daySel.onchange = apply; hourSel.onchange = apply;
+    clocks.append(el("div", { style: "background:var(--hair);border-radius:10px;padding:.6rem .75rem" },
+      el("div", { style: "display:flex;align-items:baseline;gap:.35rem;flex-wrap:wrap" }, daySel, hourSel),
+      el("div", { style: "font-size:.76rem;color:var(--muted);line-height:1.35;margin-top:.15rem" }, label)));
+  };
+  mkClock("writeDay", "writeHour", "the week is worked out");
+  mkClock("publishDay", "publishHour", "trainees can see it");
+  box.append(clocks);
 
   /* ---- THE PER-POD REQUIREMENTS ARE NOT HERE ANY MORE (26.08.15) ---------------------------
      There were four of them, each a switch and a cost, sitting in this grid beside the rule
@@ -11185,23 +11234,49 @@ initImportPage();
 /* THE ARROWS STOP AT THE EDGE OF WHAT IS PUBLIC, unless the rota team has unlocked the board.
    Deliberately a STOP rather than a hidden button: a control that vanishes is a bug to the person
    looking for it, and "there is more, and it is not settled yet" is the true answer. */
+/* ── ONE PREDICATE, SO THE ARROW AND THE CLICK CANNOT DISAGREE ─────────────────────────────────
+   Ali, 26.08.20: "the next week arrow should be greyed out unless actually able to click it."
+   Right, and the way that goes wrong is two copies of the rule — the arrow greying on one test
+   and stepWeek refusing on another, which drift the first time either changes. So stepWeek ASKS
+   this, and so does the greying, and there is nothing to keep in step. */
+function canStepWeek(n){
+  const want = addDays(currentWeekKey, 7 * n);
+  if (!AHEAD_VIEW && !weekIsVisible(want)) return false;   // not published, and not on Look ahead
+  if (!weekIsWritable(want)) return false;                 // not written yet — nobody, rota team included
+  return true;
+}
+/* Both arrows, every redraw. Disabled rather than hidden, so the edge of the rota is a thing you
+   can see rather than a thing you discover by pressing. */
+function paintWeekArrows(){
+  const prev = $("#btnPrevWeek"), next = $("#btnNextWeek");
+  if (prev) { const ok = canStepWeek(-1); prev.disabled = !ok;
+    prev.title = ok ? "Previous week" : lookAheadWhy(addDays(currentWeekKey, -7)); }
+  if (next) { const ok = canStepWeek(1); next.disabled = !ok;
+    next.title = ok ? "Next week" : (weekIsWritable(addDays(currentWeekKey, 7))
+      ? lookAheadWhy(addDays(currentWeekKey, 7)) : writeGateWhy(addDays(currentWeekKey, 7))); }
+}
 function stepWeek(n){
   const want = addDays(currentWeekKey, 7 * n);
   /* ── READING STOPS AT THE PUBLISHED WINDOW ON THE PUBLIC PAGE. FULL STOP. ────────────────
      The only way past is to be standing on Look ahead, which is behind the rota-team shield.
      Not edit mode: edit mode is open to anybody (see AHEAD_VIEW). Not staffUnlocked(): that is
      session-wide and would leak the public board open for the rest of the day. */
-  if (!AHEAD_VIEW && !weekIsVisible(want)) { toast(lookAheadWhy(want)); return; }
   /* ── AND LOOK AHEAD STOPS AT THE LAST WEEK THAT HAS BEEN WRITTEN ─────────────────────────
      Ali, 26.08.20: nobody, rota team included, can page past the week that has been written.
 
-     This one is NOT lifted by AHEAD_VIEW, and that is the point — every other stop on this
+     That stop is NOT lifted by AHEAD_VIEW, and that is the point — every other stop on this
      board is about permission, and this one is about there being nothing there. Past the write
      gate the weeks are genuinely empty, so letting the arrow through would draw a blank grid
-     that looks like a rota with everybody missing. The rota team asking "why is next month
-     empty?" is the same bad answer as a trainee seeing a week that will be rearranged: a page
-     making a claim it cannot support. The arrow stopping says the true thing in one move. */
-  if (!weekIsWritable(want)) { toast(writeGateWhy(want)); return; }
+     that looks like a rota with everybody missing.
+
+     The arrow is greyed for both of these, so this branch is now a backstop rather than the
+     everyday path — reachable by keyboard, by a stale render, or by a caller that is not the
+     arrow. It still says why, because a control that refuses silently is the worse failure. */
+  if (!canStepWeek(n)) {
+    toast(weekIsWritable(want) ? lookAheadWhy(want) : writeGateWhy(want));
+    paintWeekArrows();
+    return;
+  }
   currentWeekKey = want; renderWeek();
 }
 function lookAheadWhy(wkKey){
