@@ -13,6 +13,24 @@ const fs = require("fs");
 const path = require("path");
 const { JSDOM } = require("jsdom");
 
+/* ── INLINING A SCRIPT INTO A PAGE IS NOT THE SAME AS CONCATENATING TEXT ───────────────────────
+   Two ways this bites, both found on 26.08.20 and both silent:
+
+   1. An HTML parser ends a <script> at the first `</script>` it sees, wherever it appears —
+      including inside a comment. planner.js documents its own installation, and that comment
+      contains the tag, so the inlined copy was cut off at 46 KB of 54 and the rest of the file was
+      parsed as page text. jsdom logged a SyntaxError from a line number in unrelated CSS, the
+      suite carried on, and 90 assertions passed against a page where the planner had not loaded.
+   2. String.replace reads `$&`, "$'" and "$`" in a replacement STRING as instructions, so a
+      source file containing any of them is quietly rewritten on the way in.
+
+   Both are avoided here rather than worked around: escape the closing tag, and pass a function so
+   the `$` reading never happens. Anything inlined into the harness from now on goes through this. */
+function inlineScript(html, file, src) {
+  const safe = src.replace(/<\/script/gi, "<\\/script");
+  return html.replace(new RegExp('<script src="' + file.replace(".", "\\.") + '[^"]*"><\\/script>'),
+    () => "<script>" + safe + "</script>");
+}
 /* The page is index.html everywhere it is actually served; Pod-Allocations.html is the name it
    had here first and is kept in step locally. Hard-coding the old one meant this suite could not
    run against a clone of either deployed repo — it looked for a file neither of them has, and
@@ -24,12 +42,39 @@ const APP = fs.existsSync(path.join(__dirname, "..", "index.html"))
 // ---- load the app and expose its internals via a single hook ---------------------------------
 function loadApp() {
   let html = fs.readFileSync(APP, "utf8");
+  /* strength.js IS PART OF THE APP AND HAS TO BE PART OF THE HARNESS. jsdom is given the page as a
+     string with no working origin, so a <script src> for a sibling file silently fetches nothing —
+     and planDayFix then found no Strength, skipped the search that now drives it, and two airway
+     assertions failed against a planner that was never given its objective. Inlined rather than
+     served, so the tests exercise the same two files the browser loads. */
+  try {
+    const SRC = fs.readFileSync(path.join(__dirname, "..", "strength.js"), "utf8");
+    html = inlineScript(html, "strength.js", SRC);
+  } catch (e) { /* absent is a legitimate state — planDayFix degrades rather than throws */ }
+  /* AND SO IS planner.js, FOR EXACTLY THE SAME REASON — 26.08.20. From the day the planner was
+     wired in, fillWeekWithPlanner is what writes a week, and it falls back to the old
+     day-at-a-time path when Planner is undefined. jsdom fetches no sibling scripts, so without
+     this the whole suite was quietly grading the fallback: green tests about code the browser no
+     longer runs. That is worse than a red one. */
+  try {
+    const PSRC = fs.readFileSync(path.join(__dirname, "..", "planner.js"), "utf8");
+    html = inlineScript(html, "planner.js", PSRC);
+  } catch (e) { /* absent is legitimate — fillWeekWithPlanner degrades to autoFillDay */ }
+  /* AND podcost.js — 26.08.21, for the third time and the same reason. Every dial on the board now
+     takes its NUMBER from the planner's price list by way of this file. Without it inlined the
+     suite would score days with strength.js and pass, while the browser scores them with the
+     planner: green tests about a number the page no longer shows. */
+  try {
+    const CSRC = fs.readFileSync(path.join(__dirname, "..", "podcost.js"), "utf8");
+    html = inlineScript(html, "podcost.js", CSRC);
+  } catch (e) { /* absent is legitimate — the dials fall back to strength.js's number */ }
   const hook = `window.__api = function(){ return {
-    data, PODS, blankDay, getWeek, autoFillDay, autoFillWeek, checkDay,
+    data, PODS, blankDay, getWeek, autoFillDay, checkDay,
     checkWeek: typeof checkWeek !== "undefined" ? checkWeek : null,
     mondayOf, todayISO, addDays, poolFor, staffById, canHoldPhone, isPhoneShadow,
     isPhoneSupervisor, isActiveOn, currentAssignShift, inFairfield, addToFairfield,
     fghMembers, countsInNumbers, poolState, removeAssign, attentionItems, srDetectGhosts, srRemoveFromDay,
+    planDayFix: typeof planDayFix !== "undefined" ? planDayFix : null,
     skillHeldBack: typeof skillHeldBack !== "undefined" ? skillHeldBack : null,
     migratePendingSkills: typeof migratePendingSkills !== "undefined" ? migratePendingSkills : null,
     aggregateOverrides: typeof aggregateOverrides !== "undefined" ? aggregateOverrides : null,
@@ -37,7 +82,27 @@ function loadApp() {
     normalizeNight: typeof normalizeNight !== "undefined" ? normalizeNight : null,
     setWeek: k => { currentWeekKey = k; },
     getWeekKey: () => currentWeekKey,
-    setEdit: () => { EDIT_MODE = true; }
+    setEdit: () => { EDIT_MODE = true; },
+    /* The publication window and the write gate — 26.08.20. */
+    hasPlanner: () => typeof Planner !== "undefined" && !!Planner && typeof Planner.writeWeek === "function",
+    fillWeekWithPlanner: typeof fillWeekWithPlanner !== "undefined" ? fillWeekWithPlanner : null,
+    weekIsWritable: typeof weekIsWritable !== "undefined" ? weekIsWritable : null,
+    dayIsWritable: typeof dayIsWritable !== "undefined" ? dayIsWritable : null,
+    writableTo: typeof writableTo !== "undefined" ? writableTo : null,
+    writableWeeks: typeof writableWeeks !== "undefined" ? writableWeeks : null,
+    publishedWeeks: typeof publishedWeeks !== "undefined" ? publishedWeeks : null,
+    visibleTo: typeof visibleTo !== "undefined" ? visibleTo : null,
+    weekIsVisible: typeof weekIsVisible !== "undefined" ? weekIsVisible : null,
+    weekClockPassed: typeof weekClockPassed !== "undefined" ? weekClockPassed : null,
+    setRule: (k, v) => { data.rules = data.rules || {}; data.rules[k] = v; },
+    rule: typeof rule !== "undefined" ? rule : null,
+    canStepWeek: typeof canStepWeek !== "undefined" ? canStepWeek : null,
+    paintWeekArrows: typeof paintWeekArrows !== "undefined" ? paintWeekArrows : null,
+    setAhead: v => { AHEAD_VIEW = v; },
+    arrowState: () => {
+      const p = document.getElementById("btnPrevWeek"), n = document.getElementById("btnNextWeek");
+      return { prev: p ? !!p.disabled : null, next: n ? !!n.disabled : null };
+    }
   }; };`;
   html = html.replace("startUp();", hook + "\ntry{ if(!data) loadData(blankData()); }catch(e){}\nstartUp();");
   const errs = [];
@@ -714,13 +779,19 @@ async function main() {
     let eViol = 0, ldEViol = 0, phoneSD = 0, phoneUntrained = 0, fghAutofilled = 0;
     let consFail = 0, days = 0, podTotal = { A: 0, B: 0, C: 0, D: 0, E: 0 };
     let neuroCD = 0, neuroTot = 0, phoneDays = 0, noPhoneDays = 0;
+    const churn = { pw: 0, pods: 0, moves: 0, three: 0, worstPods: 0, worstMoves: 0 };
 
     for (let w = 0; w < 52; w++) {
       const wkKey = api.addDays(base, -7 * (51 - w));   // 52 weeks ending this week
       api.setWeek(wkKey);
       const wk = api.getWeek(wkKey);
       const rmap = {};
-      for (let d = 0; d < 5; d++) {   // weekdays only, to keep the year's simulation inside one run
+      /* SEVEN DAYS, NOT FIVE (26.08.19). It ran weekdays only "to keep the year's simulation
+         inside one run" — but the weekend is where a rota is tightest (9-11 people across the
+         same five pods, in paired crews) and it is the anchor the week planner works back FROM.
+         A five-day year could not test the thing the rebuild is built around, and reported the
+         planner as a regression when it had simply never been given a weekend. */
+      for (let d = 0; d < 7; d++) {
         const iso = api.addDays(wkKey, d);
         rmap[iso] = {};
         for (const s of roster.concat([joiner])) {
@@ -735,7 +806,7 @@ async function main() {
       }
       wk.roster = rmap;
 
-      for (let d = 0; d < 5; d++) {
+      for (let d = 0; d < 7; d++) {
         const iso = api.addDays(wkKey, d);
         api.autoFillDay(wk, d);
         const day = wk.days[d];
@@ -777,8 +848,29 @@ async function main() {
       }
       // per-week phone holds (for the "<=2/week" rule)
       const pw = {};
-      for (let d = 0; d < 5; d++) { const ph = wk.days[d].phone; if (ph) pw[ph] = (pw[ph] || 0) + 1; }
+      for (let d = 0; d < 7; d++) { const ph = wk.days[d].phone; if (ph) pw[ph] = (pw[ph] || 0) + 1; }
       weekHolds.push(Math.max(0, ...Object.values(pw)));
+
+      /* ── THE NUMBER THE WHOLE REBUILD IS JUDGED ON ────────────────────────────────────────
+         How many different pods each person stood in this week, and how many times they had to
+         change. Nothing measured this until 26.08.19, which is why "somebody is on four pods"
+         could be true for a year without a single test going red. The bar to beat is what the
+         rota team achieved by hand across 124 archived weeks: 1.35 pods and 0.38 moves per
+         person per week, with 4.1% of person-weeks on three or more pods. */
+      const seenWk = {};
+      for (let d = 0; d < 7; d++)
+        for (const p of P) for (const a of (wk.days[d].pods[p].assign || []))
+          if (a.id && api.countsInNumbers(a.id)) (seenWk[a.id] = seenWk[a.id] || {})[d] = p;
+      for (const id in seenWk) {
+        const ds = Object.keys(seenWk[id]).map(Number).sort((x, y) => x - y);
+        const pods = new Set(ds.map(d => seenWk[id][d]));
+        let mv = 0;
+        for (let j = 1; j < ds.length; j++) if (seenWk[id][ds[j]] !== seenWk[id][ds[j - 1]]) mv++;
+        churn.pw++; churn.pods += pods.size; churn.moves += mv;
+        if (pods.size >= 3) churn.three++;
+        if (pods.size > churn.worstPods) churn.worstPods = pods.size;
+        if (mv > churn.worstMoves) churn.worstMoves = mv;
+      }
     }
 
     // fairness: holds per eligible long-day, for people with a decent number of eligible LDs
@@ -791,8 +883,24 @@ async function main() {
       P.map(p => (podTotal[p] / days).toFixed(1)).join(" / "));
     console.log("    phone: " + phoneDays + " days covered, " + noPhoneDays + " uncovered-with-holder-available; neuro on C/D: " +
       (neuroTot ? Math.round(neuroCD / neuroTot * 100) : 0) + "%");
+    console.log("    CHURN over " + churn.pw + " person-weeks: pods/week " + (churn.pods / churn.pw).toFixed(2) +
+      " (hand: 1.35) | moves/week " + (churn.moves / churn.pw).toFixed(2) + " (hand: 0.38) | 3+ pods " +
+      (churn.three / churn.pw * 100).toFixed(1) + "% (hand: 4.1%) | worst " + churn.worstPods + " pods, " +
+      churn.worstMoves + " moves");
 
-    ok("[12mo] Pod E never larger than another pod (all " + days + " days)", eViol === 0, eViol + " days");
+    /* ── THIS ASSERTION WAS eViol === 0 UNTIL 26.08.15, AND THE CHANGE IS DELIBERATE ───────────
+       Three rules can now want the same person in different places: E is the smallest, nobody
+       works a third pod in a week, and nobody is moved more than twice in a week. On a thin day
+       all three cannot always hold, and the allocator relaxes them in that order — E may be the
+       biggest for a day rather than buy somebody a third pod or a fourth move.
+
+       That ranking is a judgement and it is written down rather than discovered: "Pod E is the
+       smallest" is R05 in the register, an AIM. Never-a-third-pod is a hard rule and the move cap
+       is a limit Ali stated outright. An untidy day is noticed once; a person's week is a week.
+       Measured on this simulation: 11 of 260 days, 4.2%, so the bound is 6% — if it goes past
+       that the ranking is being leant on rather than fallen back to, and that is worth a look. */
+    ok("[12mo] Pod E biggest only where the alternative was a third pod or a fourth move (<6% of " + days + " days)",
+       eViol / days < 0.06, eViol + " days (" + (eViol / days * 100).toFixed(1) + "%)");
     const adAvgs = ["A", "B", "C", "D"].map(p => podTotal[p] / days);
     ok("[12mo] Pods A–D evenly balanced (spread < 0.6/day)", (Math.max(...adAvgs) - Math.min(...adAvgs)) < 0.6, "spread=" + (Math.max(...adAvgs) - Math.min(...adAvgs)).toFixed(2));
     ok("[12mo] E only holds an LD once every A–D has one", ldEViol === 0, ldEViol + " days");
@@ -824,7 +932,7 @@ async function main() {
     const L = [];
     L.push("# Pod Allocations — 12-month simulation totals");
     L.push("");
-    L.push("Simulated " + days + " weekdays (52 weeks) on a ~30-person unit with a mid-year joiner and leaver.");
+    L.push("Simulated " + days + " days, seven a week (52 weeks) on a ~30-person unit with a mid-year joiner and leaver.");
     L.push("Every day was auto-allocated, then checked against every rule.");
     L.push("");
     L.push("## Pod sizes (counted people, daily average)");
@@ -929,7 +1037,15 @@ async function main() {
      reads as obviously correct until you ask what "already" means for somebody in the wrong place.
      Run against the real string, in the real page, so the two cannot drift.
      Skipped (not failed) in a clone of a deployed repo, which has the page but not the sync. */
-  const AUTO = path.join(__dirname, "..", "..", "allocate-pull", "allocate_auto.py");
+  /* WHERE THE SYNC LIVES DEPENDS ON WHICH CHECKOUT YOU ARE STANDING IN, and until 26.08.20 only
+     one of them was ever found. Run from the loose working copy the file is a sibling; run from a
+     clone of either deployed repo — which is where anything actually ships from — it is four
+     levels up in the project folder, so the suite printed "skipped" and nine assertions about the
+     sync quietly did not run against the file being pushed. Both paths, first one wins. */
+  const AUTO = [
+    path.join(__dirname, "..", "..", "allocate-pull", "allocate_auto.py"),
+    path.join(__dirname, "..", "..", "..", "docs", "CCU Pod Allocator", "allocate-pull", "allocate_auto.py")
+  ].find(p => fs.existsSync(p)) || path.join(__dirname, "..", "..", "allocate-pull", "allocate_auto.py");
   if (!fs.existsSync(AUTO)) {
     console.log("The sync moves them itself\n  – skipped: allocate_auto.py not in this checkout");
   } else {
@@ -990,6 +1106,85 @@ async function main() {
        !!(a2.data.autoNotice && (a2.data.autoNotice.days || []).includes(dateISO)),
        JSON.stringify(a2.data.autoNotice));
 
+    /* ══ THE NIGHTLY WRITES A WHOLE WEEK WITH THE PLANNER — 26.08.20 ═══════════════════════════
+       Ali: "make sure on Tuesday at 14:00 it writes the following week using the new planner we
+       built." Until today this file wrote days one at a time with `autoFillDay` and never called
+       the planner at all, so planner.js was deployed to the board while the sync carried on with
+       the old heuristics — the board and the nightly running two different allocators.
+
+       Asserted on the OUTCOME rather than on which function was called: a virgin week inside the
+       window comes out matching what `Planner.writeWeek` produces for the same roster, and a week
+       with one person already placed does NOT, because that one falls back to the per-day path. */
+    console.log("The nightly writes the week with the planner");
+    {
+      const { api: a3, win: w3 } = await loadApp();
+      w3.saveFile = async () => {};
+      const mon = a3.mondayOf(a3.todayISO());
+      const nextMon = a3.addDays(mon, 7);
+      const roster = {};
+      const people = [];
+      for (let i = 0; i < 22; i++)
+        people.push(mkStaff(a3, { airway: i % 3 === 0, phoneHolder: i % 4 === 0,
+                                  transfer: i % 5 === 0, neuro: i % 7 === 0, nights: i > 16 }));
+      const build = key => {
+        a3.setWeek(key);
+        const wk = a3.getWeek(key);
+        wk.roster = {};
+        for (let di = 0; di < 7; di++) {
+          const iso = a3.addDays(key, di);
+          wk.roster[iso] = {};
+          people.forEach((s, i) => {
+            wk.roster[iso][s.id] = i > 16 ? { code: "N", kind: "night" }
+                                          : { code: i % 2 ? "SD" : "LD", kind: "day" };
+          });
+          wk.days[di] = a3.blankDay();
+        }
+        return wk;
+      };
+      /* The clock is moved rather than waited for, so this means the same thing on any weekday. */
+      a3.setRule("writeDay", 0); a3.setRule("writeHour", 0);
+
+      const wkA = build(nextMon);
+      await w3.eval("(" + blob[1] + ")")();
+      const bySync = wkA.days.map(d => a3.PODS.map(p =>
+        d.pods[p].assign.filter(x => x.id).map(x => x.id).sort().join(",")).join("|"));
+
+      const wkB = build(nextMon);
+      w3.eval("data.plannerHistory = undefined");
+      const direct = w3.eval("fillWeekWithPlanner(getWeek('" + nextMon + "'), '" + nextMon + "')");
+      const byPlanner = a3.getWeek(nextMon).days.map(d => a3.PODS.map(p =>
+        d.pods[p].assign.filter(x => x.id).map(x => x.id).sort().join(",")).join("|"));
+
+      ok("a virgin week inside the window is written by the planner, not day at a time",
+         JSON.stringify(bySync) === JSON.stringify(byPlanner),
+         "sync and planner disagree");
+      ok("...and it actually placed people",
+         bySync.some(d => d.replace(/\|/g, "").length > 0));
+
+      /* The other half of the rule: one person already placed makes the week somebody's work, so
+         it must NOT be planned as a week. Asserted as "does not match the planner's output"
+         rather than "that person stayed put" — the fallback hands the day to the arrival pass,
+         whose behaviour is its own business and is measured elsewhere. What matters here is only
+         which door the week went through. */
+      const wkC = build(nextMon);
+      wkC.days[3].pods.A.assign = [{ id: people[0].id, shift: "LD" }];
+      await w3.eval("(" + blob[1] + ")")();
+      const afterTouched = a3.getWeek(nextMon).days.map(d => a3.PODS.map(p =>
+        d.pods[p].assign.filter(x => x.id).map(x => x.id).sort().join(",")).join("|"));
+      ok("...but one person already placed keeps the week off the whole-week path",
+         JSON.stringify(afterTouched) !== JSON.stringify(byPlanner),
+         "a touched week was planned as if it were virgin");
+
+      /* And the gate still owns the timing — the sync does not carry its own copy of the clock. */
+      const wkD = build(nextMon);
+      a3.setRule("writeDay", 6); a3.setRule("writeHour", 23);
+      await w3.eval("(" + blob[1] + ")")();
+      const placedD = wkD.days.reduce((n, d) =>
+        n + a3.PODS.reduce((m, p) => m + d.pods[p].assign.filter(x => x.id).length, 0), 0);
+      ok("...and before the Tuesday the nightly writes nothing at all", placedD === 0, "placed " + placedD);
+      a3.setRule("writeDay", 1); a3.setRule("writeHour", 14);
+    }
+
     /* ONE EVENT, ONE ROW — the arrival half (Ali, 9 Aug: "Confusing change log, what happened").
        merge.py writes the ROSTER row, "X on the rota, SD", with no pod because it does not know
        where anyone will be put. This file then places them and writes "X added by Optima — put in
@@ -1021,6 +1216,183 @@ async function main() {
            rows.length === 1 && !!rows[0].d.to, JSON.stringify((rows[0] || {}).d));
       }
     }
+  }
+
+  /* AIRWAY SPREAD IS SOMETHING FIX DAY CAN NOW ACT ON — 11 Aug 2026.
+     Ali moved somebody B->D by hand to give D airway presence and asked why it was neither
+     suggested nor done. The amber check already existed; the planner had never heard of airway.
+     Both halves are held here: it makes the move when there is a genuine spare, and it stays out
+     of the way when moving anyone would break something that matters more. */
+  console.log("Airway spread");
+  {
+    const { day } = seedDay(api, 1, [
+      { shift: "LD", airway: true,  phoneHolder: true },   // 0  A - holds the phone, must not move
+      { shift: "SD", airway: true },                        // 1  A - the genuine spare
+      { shift: "SD", airway: false },                       // 2  A - keeps A at minimum afterwards
+      { shift: "LD", airway: true },                        // 3  B - already covered
+      { shift: "SD", airway: false },                       // 4  B
+      { shift: "LD", airway: true },                        // 5  C - already covered
+      { shift: "SD", airway: false },                       // 6  C
+      { shift: "LD", airway: false },                       // 7  D - the gap
+      { shift: "SD", airway: false },                       // 8  D
+      { shift: "LD", airway: false }                        // 9  E
+    ]);
+    const m = day.extras.map(x => x.id);
+    const put = (q, ids) => { day.pods[q].assign = ids.map(i => ({ id: m[i], shift: day.extras[i].code })); };
+    put("A", [0,1,2]); put("B", [3,4]); put("C", [5,6]); put("D", [7,8]); put("E", [9]);
+    day.phone = m[0];
+    const plan = api.planDayFix(1);
+    const air = q => (plan.fixed ? plan.fixed.pods[q].assign : []).filter(a => a.id && api.staffById(a.id).airway).length;
+    const cnt = q => (plan.fixed ? plan.fixed.pods[q].assign : []).filter(a => a.id).length;
+    ok("Fix day gives a pod with no airway cover one, from a pod that has two", air("D") === 1,
+       "D=" + air("D") + " A=" + air("A"));
+    ok("...leaving the donor one, rather than moving the problem", air("A") === 1);
+    /* ── WHAT THIS ASSERTION IS ACTUALLY FOR, REWRITTEN 26.08.15 ──────────────────────────────
+       It used to require `cnt("A") === 3 && cnt("D") === 2` — the whole plan leaving every pod the
+       size it found them. That was a fair proxy while the only thing the planner did about airway
+       was one swap, and it stopped being one when two things changed on the same day: the scarce
+       skill is now DEALT (carrier trades places with a same-shift non-carrier, so the airway fix
+       itself still changes no sizes) and the cover score became concave, which makes the planner
+       notice that Pod E sitting on one person is thin and worth feeding.
+
+       So the plan now legitimately contains a SECOND, unrelated improvement, and the old assertion
+       failed on the strength of it — a test asserting the absence of progress. What it was really
+       protecting is that the airway fix does not rob the donor and does not drag the phone across,
+       so that is what it says now: D is not inflated, no pod is left under its minimum, and the
+       phone stays put (asserted on the next line). */
+    ok("...as a swap, so the airway fix inflates nobody and strands nobody",
+       cnt("D") === 2 && ["A","B","C","D"].every(q => cnt(q) >= 2) && cnt("E") >= 1,
+       "A=" + cnt("A") + " B=" + cnt("B") + " C=" + cnt("C") + " D=" + cnt("D") + " E=" + cnt("E"));
+    ok("...and never the phone holder", (plan.fixed ? plan.fixed.phone : null) === m[0]);
+  }
+  {
+    const { day } = seedDay(api, 2, [
+      { shift: "LD", airway: true }, { shift: "SD", airway: false },
+      { shift: "LD", airway: false }, { shift: "SD", airway: false },
+      { shift: "LD", airway: false }, { shift: "SD", airway: false },
+      { shift: "LD", airway: false }, { shift: "SD", airway: false },
+      { shift: "LD", airway: false }
+    ]);
+    const m = day.extras.map(x => x.id);
+    const put = (q, ids) => { day.pods[q].assign = ids.map(i => ({ id: m[i], shift: day.extras[i].code })); };
+    put("A", [0,1]); put("B", [2,3]); put("C", [4,5]); put("D", [6,7]); put("E", [8]);
+    day.phone = m[0];
+    const plan = api.planDayFix(2);
+    const airA = (plan.fixed ? plan.fixed.pods.A.assign : []).filter(a => a.id && api.staffById(a.id).airway).length;
+    ok("with only one airway person on the unit it moves nobody", airA === 1, "A=" + airA);
+  }
+
+  /* ══ THE PUBLICATION WINDOW AND THE WRITE GATE — ratified by Ali, 26.08.20 ══════════════════
+     The week starting next Monday is allocated at 14:00 on the Tuesday of the week before, sits
+     on Look ahead behind the rota-team password, and goes public at 07:00 on the Friday. Nothing
+     further ahead than that is written, and nothing further ahead than that can be reached — by
+     anybody, rota team included.
+
+     These are asserted against a MOVED CLOCK rather than against whatever today happens to be, so
+     the suite says the same thing on a Sunday as it does on a Wednesday. The alternative — reading
+     the real date and skipping the assertions that do not apply — is a suite that is green on six
+     days a week for the wrong reason. */
+  console.log("The write gate and the publication window");
+  {
+    ok("planner.js is actually loaded in the harness, so every assertion above graded the real path",
+       api.hasPlanner(), "Planner missing — the suite would be grading the fallback");
+    ok("the page exposes a write gate at all", typeof api.weekIsWritable === "function");
+
+    const mon = api.mondayOf(api.todayISO());
+    const next = api.addDays(mon, 7);
+    const after = api.addDays(mon, 14);
+
+    /* Both clocks read from data.rules, so the test can move Tuesday and Friday rather than
+       waiting for them. writeDay 0..6 with Monday 0; writeHour is the 24-hour clock. */
+    const setClock = (wd, wh, pd, ph) => { api.setRule("writeDay", wd); api.setRule("writeHour", wh);
+                                           api.setRule("publishDay", pd); api.setRule("publishHour", ph); };
+    const nowDay = (new Date().getDay() + 6) % 7, nowHour = new Date().getHours();
+
+    // --- before the Tuesday: this week only, and next week is not written -----------------
+    setClock(6, 23, 6, 23);                       // a moment this week cannot have reached yet
+    ok("before the Tuesday, this week is writable", api.weekIsWritable(mon) === true);
+    ok("...and next week is NOT", api.weekIsWritable(next) === false);
+    ok("...and neither is the week after", api.weekIsWritable(after) === false);
+    ok("...so the written edge is the end of this week",
+       api.writableTo() === api.addDays(mon, 6), api.writableTo());
+    ok("...and the planner refuses to write next week",
+       api.fillWeekWithPlanner(api.getWeek(next), next) === null);
+    {
+      const wk = api.getWeek(next);
+      const placed = wk.days.reduce((n, d) => n + api.PODS.reduce((m, p) => m + d.pods[p].assign.filter(a => a.id).length, 0), 0);
+      ok("...leaving it genuinely empty rather than half written", placed === 0, "placed=" + placed);
+    }
+    ok("...and autoFillDay refuses the same days one at a time, which is how the nightly reaches it",
+       api.dayIsWritable(api.addDays(next, 3)) === false);
+
+    // --- from the Tuesday: next week is written, the one after is not ---------------------
+    setClock(0, 0, 6, 23);                        // the write moment has passed; Friday has not
+    ok("from the Tuesday, next week becomes writable", api.weekIsWritable(next) === true);
+    ok("...but the week after it does not", api.weekIsWritable(after) === false);
+    ok("...the written edge moves out by exactly one week",
+       api.writableTo() === api.addDays(mon, 13), api.writableTo());
+    ok("...and the planner will now write it",
+       api.fillWeekWithPlanner(api.getWeek(next), next) !== null);
+
+    // --- the two clocks are independent, and write always comes first ---------------------
+    setClock(0, 0, 6, 23);
+    ok("written but not yet published: the rota team can reach next week and trainees cannot",
+       api.weekIsWritable(next) === true && api.weekIsVisible(next) === false);
+    ok("...which is the whole point of the gap between Tuesday and Friday",
+       api.writableTo() > api.visibleTo(), api.writableTo() + " vs " + api.visibleTo());
+    setClock(0, 0, 0, 0);                         // both moments passed
+    ok("after the Friday, next week is published too", api.weekIsVisible(next) === true);
+    ok("...and publication never runs ahead of writing",
+       api.writableTo() >= api.visibleTo(), api.writableTo() + " vs " + api.visibleTo());
+
+    /* THE STOP IS NOT LIFTED BY BEING ON LOOK AHEAD. Every other stop on this board is about
+       permission; this one is about there being nothing there, so the rota-team view inherits it.
+       Asserted on the gate itself rather than on the arrow, because the arrow is one caller of
+       three (arrow, Go to a date, and any future route) and the rule belongs to all of them. */
+    setClock(6, 23, 6, 23);
+    ok("the stop applies to the rota team as well — the gate knows nothing about who is looking",
+       api.weekIsWritable(next) === false && api.weekIsWritable(after) === false);
+    ok("...while weeks already gone stay reachable, so the log can still be read back",
+       api.weekIsWritable(api.addDays(mon, -7)) === true);
+
+    /* ── THE ARROW IS GREYED WHEN IT HAS NOWHERE TO GO — Ali, 26.08.20 ────────────────────
+       "the next week arrow should be greyed out unless actually able to click it." The fault
+       this guards against is not the greying, it is TWO COPIES OF THE RULE: an arrow that dims
+       on one test while stepWeek refuses on another drifts the first time either changes. So the
+       assertion is that the button's state and the predicate agree, in every combination. */
+    const agree = () => { api.paintWeekArrows(); const s = api.arrowState();
+                          return s.next === !api.canStepWeek(1) && s.prev === !api.canStepWeek(-1); };
+    setClock(6, 23, 6, 23);                       // before the Tuesday: next week not written
+    api.setWeek(mon); api.setAhead(false);
+    ok("before the Tuesday, the next-week arrow is greyed", api.canStepWeek(1) === false && agree());
+    api.setAhead(true);
+    ok("...and greyed on Look ahead too, because the week is not written for anybody",
+       api.canStepWeek(1) === false && agree());
+
+    setClock(0, 0, 6, 23);                        // written, not yet published
+    api.setWeek(mon); api.setAhead(false);
+    ok("written but not published: a trainee's arrow is still greyed",
+       api.canStepWeek(1) === false && agree());
+    api.setAhead(true);
+    ok("...and the rota team's is live, because they may see a written week",
+       api.canStepWeek(1) === true && agree());
+    api.setWeek(next);
+    ok("...but greyed again at the written edge, one week further on",
+       api.canStepWeek(1) === false && agree());
+
+    setClock(0, 0, 0, 0);                         // both moments passed
+    api.setWeek(mon); api.setAhead(false);
+    ok("once published, the trainee's arrow opens", api.canStepWeek(1) === true && agree());
+    api.setAhead(false);
+
+    /* Restore whatever the real clock says, so nothing below inherits a moved Tuesday. */
+    setClock(1, 14, 4, 7);
+    ok("the defaults are Tuesday 14:00 to write and Friday 07:00 to publish",
+       api.rule("writeDay") === 1 && api.rule("writeHour") === 14 &&
+       api.rule("publishDay") === 4 && api.rule("publishHour") === 7);
+    ok("...and both are read from the store, so they are changeable without a code edit (hard rule 1)",
+       api.weekClockPassed("writeDay", "writeHour") ===
+         (nowDay > 1 || (nowDay === 1 && nowHour >= 14)));
   }
 
   // ---- summary --------------------------------------------------------------------------

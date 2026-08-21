@@ -33,13 +33,36 @@ function ok(name, cond, detail) {
 }
 
 function inlineAssets(html) {
-  for (const f of ["core.css", "core.js"]) {
+  /* strength.js IS THE ALGORITHM AND MUST BE IN THE HARNESS. Same trap the rule suite fell into
+     on 14 Aug: jsdom is handed the page as a string with no working origin, so a <script src>
+     silently fetches nothing, `Strength` stays undefined, and every assertion about the score or
+     the weights quietly tests the ABSENCE of it. The page is written to degrade gracefully when
+     strength.js is missing — which is right for a bad deploy and fatal for a test suite, because
+     the degraded path passes. Inlined here so the tests exercise the same two files the browser
+     loads. */
+  /* planner.js joins the list on 26.08.20, for exactly the reason written above: from today it is
+     what writes a week, and fillWeekWithPlanner degrades to the old day-at-a-time path when it is
+     absent — so leaving it out would grade the degraded path here too.
+
+     TWO ESCAPES, BOTH LEARNED THE HARD WAY ON 26.08.20. An HTML parser ends a <script> at the
+     first `</script>` it sees, even inside a comment, and planner.js documents its own install
+     line — so the inlined copy was cut off mid-file and jsdom reported a SyntaxError from a line
+     number in unrelated CSS. And String.replace reads `$&`, "$'" and "$`" in a replacement STRING
+     as instructions, so a source file containing them is rewritten on the way in. Escape the tag,
+     and pass a function. */
+  /* podcost.js joins on 26.08.21 — the dials now take their number from the planner's price list
+     through it, so a harness without it grades a number the browser no longer draws. */
+  for (const f of ["core.css", "core.js", "strength.js", "planner.js", "podcost.js"]) {
     const p = path.join(HERE, "..", f);
     if (!fs.existsSync(p)) continue;
     const body = fs.readFileSync(p, "utf8");
-    html = f.endsWith(".css")
-      ? html.replace(/<link rel="stylesheet" href="core\.css[^"]*">/, "<style>" + body + "</style>")
-      : html.replace(/<script src="core\.js[^"]*"><\/script>/, "<script>" + body + "</script>");
+    if (f.endsWith(".css")) {
+      html = html.replace(/<link rel="stylesheet" href="core\.css[^"]*">/, () => "<style>" + body + "</style>");
+    } else {
+      const safe = body.replace(/<\/script/gi, "<\\/script");
+      html = html.replace(new RegExp('<script src="' + f.replace(".", "\\.") + '[^"]*"><\\/script>'),
+                          () => "<script>" + safe + "</script>");
+    }
   }
   /* k.js carries the flow URLs and is served alongside the page, so jsdom never fetches it.
      Stand one in — the URLs are never called, every fetch is stubbed to reject. */
@@ -227,6 +250,85 @@ const SEED = `(function(){
      w.eval("document.querySelectorAll('#staffBody tr td.namecell').length") === staffRows);
   ok("and the filter bar disappears when nothing is filtered",
      w.eval("document.getElementById('staffFilters').textContent").trim() === "");
+
+  /* ---- the Staff page saves what it says it saved ----------------------------------------
+     12 Aug: Check, the person sheet's Save, Bring back and Delete all called markDirty() and
+     nothing else — and markDirty() returns without a word outside edit mode. The tick appeared,
+     the badge dropped, the next 3-minute sync pulled the shared copy back over the top, and Tom
+     McKernan needed checking a third time. Two halves to assert: the button arms editing itself,
+     and the change is WRITTEN OUT rather than left sitting in memory. */
+  console.log("\n-- the Staff page saves what it says it saved --");
+  const clickCheck = () => w.eval("(function(){ var b = document.querySelector('#staffBody .rowbtn.check');" +
+    "if (!b) return false; b.click(); return true; })()");   // el() binds with addEventListener, so .onclick is null
+  const settle = () => new Promise(r => setTimeout(r, 40));
+  w.eval("window.__realEnter = enterEdit; window.__realSave = saveFile;" +
+         "window.__armed = 0; window.__saved = 0;" +
+         "saveFile = function(){ window.__saved++; return Promise.resolve(); };" +
+         "stGrades = null; stSkills = new Set();" +
+         "EDIT_MODE = false; teamEditTried = false; data.staff[0].verified = false;" +
+         // stands in for a refusal: asked for, not granted
+         "enterEdit = function(){ window.__armed++; return Promise.resolve(); };" +
+         "renderStaff();");
+  ok("an unchecked new starter still gets a Check button", clickCheck() === true);
+  await settle();
+  ok("clicking it asks for edit mode instead of assuming it", w.eval("window.__armed") === 1);
+  ok("and when editing is refused the tick is NOT quietly set anyway",
+     w.eval("data.staff[0].verified") === false);
+  ok("...and nothing was saved", w.eval("window.__saved") === 0);
+  w.eval("enterEdit = function(){ window.__armed++; EDIT_MODE = true; return Promise.resolve(); }; renderStaff();");
+  clickCheck();
+  await settle();
+  ok("with editing armed the tick lands", w.eval("data.staff[0].verified") === true);
+  ok("and it is written out there and then, not left in memory to be lost",
+     w.eval("window.__saved") >= 1);
+  /* Ali, 12 Aug: "if somebody logs into the rota team bit past the shield it should enter edit
+     mode and block others from saving until theyve stopped using". */
+  w.eval("EDIT_MODE = false; teamEditTried = false; window.__armed = 0; switchTab('staff');");
+  await settle();
+  ok("walking in past the shield arms editing by itself", w.eval("window.__armed") === 1);
+  w.eval("switchTab('fair'); switchTab('log');");
+  await settle();
+  ok("...asked once per visit, so a refusal doesn't nag on every tab",
+     w.eval("window.__armed") === 1, "asked " + w.eval("window.__armed") + " times");
+  /* DONE MEANS DONE — 26.08.21. Ali: "theres no way of getting out of edit mode. clicking done
+     should do that." A deliberate exit must not be undone by the auto-arm on the next team-page
+     tap. Enter edit, exit via exitEdit, then move around the team pages — edit must NOT re-arm. */
+  w.eval("saveFile = function(){ dirty = false; return Promise.resolve(true); };" +
+         "dirty = false; EDIT_MODE = true; window.__armed = 0; exitEdit();");
+  await settle();
+  ok("Done drops out of edit mode", w.eval("EDIT_MODE") === false && /viewmode/.test(w.eval("document.body.className")));
+  w.eval("switchTab('fair'); switchTab('staff'); switchTab('log');");
+  await settle();
+  ok("...and moving around the team pages does not silently re-arm it",
+     w.eval("EDIT_MODE") === false && w.eval("window.__armed") === 0,
+     "edit=" + w.eval("EDIT_MODE") + " armed=" + w.eval("window.__armed"));
+  /* The prompt pre-fills the last editor. Tested at the dialog mechanism — uiDialog must put
+     `value` into the box — rather than by driving enterEdit, whose file-handle gate needs a real
+     picker. The call site passing value:prev is a one-liner beside this. */
+  ok("the who's-editing box pre-fills the value it is given, so the usual case is one tap",
+     w.eval("(function(){ document.querySelectorAll('.dlg-bg').forEach(function(x){x.remove();});" +
+            "uiPrompt('x', { value:'Nellie Johnson', options:['Nellie Johnson','Sam Aziz'] });" +
+            "var d = [...document.querySelectorAll('.dlg-bg')].pop();" +
+            "var i = d ? d.querySelector('input[type=text]') : null; var v = i ? i.value : null;" +
+            "if(d) d.remove(); return v; })()") === "Nellie Johnson");
+  /* A RENAME MUST NOT ORPHAN SOMEBODY FROM THE SYNC. merge.py matches an Optima row on the name
+     plus the aliases, so tidying "Thomas Mckernan" to "Tom McKernan" without keeping the old one
+     means the next pull does not recognise him and appends a SECOND record with the same id.
+     Found 12 Aug while fixing the save bug; fixed on both sides, asserted on this one. */
+  w.eval("EDIT_MODE = true; saveFile = function(){ return Promise.resolve(); };" +
+         "window.__was = data.staff[0].name; data.staff[0].aliases = [];" +
+         "staffModal(data.staff[0]);" +
+         "(function(){ var i = document.querySelector('#modal input[type=text]'); i.value = 'Renamed Person';" +
+         "var b = [].slice.call(document.querySelectorAll('#modal .modalbtns button')); b[b.length-1].click(); })();");
+  ok("renaming somebody keeps the name the Optima sync knows them by",
+     JSON.parse(w.eval("JSON.stringify(data.staff[0].aliases)")).includes(w.eval("normName(window.__was)")),
+     w.eval("JSON.stringify(data.staff[0].aliases)"));
+  ok("...and the new name is the one on the record",
+     w.eval("data.staff[0].name") === "Renamed Person");
+  w.eval("data.staff[0].name = window.__was; data.staff[0].aliases = [];");
+  w.eval("enterEdit = window.__realEnter; saveFile = window.__realSave;" +
+         "EDIT_MODE = false; teamEditTried = true; data.staff[0].verified = true;" +
+         "switchTab('staff'); renderStaff();");
 
   console.log("\n-- the profile panel --");
   ok("the twist opens it",
@@ -426,7 +528,7 @@ const SEED = `(function(){
     "{ t:'2026-08-04T09:00:00Z', who:'allocate sync', kind:'auto', on: todayISO(), msg:'y'," +
     "  d:{ act:'move', subj:'Sam Aziz', from:'C', to:'D' } }]; renderLog();");
   ok("the log page draws a search box",
-     w.eval("!!document.querySelector('#logList input[type=text]')"));
+     w.eval("logView = 'cat'; renderLog(); !!document.querySelector('#logList input[type=text]')"));
   ok("typing a name narrows it to that person",
      w.eval("(function(){ logQuery = 'ambrose'; renderLog();" +
             "const t = document.getElementById('logList').textContent;" +
@@ -441,7 +543,7 @@ const SEED = `(function(){
      each time (Ali, 5 Aug). Assert the SAME node is still there and still focused after a
      repaint, not merely that a box exists. */
   ok("typing does not destroy the search box",
-     w.eval("(function(){ logQuery = ''; renderLog();" +
+     w.eval("(function(){ logView = 'cat'; logQuery = ''; renderLog();" +
             "const box = document.querySelector('#logList input[type=text]');" +
             "box.focus(); box.value = 'amb';" +
             "box.dispatchEvent(new window.Event('input', { bubbles: true }));" +
@@ -456,7 +558,7 @@ const SEED = `(function(){
             "return t.indexOf('Ambrose') >= 0 && t.indexOf('Sam Aziz') < 0; })()") === true);
 
   ok("clearing the box brings everything back",
-     w.eval("(function(){ logQuery = ''; renderLog();" +
+     w.eval("(function(){ logView = 'cat'; logQuery = ''; renderLog();" +
             "const t = document.getElementById('logList').textContent;" +
             "return t.indexOf('Ambrose') >= 0 && t.indexOf('Sam Aziz') >= 0; })()") === true);
   ok("you can search by who made the change, not just by person",
@@ -469,7 +571,7 @@ const SEED = `(function(){
      "nothing ties the rows together". Both date modes answer "what happened then"; this one
      answers "what has happened to HIM", which is the question somebody actually arrives with. */
   console.log("\n-- the change log read by person --");
-  w.eval("logQuery = ''; logFilter = 'all'; data.log = [" +
+  w.eval("logView = 'cat'; logQuery = ''; logFilter = 'all'; data.log = [" +
     "{ t:'2026-08-07T15:12:00Z', who:'allocate sync', kind:'auto', on:'2026-08-12', msg:'a'," +
     "  d:{ act:'shift', subj:'Antony Taylor Gutierrez', from:'N', to:'LD' } }," +
     "{ t:'2026-08-09T18:15:00Z', who:'Nicholas Coffin', kind:'manual', on:'2026-08-12', msg:'b'," +
@@ -509,8 +611,48 @@ const SEED = `(function(){
             "return h.filter(x => x.indexOf('Not about one person') === 0).length === 1; })()") === true);
   ok("searching still narrows it, and the groups go with it",
      w.eval("(function(){ logQuery = 'meeson'; renderLog();" +
-            "const h = " + headsOf + "; logQuery = ''; logBy = 'made'; renderLog();" +
+            "const h = " + headsOf + "; logView = 'cat'; logQuery = ''; logBy = 'made'; renderLog();" +
             "return h.length === 1 && h[0].indexOf('Philip Meeson') === 0; })()") === true);
+
+  /* ---- the unified change-log board (26.08.21) --------------------------------------------
+     Five ideas measured on the real 132-entry live log, built into one board. A/B/C were already
+     here (day-grouped story, per-person collapse, paperwork excluded). These assertions cover the
+     three things added: the score on the SAME price list as the board, the after-publish marker,
+     and the by-person path. */
+  console.log("\n-- the change-log board: score, publish marker, by-person --");
+  ok("there is a fourth way to read the log — by person",
+     w.eval("(function(){ switchTab('log'); logView='story'; renderLog();" +
+            "const b=[...document.querySelectorAll('#logList .logvw button')].map(x=>x.textContent);" +
+            "return b.indexOf('By person') >= 0; })()") === true);
+  ok("the story score comes from the planner's price list, matching the board",
+     w.eval("(function(){ return typeof logPlannerScore === 'function' && typeof PodCost !== 'undefined'; })()") === true);
+  /* A change made after a week is public is the one owed an explanation. The moment is derived
+     from the publish clock, not a stored field, so it works on old entries too. */
+  ok("a week has a publish moment derived from the clock",
+     w.eval("(function(){ const m = weekPublishMoment(mondayOf(todayISO()));" +
+            "return m instanceof Date && !isNaN(m.getTime()); })()") === true);
+  ok("a change before publish is not flagged, one after it is",
+     w.eval("(function(){ const iso = addDays(mondayOf(todayISO()), 21);" +
+            "const m = weekPublishMoment(mondayOf(iso)).getTime();" +
+            "const before = changeAfterPublish(new Date(m-1000).toISOString(), iso);" +
+            "const after  = changeAfterPublish(new Date(m+1000).toISOString(), iso);" +
+            "return before === false && after === true; })()") === true);
+  ok("the by-person view draws one path row per person, in pod circles",
+     w.eval("(function(){ const T = addDays(mondayOf(todayISO()), 16);" +
+            "data.log = [" +
+            "{ t:'2026-08-18T10:00:00Z', who:'A', kind:'manual', on:T, msg:'m', d:{act:'move',subj:'Sam Aziz',from:'A',to:'B'} }," +
+            "{ t:'2026-08-18T10:05:00Z', who:'A', kind:'manual', on:T, msg:'m', d:{act:'move',subj:'Sam Aziz',from:'B',to:'C'} }," +
+            "{ t:'2026-08-18T10:06:00Z', who:'A', kind:'manual', on:T, msg:'m', d:{act:'move',subj:'Nia Reggie',from:'D',to:'E'} }" +
+            "]; logView='person'; renderLog();" +
+            "const rows = document.querySelectorAll('#logList .pprow');" +
+            "const circles = document.querySelectorAll('#logList .pprow .stchip');" +
+            "return rows.length === 2 && circles.length >= 3; })()") === true);
+  ok("the by-person path never says why anybody was off — only where they went",
+     w.eval("(function(){ const t = document.getElementById('logList').textContent.toLowerCase();" +
+            "return t.indexOf('sick') < 0 && t.indexOf('reason') < 0 && t.indexOf('because') < 0; })()") === true);
+  /* Leave the log non-empty and the view back on the default — later tests (the log-seen mark,
+     the story-view checks) assume a populated log they did not set up themselves. */
+  w.eval("logView = 'story'; logBy = 'made'; logQuery = ''; renderLog();");
 
   ok("the log mark lives on the board, not in this browser",
      w.eval("(function(){ data.logSeen = ''; store.set('logSeen','');" +
@@ -761,6 +903,30 @@ const SEED = `(function(){
   ok("the allocation is never drawn from the cache — only a live Cover",
      w.eval("(function(){ coverLive = null; return Object.keys(coverDays()).length; })()") === 0);
 
+  /* ── THE BUG THAT HID FOR WEEKS — 26.08.21 ─────────────────────────────────────────────────
+     Measured on live 26.08.20: `data.cons.from` was "seed" and Setup had been showing amber
+     "cached names" for weeks on a board whose Cover read was succeeding on every single load.
+     `from` and `at` were being set inside the "have the names changed?" branch, and because the
+     seed is built from the same staff records Cover's initials come from, the names matched on
+     the first read and the branch never ran.
+
+     A SUCCESSFUL READ IS A FACT ABOUT THE READ, not about whether the answer was new. These two
+     assertions are the difference between "we could not reach Cover" and "Cover told us nothing
+     we did not already know", which is exactly what got conflated. */
+  const noNewNames = await w.eval("(async function(){" +
+    "data.cons = { names: { JQS: 'Jane Smith' }, from: 'seed', at: null }; coverLive = null;" +
+    "readCover = async () => ({ names: { JQS: 'Jane Smith' } }); EDIT_MODE = true;" +
+    "await refreshCover();" +
+    "return data.cons.from + '|' + (data.cons.at ? 'stamped' : 'no stamp'); })()");
+  ok("a Cover read that finds nothing new still records that Cover answered, and stamps the time",
+     noNewNames === "cover|stamped", String(noNewNames));
+
+  const whyItFailed = await w.eval("(async function(){ coverLive = null;" +
+    "readCover = async () => { coverError = 'Cover could not be reached — it answered 500 '; return null; };" +
+    "await refreshCover(); return consFreshness(); })()");
+  ok("a failed read names the reason rather than drawing one amber word for all three kinds",
+     /answered 500/.test(String(whyItFailed)), String(whyItFailed));
+
   ok("a consultant is never historic, however long they are absent from the roster",
      w.eval("(function(){ data.staff.push({ id:'con9', name:'A Consultant Two', grade:'CON'," +
             "active:true, adhoc:false, aliases:[] }); recomputeHistoric();" +
@@ -955,6 +1121,62 @@ const SEED = `(function(){
        !/why:\s*["'](sick|rota)["']/.test(coreCode));
   }
 
+  /* ---- ATTENTION: ONE RULE FOR EVERY ROW ---------------------------------------------------
+     Ali, 11 Aug (for Cover) and again on 12 Aug when the resident board still did not have it:
+     "when i say ive checked that should just grey out and badge drop". The lifecycle has four
+     moments and each one is a way of getting it wrong, so each one is asserted: the press does
+     the work and saves, the badge drops immediately, the row STAYS greyed rather than vanishing,
+     and on the fourth day a live condition that is still true comes back while a record of
+     something that happened stays gone. */
+  console.log("\n-- Attention: press it, it greys, the badge drops --");
+  {
+    const settle2 = () => new Promise(r => setTimeout(r, 40));
+    w.eval("window.__re2 = enterEdit; window.__rs2 = saveFile; window.__saved2 = 0;" +
+           "saveFile = function(){ window.__saved2++; return Promise.resolve(); };" +
+           "enterEdit = function(){ EDIT_MODE = true; return Promise.resolve(); };" +
+           "data.sorted = {}; data.pendingSkills = []; data.staff[0].verified = false;" +
+           "data.staff[0].active = true; renderAll();");
+    const sid = w.eval("data.staff[0].id");
+    const row = "unver:" + sid;
+    const rows = () => w.eval("JSON.stringify(attentionItems().map(function(x){ return [x.id, !!x.done]; }))");
+    const live = () => w.eval("attentionItems().reduce(function(a,x){ return a + (x.done ? 0 : x.n); }, 0)");
+    const find = id => JSON.parse(rows()).find(r => r[0] === id);
+    ok("an unchecked person gets a row of their own, not a lump of six names", !!find(row), rows());
+    ok("...and it offers Checked rather than a generic Sorted",
+       w.eval("(attentionItems().find(function(x){ return x.id === '" + row + "'; })||{}).sortLabel") === "Checked");
+    const before = live();
+    await w.eval("markSorted('" + row + "')");
+    await settle2();
+    ok("pressing it does the work — they are actually checked", w.eval("data.staff[0].verified") === true);
+    ok("...and it is saved, not just held in memory", w.eval("window.__saved2") >= 1);
+    ok("the badge drops at once", live() === before - 1, before + " -> " + live());
+    const after = find(row);
+    ok("but the row is STILL THERE, greyed — not vanished", !!after && after[1] === true, rows());
+    w.eval("renderTeamGate();");
+    ok("...and the page draws it greyed, with no buttons left to press",
+       w.eval("(function(){ var r = document.querySelector('#attnList .attnrow.done');" +
+              "return !!r && !r.querySelector('.attnsort') && /Checked by|Checked/.test(r.textContent); })()") === true);
+    /* Three days up. */
+    w.eval("data.sorted['" + row + "'].t = new Date(Date.now() - 4 * 86400000).toISOString();" +
+           "data.staff[0].verified = true;");
+    ok("after three days a dealt-with row drops off", !find(row), rows());
+    w.eval("data.staff[0].verified = false;");
+    const back = find(row);
+    ok("...but a LIVE condition that is still true comes back, counting again",
+       !!back && back[1] === false, rows());
+    /* A historical fact — a skill that starts on a date — stays dealt with. */
+    w.eval("data.staff[0].verified = true; data.sorted = {};" +
+           "data.pendingSkills = [{ id: data.staff[1].id, name: data.staff[1].name, add: { airway: true }, from: todayISO(), applied: true }];");
+    const pend = "pend:" + w.eval("data.staff[1].id") + ":" + w.eval("todayISO()");
+    ok("a skill starting on a date raises a row too", !!find(pend), rows());
+    await w.eval("markSorted('" + pend + "')");
+    await settle2();
+    w.eval("data.sorted['" + pend + "'].t = new Date(Date.now() - 9 * 86400000).toISOString();");
+    ok("and once somebody has said they have dealt with it, it stays gone", !find(pend), rows());
+    w.eval("enterEdit = window.__re2; saveFile = window.__rs2; EDIT_MODE = false; teamEditTried = true;" +
+           "data.sorted = {}; data.pendingSkills = []; data.staff[0].verified = true; renderAll();");
+  }
+
   /* THE TABLE'S OWN SCROLL PANE, AND THE BUTTON BAR.
      Ali, 9 Aug: "the scroll to see the oncall/fgh is glitchy. Scrolls the whole page and the top
      header doesnt extend that far - surely would be better if it was just the table that scrolled
@@ -983,6 +1205,411 @@ const SEED = `(function(){
       /button\.btn,\.hbtn\{white-space:nowrap\}/.test(css));
     ok("and everything in the week bar is one height",
       /\.weekbar>button,\.weekbar \.btn\{min-height:36px/.test(css));
+  }
+
+  /* ── WHAT HAPPENED ──────────────────────────────────────────────────────────────────────
+     The view the log now opens on, so it is asserted rather than assumed. */
+  console.log("\n-- what happened --");
+  w.eval("switchTab('log'); logView = 'story'; renderLog();");
+  ok("the story view draws at all", w.eval("!!document.querySelector('#logList .story')"));
+  /* Closed is the whole point of the redesign — Ali, 26.08.15: "unusably busy". */
+  ok("every day opens CLOSED — nothing is expanded until it is asked for",
+     w.eval("[].every.call(document.querySelectorAll('#logList .stopen'), function(x){ return x.style.display === 'none'; })"));
+  ok("...and no pod grid is drawn until a go is opened",
+     w.eval("document.querySelectorAll('#logList .stgrid').length === 0"));
+  ok("a day that only the sync touched and did not change is left out",
+     w.eval("(function(){ var t=(document.getElementById('logList')||{}).textContent||'';" +
+            "return /only the sync ran|^$/.test(t) || t.indexOf('show sync') >= 0; })()"));
+  ok("...and the categorised search box is not in it",
+     w.eval("!document.querySelector('#logList input[type=text]')"));
+
+  /* A→B→C by one person is one move; a second person's move stays their own. This is the whole
+     shape Ali asked for and the two halves fight each other, so both are asserted together. */
+  {
+    const r = JSON.parse(w.eval("(function(){" +
+      "var iso = todayISO(), A = data.staff[0];" +
+      "data.log = [" +
+      " {t:'2026-08-14T06:10:00.000Z',who:'Test One',msg:'x',kind:'manual',on:iso,d:{act:'move',subj:A.name,from:'E',to:'A'}}," +
+      " {t:'2026-08-14T06:11:00.000Z',who:'Test One',msg:'x',kind:'manual',on:iso,d:{act:'move',subj:A.name,from:'A',to:'B'}}," +
+      " {t:'2026-08-14T06:20:00.000Z',who:'Test Two',msg:'x',kind:'manual',on:iso,d:{act:'move',subj:A.name,from:'B',to:'C'}}];" +
+      "var st = logDayStory(iso);" +
+      "return JSON.stringify({goes: st.sessions.length, firstMoves: st.sessions[0].moves.length," +
+      " a: st.sessions[0].moves[0].from + '>' + st.sessions[0].moves[0].to," +
+      " chain: !!st.sessions[0].moves[0].chain," +
+      " b: st.sessions[1].moves[0].from + '>' + st.sessions[1].moves[0].to});})()"));
+    ok("two people means two goes, never one merged block", r.goes === 2, "goes=" + r.goes);
+    ok("...and one person's two hops collapse to a single move", r.firstMoves === 1);
+    ok("...reading E to B rather than E to A", r.a === "E>B", r.a);
+    ok("...with the hops still readable underneath", r.chain === true);
+    ok("...while the next person's move stays their own", r.b === "B>C", r.b);
+  }
+  ok("a move out and straight back reads as no change",
+    w.eval("(function(){ var iso = todayISO(), A = data.staff[0];" +
+      "data.log = [" +
+      " {t:'2026-08-14T06:10:00.000Z',who:'T',msg:'x',kind:'manual',on:iso,d:{act:'move',subj:A.name,from:'C',to:'D'}}," +
+      " {t:'2026-08-14T06:12:00.000Z',who:'T',msg:'x',kind:'manual',on:iso,d:{act:'move',subj:A.name,from:'D',to:'C'}}];" +
+      "return logDayStory(iso).sessions[0].moves[0].noop === true; })()") === true);
+
+  /* HARD RULE 6, on the surface that shows the most history. */
+  ok("no word for an absence or its cause appears anywhere in the view",
+    w.eval("(function(){ logView='story'; renderLog();" +
+      "var t = (document.getElementById('logList')||{}).textContent || '';" +
+      "return !/sick|illness|absent|annual leave|unwell|reason/i.test(t); })()") === true);
+
+  /* Declining a suggestion has to leave a trace, or the log can never tell "the board said
+     nothing" from "the board said something and it was not taken". */
+  ok("turning down Fix this day is recorded as a fact about the board",
+    w.eval("typeof planDayFix === 'function'") &&
+    /Fix this day suggested/.test(w.eval("(function(){ var s=document.documentElement.innerHTML; return s; })()")));
+
+  /* ── THE WEIGHT SUGGESTION, ADDED 26.08.15 ────────────────────────────────────────────────
+     Ali chose "suggest, you accept" over letting the weights move on their own. These assert the
+     REFUSAL to act as hard as they assert the arithmetic, because the dangerous failure here is
+     not a wrong number — it is a number that applies itself. */
+
+  ok("a weight suggestion needs a real sample before it says anything",
+    w.eval("(function(){ data.reqFixes={R04:3}; data.reqChance={R04:4}; data.reqLeft={};" +
+      "var h=strWeightHint('R04'); return h && h.enough===false && h.n<20; })()") === true);
+
+  ok("gates never get a suggested weight, because a gate has no weight",
+    w.eval("(function(){ data.reqFixes={R01:500}; data.reqChance={R01:500};" +
+      "return strWeightHint('R01') === null; })()") === true);
+
+  ok("a requirement people always fix is suggested a HIGHER weight",
+    w.eval("(function(){ data.reqFixes={R04:30}; data.reqChance={R04:31}; data.reqLeft={};" +
+      "var h=strWeightHint('R04'); return h.enough && h.want > h.cur; })()") === true);
+
+  ok("a requirement people keep waving through is suggested a LOWER weight",
+    w.eval("(function(){ data.reqFixes={N04:1}; data.reqChance={N04:40}; data.reqLeft={N04:6};" +
+      "var h=strWeightHint('N04'); return h.enough && h.want < h.cur; })()") === true);
+
+  ok("turning a suggestion down counts against the weight, not for it",
+    w.eval("(function(){ data.reqChance={N01:25}; data.reqFixes={N01:12};" +
+      "var a=strWeightHint('N01').want; data.reqLeft={N01:25};" +
+      "var b=strWeightHint('N01').want; return b < a; })()") === true);
+
+  ok("no suggestion may move a weight by more than half of itself",
+    w.eval("(function(){ data.reqFixes={R04:999}; data.reqChance={R04:999}; data.reqLeft={};" +
+      "var h=strWeightHint('R04'); return h.want <= h.cur*1.5 + 0.001; })()") === true &&
+    w.eval("(function(){ data.reqFixes={R04:0}; data.reqChance={R04:999}; data.reqLeft={R04:999};" +
+      "var h=strWeightHint('R04'); return h.want >= h.cur*0.5 - 0.001; })()") === true);
+
+  ok("asking for a suggestion NEVER changes the live weight",
+    w.eval("(function(){ var before=Strength.wOf(strengthCfg(),'R04');" +
+      "data.reqFixes={R04:99}; data.reqChance={R04:99}; data.reqLeft={};" +
+      "strWeightHint('R04'); strWeightHint('R04'); strWeightHint('R04');" +
+      "return Strength.wOf(strengthCfg(),'R04') === before; })()") === true);
+
+  ok("evidence that is neutral leaves the weight where it is",
+    w.eval("(function(){ data.reqFixes={N05:15}; data.reqChance={N05:30}; data.reqLeft={};" +
+      "var h=strWeightHint('N05'); return h.enough && Math.abs(h.want - h.cur) < 0.25; })()") === true);
+
+  /* COUNTS ONLY, NEVER NAMES — the same instinct as hard rule 6, one surface along. */
+  ok("the evidence counters hold numbers and nothing else",
+    w.eval("(function(){ data.reqFixes={R04:3}; data.reqChance={R04:9}; data.reqLeft={R04:2};" +
+      "var all=[data.reqFixes,data.reqChance,data.reqLeft], i, k;" +
+      "for(i=0;i<all.length;i++) for(k in all[i]) if(typeof all[i][k] !== 'number') return false;" +
+      "return true; })()") === true);
+
+  /* ── THE PUBLISHED WINDOW, ADDED 26.08.15 ─────────────────────────────────────────────────
+     Ali: "make only this week and the next visible to trainees." The assertions that matter are
+     the ones about the EDGE — a window that quietly lets somebody through is not a window, and a
+     window that hides the rota team's own board is a different bug with the same cause. */
+
+  /* CHANGED 26.08.16, FROM 3 AND 2. Ali: "nobody does look forward and so many things change and
+     the allocator doesnt get its best chance to fix... the current week is live, the next week is
+     draft framed and then everything forward is not written." The window is now the WRITE window
+     as well as the publication window — the two used to differ, and every week in the gap was an
+     allocation nobody could see, written from an incomplete roster and never revisited. */
+  ok("the published window is two weeks, one of them firm",
+    w.eval("(function(){ return rule('visibleWeeks') === 2 && rule('firmWeeks') === 1; })()") === true);
+
+  /* REWRITTEN 26.08.20. This used to read the real calendar and assert that two weeks were always
+     visible. From today the second week only opens at 07:00 on the Friday, so on a Wednesday the
+     old assertion was asserting the bug. The clock is data now, so move it rather than read it —
+     otherwise this test means something different depending on which day it is run. */
+  ok("before the Friday, only this week is visible",
+    w.eval("(function(){ var m = mondayOf(todayISO()); data.rules = data.rules || {};" +
+      "data.rules.publishDay = 6; data.rules.publishHour = 23;" +   // a moment this week cannot have reached
+      "var r = weekIsVisible(m) && !weekIsVisible(addDays(m,7));" +
+      "delete data.rules.publishDay; delete data.rules.publishHour; return r; })()") === true);
+
+  ok("from the Friday, two weeks are visible and the third is not",
+    w.eval("(function(){ var m = mondayOf(todayISO()); data.rules = data.rules || {};" +
+      "data.rules.publishDay = 0; data.rules.publishHour = 0;" +    // already passed
+      "var r = weekIsVisible(m) && weekIsVisible(addDays(m,7)) && !weekIsVisible(addDays(m,14));" +
+      "delete data.rules.publishDay; delete data.rules.publishHour; return r; })()") === true);
+
+  /* THE TWO EDGES. The whole point of the draft week is that it is visible AND not firm, so a
+     test that only checked visibility would pass with the distinction deleted. */
+  ok("the current week is firm, the next is draft",
+    w.eval("(function(){ var m = mondayOf(todayISO());" +
+      "return weekIsFirm(m) && !weekIsFirm(addDays(m,7))" +
+      " && weekIsDraft(addDays(m,7)) && !weekIsDraft(m); })()") === true);
+
+  /* Rewritten 26.08.15: draft now means "not the week we are in", so a week beyond the published
+     window IS a draft — the rota team see it while editing and it is certainly not settled. What
+     must stay true is that the CURRENT week is never marked. */
+  ok("the current week is never a draft, and every later week is",
+    w.eval("(function(){ var m = mondayOf(todayISO());" +
+      "return !weekIsDraft(m) && weekIsDraft(addDays(m,7)) && weekIsDraft(addDays(m,21)); })()") === true);
+
+  ok("firm can never reach past visible, however the numbers are set",
+    w.eval("(function(){ data.rules = data.rules || {}; data.rules.visibleWeeks = 2;" +
+      "data.rules.firmWeeks = 9; var over = firmTo() > visibleTo();" +
+      "delete data.rules.visibleWeeks; delete data.rules.firmWeeks; return over === false; })()") === true);
+
+  ok("last week is outside it too — worked weeks are not the trainees' business either",
+    w.eval("(function(){ return !weekIsVisible(addDays(mondayOf(todayISO()),-7)); })()") === true);
+
+  /* REWRITTEN 26.08.20, AND THE CHANGE IS DELIBERATE. The setting used to be able to widen the
+     window to any number of weeks; it can now only NARROW it, because the publication clock caps
+     it at two and Ali's rule is that nothing further ahead than next week is visible to anyone.
+     So the front-end editability that matters is downward, and the upward case is now an assertion
+     that the cap holds — which is the more important of the two. */
+  ok("the window is editable from the front end, downward",
+    w.eval("(function(){ data.rules = data.rules || {};" +
+      "data.rules.publishDay = 0; data.rules.publishHour = 0;" +    // Friday passed: two would be visible
+      "data.rules.visibleWeeks = 1;" +
+      "var narrow = !weekIsVisible(addDays(mondayOf(todayISO()),7));" +
+      "data.rules.visibleWeeks = 2; delete data.rules.publishDay; delete data.rules.publishHour;" +
+      "return narrow === true; })()") === true);
+
+  ok("...but never upward past next week, whatever the number is set to",
+    w.eval("(function(){ data.rules = data.rules || {};" +
+      "data.rules.publishDay = 0; data.rules.publishHour = 0; data.rules.visibleWeeks = 4;" +
+      "var wide = weekIsVisible(addDays(mondayOf(todayISO()),14));" +
+      "data.rules.visibleWeeks = 2; delete data.rules.publishDay; delete data.rules.publishHour;" +
+      "return wide === false; })()") === true);
+
+  ok("a bad value falls back to a window rather than to no window",
+    w.eval("(function(){ data.rules = data.rules || {}; data.rules.visibleWeeks = 0;" +
+      "var m = mondayOf(todayISO()); var ok1 = weekIsVisible(m);" +
+      "delete data.rules.visibleWeeks; return ok1 === true; })()") === true);
+
+  /* THE SNAPSHOT. It exists to answer one question and it must not answer it wrongly: a week
+     nobody snapshotted has NO ANSWER, which is not the same as "nothing changed". */
+  ok("a week is snapshotted when it becomes visible",
+    w.eval("(function(){ EDIT_MODE = true; data.seen = {}; snapVisibleWeeks();" +
+      "return !!(data.seen && data.seen[mondayOf(todayISO())]); })()") === true);
+
+  ok("the snapshot is taken once and not overwritten on every redraw",
+    w.eval("(function(){ EDIT_MODE = true; data.seen = {}; snapVisibleWeeks();" +
+      "var first = data.seen[mondayOf(todayISO())].at;" +
+      "snapVisibleWeeks(); snapVisibleWeeks();" +
+      "return data.seen[mondayOf(todayISO())].at === first; })()") === true);
+
+  ok("a week nobody snapshotted reads as no answer, never as no change",
+    w.eval("(function(){ data.seen = {}; return seenPodOf(todayISO(), 'nobody') === null; })()") === true);
+
+  ok("snapshots of weeks that have fallen out of the window are dropped",
+    w.eval("(function(){ EDIT_MODE = true; data.seen = {}; data.seen[addDays(mondayOf(todayISO()),-70)] = {at:'x',pods:{}};" +
+      "snapVisibleWeeks(); return !data.seen[addDays(mondayOf(todayISO()),-70)]; })()") === true);
+
+  /* HARD RULE 6 reaches this too: a record of who was where is one field away from a record of
+     why they moved, and the snapshot must never grow that field. */
+  ok("the snapshot holds pods and a timestamp and nothing else",
+    w.eval("(function(){ EDIT_MODE = true; data.seen = {}; snapVisibleWeeks();" +
+      "var sn = data.seen[mondayOf(todayISO())]; if(!sn) return false;" +
+      "var keys = Object.keys(sn).sort().join(',');" +
+      "return keys === 'at,pods'; })()") === true);
+
+  /* THE GUARD ITSELF. This is the assertion that would have caught the 12 Aug Staff-page bug,
+     which is why it is worth more than the four above it. */
+  ok("a reader who cannot save never takes a snapshot it would then lose",
+    w.eval("(function(){ EDIT_MODE = false; data.seen = {}; snapVisibleWeeks();" +
+      "return Object.keys(data.seen).length === 0; })()") === true);
+
+  /* ── SHOWING A CHANGE, ADDED 26.08.15 ─────────────────────────────────────────────────────
+     Ali: "how highlight changes on the allocation board." The failure to guard against is not an
+     unmarked chip, it is a WRONGLY marked one — a board that cries wolf about moves that never
+     happened is worse than one that says nothing. */
+
+  ok("a chip that has not moved is not marked",
+    w.eval("(function(){ EDIT_MODE = true; currentWeekKey = mondayOf(todayISO());" +
+      "data.seen = {}; snapVisibleWeeks(); renderWeek();" +
+      "return document.querySelectorAll('.chip.moved').length === 0; })()") === true);
+
+  ok("a chip that changed pod since the week was published is marked",
+    w.eval("(function(){ EDIT_MODE = true; currentWeekKey = mondayOf(todayISO());" +
+      "var wk = getWeek(currentWeekKey), day = wk.days[0];" +
+      "var from = null, id = null;" +
+      "for (var i=0;i<PODS.length && !id;i++){ var a = day.pods[PODS[i]].assign;" +
+      "  if (a.length && a[0].id) { from = PODS[i]; id = a[0].id; } }" +
+      "if (!id) return true;" +
+      "data.seen = {}; snapVisibleWeeks();" +
+      "var to = PODS.filter(function(p){ return p !== from; })[0];" +
+      "day.pods[from].assign = day.pods[from].assign.filter(function(x){ return x.id !== id; });" +
+      "day.pods[to].assign.push({ id: id, shift: 'SD' });" +
+      "renderWeek();" +
+      "return document.querySelectorAll('.chip.moved').length > 0; })()") === true);
+
+  ok("no snapshot means nothing is marked, rather than everything",
+    w.eval("(function(){ EDIT_MODE = true; data.seen = {}; currentWeekKey = mondayOf(todayISO());" +
+      "renderWeek(); return document.querySelectorAll('.chip.moved').length === 0; })()") === true);
+
+  /* HARD RULE 6 on the newest surface. */
+  /* Scoped to the chips and their titles, which is what this marking IS. The page as a whole
+     legitimately contains the word "reason" in unrelated help text, and an assertion that fails
+     on that is an assertion nobody will keep. */
+  ok("the marking says where somebody was and never why they moved",
+    w.eval("(function(){ var t = Array.prototype.map.call(document.querySelectorAll('.chip'), " +
+      "  function(c){ return (c.title||'') + ' ' + c.textContent; }).join(' ');" +
+      "return !/sick|illness|absent|unwell|reason|because/i.test(t); })()") === true);
+
+  /* ── THE DRAFT MARK IS GONE, AND THAT IS NOW WHAT IS ASSERTED — 26.08.20 ──────────────────
+     Three assertions here used to require the wash and its flag. Ali removed the caveat once the
+     publication window made it unnecessary: a trainee cannot reach a week until it has been
+     written and then published, so every week they can see has been through both gates and
+     tinting it would caveat a rota the system is telling them to rely on.
+
+     These are kept as assertions rather than deleted, pointing the other way. A removed feature
+     with no test is a feature that comes back by accident — and this one has been re-added once
+     already, in a different shape, on 26.08.16. */
+  ok("no draft wash or flag anywhere on the board, on any week",
+    w.eval("(function(){ switchTab('rota');" +
+      "var keys = [0, 7, 14].map(function(n){ return addDays(mondayOf(todayISO()), n); });" +
+      "var found = false;" +
+      "keys.forEach(function(k){ currentWeekKey = k; renderWeek();" +
+      "  if (document.querySelector('.draftwk') || document.querySelector('.draftflag')) found = true; });" +
+      "currentWeekKey = mondayOf(todayISO()); renderWeek(); return !found; })()") === true);
+
+  ok("...and the stylesheet carries no rule that could paint one",
+    w.eval("(function(){ var css = [].slice.call(document.querySelectorAll('style'))" +
+      "  .map(function(s){ return s.textContent; }).join('');" +
+      "return !/draftwk|draftflag/.test(css); })()") === true);
+
+  /* weekIsDraft itself stays — it answers whether a week has been worked yet, which is a real
+     question with other callers. What went is the paint, not the predicate. */
+  ok("the predicate survives the paint being removed",
+    w.eval("typeof weekIsDraft === 'function' && weekIsDraft(addDays(mondayOf(todayISO()), 7)) === true") === true);
+
+  /* ── THE TWO CLOCKS ARE REACHABLE FROM A SCREEN — hard rule 1, 26.08.20 ───────────────────
+     They were data the store could hold and no screen could reach, which is the half of hard
+     rule 1 that gets forgotten. Asserted through the SETTINGS SCREEN rather than by calling
+     rule() — the point is not that the numbers exist, it is that somebody can change them
+     without a code edit. */
+  ok("Setup offers both clocks as days and hours, not as raw numbers",
+    w.eval("(function(){ EDIT_MODE = true; settingsPage = null; renderSettings();" +
+      "var sels = [].slice.call(document.querySelectorAll('#setList select'));" +
+      "var days = sels.filter(function(s){ return /Monday/.test(s.textContent) && /Sunday/.test(s.textContent); });" +
+      "var hours = sels.filter(function(s){ return /07:00/.test(s.textContent) && /14:00/.test(s.textContent); });" +
+      "return days.length >= 2 && hours.length >= 2; })()") === true);
+
+  ok("...set to Tuesday 14:00 to write and Friday 07:00 to publish",
+    w.eval("(function(){ return rule('writeDay') === 1 && rule('writeHour') === 14 &&" +
+      "rule('publishDay') === 4 && rule('publishHour') === 7; })()") === true);
+
+  /* Changing the clock from the screen must actually move the window, or the control is a prop. */
+  ok("moving the write clock from the screen moves the written edge",
+    w.eval("(function(){ var before = writableTo();" +
+      "data.rules = data.rules || {}; data.rules.writeDay = 6; data.rules.writeHour = 23;" +
+      "var after = writableTo();" +
+      "delete data.rules.writeDay; delete data.rules.writeHour;" +
+      "return after < before; })()") === true);
+
+  /* A publish moment before the write moment would put a blank week in front of every trainee. */
+  ok("publishing cannot be set earlier than writing",
+    w.eval("(function(){ EDIT_MODE = true; settingsPage = null; renderSettings();" +
+      "var sels = [].slice.call(document.querySelectorAll('#setList select'));" +
+      "var days = sels.filter(function(s){ return /Monday/.test(s.textContent); });" +
+      "var pubDay = days[1];" +           // second day pick-list is the publish clock
+      "pubDay.value = '0'; pubDay.onchange();" +   // Monday, before Tuesday
+      "var held = rule('publishDay') === 4;" +     // refused, so it is still Friday
+      "return held && pubDay.value === '4'; })()") === true);
+
+  /* ── FIX WEEK AND FIX AHEAD ARE GONE, AND STAY GONE — 26.08.20 ────────────────────────────
+     Both were measured inert on the live board before removal: Fix ahead found zero days across
+     every week from today, Fix week zero changes on this week and next. They are gone because a
+     button called "Fix week" invites a re-plan of days people have read, which is the fault the
+     rebuild exists to remove. Asserted rather than just deleted, for the same reason as the draft
+     wash: a removed control with no test comes back by accident. */
+  ok("Fix week and Fix ahead are gone from the board",
+    w.eval("(function(){ switchTab('rota'); EDIT_MODE = true; renderWeek();" +
+      "return !document.getElementById('btnFixWeek') && !document.getElementById('btnFixAhead')" +
+      "  && !document.getElementById('btnFixMenu'); })()") === true);
+
+  /* Fix THIS DAY is the repair path and must survive — it is what somebody presses when one
+     person comes off, and the only remaining way to run a repair by hand. */
+  ok("...but Fix this day still works, because that is the repair path",
+    w.eval("(function(){ return typeof planDayFix === 'function' && typeof applyFixedDay === 'function'" +
+      "  && typeof fixWorthTaking === 'function'; })()") === true);
+
+  /* ── AUTO-FILL WENT TOO — 26.08.20 ────────────────────────────────────────────────────────
+     Measured before removing it: benching ONE person and pressing it moved 65 others, 55 of them
+     on days that had nothing to do with the change, while its dialog promised nobody would move.
+     Fix this day is now the only repair a human runs by hand. */
+  ok("Auto-fill week is gone as well",
+    w.eval("(function(){ return !document.getElementById('btnAutoFill') && typeof autoFillWeek === 'undefined'; })()") === true);
+
+  ok("...but the week door and the day builder both survive, because the nightly needs them",
+    w.eval("(function(){ return typeof fillWeekWithPlanner === 'function' && typeof autoFillDay === 'function'; })()") === true);
+
+  /* ── THE 36-HOUR CHANGE MARK — Ali, 26.08.20 ──────────────────────────────────────────────
+     "its the trainees that need to know theres been a short notice swap." Read from the log, so
+     the assertions drive the LOG and read the BOARD — never the helper on its own, which would
+     pass with the mark wired to nothing. */
+  console.log("\\n-- changes in the last 36 hours --");
+  {
+    /* Whichever day of this week actually has somebody placed — the fixture does not guarantee
+       day 0, and a test that silently targets an empty day passes for the wrong reason. */
+    const di = w.eval("(function(){ currentWeekKey = mondayOf(todayISO());" +
+      "var wk = getWeek(currentWeekKey);" +
+      "for (var i = 0; i < 7; i++) { var d = wk.days[i];" +
+      "  for (var p of PODS) if (d.pods[p].assign.some(function(a){ return a.id; })) return i; }" +
+      "return -1; })()");
+    const iso = w.eval("addDays(mondayOf(todayISO()), " + di + ")");
+    const seed = (hoursAgo, d) => w.eval("(function(){ data.log = data.log || [];" +
+      "data.log.unshift({ t: new Date(Date.now() - " + hoursAgo + "*3600000).toISOString()," +
+      " who:'allocate sync', kind:'auto', msg:'x', on:'" + iso + "', d:" + JSON.stringify(d) + " }); })()");
+
+    w.eval("data.log = []");
+    const who = w.eval("(function(){ var d = getWeek(mondayOf(todayISO())).days[" + di + "];" +
+      "for (var p of PODS) for (var a of d.pods[p].assign) if (a.id) return (staffById(a.id)||{}).name; return null; })()");
+    ok("the fixture has somebody to mark", di >= 0 && !!who, "di=" + di + " who=" + who);
+
+    ok("a person moved 4 hours ago is marked, and says where from",
+      w.eval("(function(){ data.log = []; return true; })()") === true &&
+      (seed(4, { act: "move", subj: who, from: "D", to: "A" }),
+       w.eval("(function(){ currentWeekKey = mondayOf(todayISO()); renderWeek();" +
+         "var c = [].slice.call(document.querySelectorAll('#weekGrid .chip.rc'));" +
+         "return c.length > 0 && c.some(function(x){ return /from D/.test(x.textContent); }); })()") === true));
+
+    ok("...and the day carries the count",
+      w.eval("(function(){ var n = document.querySelector('#weekGrid .rccount');" +
+        "return !!n && /1/.test(n.textContent); })()") === true);
+
+    ok("a change 40 hours ago is outside the window and is not marked",
+      w.eval("(function(){ data.log = []; return true; })()") === true &&
+      (seed(40, { act: "move", subj: who, from: "D", to: "A" }),
+       w.eval("(function(){ renderWeek(); return !document.querySelector('#weekGrid .chip.rc')" +
+         " && !document.querySelector('#weekGrid .rccount'); })()") === true));
+
+    ok("an arrival reads 'new' rather than naming a pod it never came from",
+      w.eval("(function(){ data.log = []; return true; })()") === true &&
+      (seed(2, { act: "on", subj: who }),
+       w.eval("(function(){ renderWeek();" +
+         "var c = document.querySelector('#weekGrid .chip.rc');" +
+         "return !!c && /new/.test(c.textContent); })()") === true));
+
+    /* A removal has no chip to draw on, so it must still reach the count or the count lies. */
+    ok("somebody taken off has no chip, but still counts on the day",
+      w.eval("(function(){ data.log = []; return true; })()") === true &&
+      (seed(3, { act: "off", subj: "Nobody Here" }),
+       w.eval("(function(){ renderWeek();" +
+         "return !document.querySelector('#weekGrid .chip.rc')" +
+         " && !!document.querySelector('#weekGrid .rccount'); })()") === true));
+
+    /* Hard rule 6 lives one surface away: the mark says WHAT moved, never why. */
+    ok("the mark never says why anybody moved",
+      w.eval("(function(){ data.log = []; return true; })()") === true &&
+      (seed(2, { act: "move", subj: who, from: "D", to: "A" }),
+       w.eval("(function(){ renderWeek();" +
+         "var t = [].slice.call(document.querySelectorAll('#weekGrid .chip.rc'))" +
+         "  .map(function(c){ return (c.title||'') + ' ' + c.textContent; }).join(' ');" +
+         "return !/sick|illness|absent|unwell|reason|because|swap/i.test(t); })()") === true));
+
+    w.eval("data.log = []; renderWeek();");
   }
 
   ok("no errors across the whole run", errors.length === 0, errors.slice(0, 3).join(" | "));
