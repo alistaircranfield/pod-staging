@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-21T06:28:47.790870+00:00",
- "build": "5e5e283",
+ "generated": "2026-08-21T06:46:56.722489+00:00",
+ "build": "9aa066e",
  "liveBuild": "3ae9bf9",
- "count": 287,
+ "count": 289,
  "changes": [
+  {
+   "sha": "9aa066e",
+   "who": "alistaircranfield",
+   "when": "2026-08-21T07:46:46+01:00",
+   "msg": "Remove auto-fill week feature"
+  },
+  {
+   "sha": "1bad028",
+   "who": "github-actions[bot]",
+   "when": "2026-08-21T06:28:47Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "5e5e283",
    "who": "alistaircranfield",
