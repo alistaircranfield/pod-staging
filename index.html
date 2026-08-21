@@ -964,6 +964,15 @@ button.strdial:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
    ring in the full accent, which on a board where nearly every chip in a reworked week carries
    one shouted louder than the names. 1px, and the accent at a third — still unmistakable when
    you look for it, no longer the first thing you see. */
+/* ── THE 36-HOUR CHANGE MARK ──────────────────────────────────────────────────────────────────
+   An edge bar rather than a fill, because the board already spends amber on days that need
+   attention and a second amber SURFACE would compete with it. A 3px edge reads at a glance on a
+   phone and disappears when you are not looking for it. */
+.chip.rc{border-left:3px solid #ba7517;border-radius:0 6px 6px 0}
+.rcfrom{margin-left:auto;font-size:.6rem;color:var(--muted);white-space:nowrap;padding-left:.25rem}
+.rccount{display:inline-flex;align-items:center;gap:.18rem;background:#faeeda;color:#854F0B;
+  border-radius:999px;padding:0 .38rem;font-size:.62rem;font-weight:600;margin-top:.15rem;line-height:1.5}
+.rcdot{width:5px;height:5px;border-radius:50%;background:#ba7517;flex:none}
 .chip.moved{box-shadow:0 0 0 1px color-mix(in srgb, var(--accent) 38%, transparent);border-radius:6px}
 /* ── THE DRAFT TINT AND ITS FLAG ARE GONE — 26.08.20 ──────────────────────────────────────────
    Ali: "the draft warning can be removed i think now." The two rules that shaped it are kept here
@@ -1636,6 +1645,44 @@ function snapVisibleWeeks(){
 }
 /* Where somebody was standing when the week became visible, or null if this week was already
    public before snapshots existed — which must read as "no answer", never as "no change". */
+/* ── WHAT CHANGED IN THE LAST 36 HOURS ─────────────────────────────────────────────────────────
+   Ali, 26.08.20: "need to highlight changes made within 48 hours or a day so people can see...
+   its the trainees that need to know theres been a short notice swap." 36 hours, and shown to
+   everybody rather than to the rota team, because the person who needs to know they are on a
+   different pod tomorrow is the person working it.
+
+   READ FROM THE LOG, so nothing new is stored and the mark ages out on its own. Every change
+   already carries WHEN it was made (`t`), WHICH rota day it was made to (`on`) and, since
+   26.08.04, the change as fields (`d = {act, subj, from, to}`) rather than as a sentence.
+
+   THIS IS NOT THE SAME MARK AS `moved`, and the two answer different questions. `moved` is
+   "different from when you last looked", against the snapshot taken as the week became visible —
+   so it says nothing to somebody who has not looked. This is "changed recently", against the
+   clock, and it is true whether or not anybody has opened the board. They can both be on a chip.
+
+   `d.subj` is a NAME, not an id — that is what the log has written since it was introduced, and
+   the sync writes names too. Matched on name for that reason and no other.
+
+   REMOVALS COUNT BUT CANNOT BE MARKED: somebody taken off the day has no chip to draw on. They
+   are in the day's count, which is what makes the count honest, and the detail is in the log. */
+const RECENT_HOURS = 36;
+function recentChanges(iso){
+  const out = { by: {}, n: 0 };
+  if (!data || !data.log) return out;
+  const cutoff = Date.now() - RECENT_HOURS * 3600 * 1000;
+  for (let i = data.log.length - 1; i >= 0; i--) {     // oldest first, so the latest wins
+    const e = data.log[i];
+    if (!e || e.on !== iso || !e.d || !e.d.subj) continue;
+    const when = Date.parse(e.t);
+    if (!isFinite(when) || when < cutoff) continue;
+    const a = e.d.act;
+    if (a === "move" && e.d.to) out.by[e.d.subj] = { kind: "move", from: e.d.from || "" };
+    else if (a === "on") out.by[e.d.subj] = { kind: "new", from: "" };
+    else if (a === "off" || (a === "move" && !e.d.to)) { delete out.by[e.d.subj]; out.n++; }
+  }
+  out.n += Object.keys(out.by).length;
+  return out;
+}
 function seenPodOf(iso, id){
   const wkKey = mondayOf(iso), sn = data && data.seen && data.seen[wkKey];
   if (!sn) return null;
@@ -4497,6 +4544,16 @@ function chip(s, opts){
     const was = movedSinceSeen(addDays(currentWeekKey, opts.di), s.id, opts.pod);
     if (was) { c.classList.add("moved"); c.title = personLabel(s) + " — was Pod " + was + " when this week was published"; }
   }
+  /* The 36-hour mark. Drawn on every board, edit mode or not — see recentChanges(). */
+  if (opts.di != null && opts.pod) {
+    const rc = recentChanges(addDays(currentWeekKey, opts.di)).by[s.name];
+    if (rc) {
+      c.classList.add("rc");
+      c.append(el("span", { class: "rcfrom" }, rc.kind === "new" ? "new" : (rc.from ? "from " + rc.from : "moved")));
+      c.title = (c.title || personLabel(s)) + "\n" +
+        (rc.kind === "new" ? "Added in the last 36 hours" : "Moved here in the last 36 hours");
+    }
+  }
   if (s.adhoc && /zlocum/i.test(s.name || "") && opts.di != null && canEdit())
     c.append(el("button", { class: "x", title: "We know who this locum is — type their name", onclick: e => { e.stopPropagation(); nameLocum(s, opts.di); } }, "✎"));
   if (opts.onRemove) c.append(el("button", { class: "x", title: opts.removeTitle || "Remove", onclick: e => { e.stopPropagation(); opts.onRemove(); } }, "✕"));
@@ -5488,8 +5545,15 @@ function renderDayRow(day, di, dateISO, issues){
     badge.title = (daySc.isBroken ? "Pod " + daySc.podBroken.join(", ") + " broken" : "The day, " + daySc.pct + "%")
       + "\n" + badge.title;
   }
+  /* HOW MANY CHANGED, so the day tells you where to look before the chips tell you who. Counts
+     removals as well as moves and arrivals — a person taken off is a change to the day even
+     though there is no chip left to mark. */
+  const rcDay = recentChanges(dateISO);
+  const rcChip = rcDay.n ? el("div", { class: "rccount", title: rcDay.n + " change" +
+      (rcDay.n === 1 ? "" : "s") + " in the last 36 hours" },
+      el("span", { class: "rcdot" }), String(rcDay.n)) : null;
   const dlInner = el("div", { class: "dl-inner" }, el("div", { class: "dn" }, DAYNAMES[di].slice(0,3).toUpperCase()), el("div", { class: "d" }, fmtDate(dateISO)),
-    canEdit() ? null : el("div", {}, badge));
+    rcChip, canEdit() ? null : el("div", {}, badge));
   /* THE DAY'S OWN RING, WHERE THE DOT ALREADY LIVES. Ali, 26.08.15: "why doesnt the column with the
      daily dot show the day overview". No reason except that it never did — the day score existed
      only on Setup, while the column that answers "how is this day?" carried a three-state dot. Same
