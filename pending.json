@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-21T06:46:56.722489+00:00",
- "build": "9aa066e",
+ "generated": "2026-08-21T07:54:06.697085+00:00",
+ "build": "f7632c7",
  "liveBuild": "3ae9bf9",
- "count": 289,
+ "count": 291,
  "changes": [
+  {
+   "sha": "f7632c7",
+   "who": "alistaircranfield",
+   "when": "2026-08-21T08:53:58+01:00",
+   "msg": "Enhance recent changes display and styling"
+  },
+  {
+   "sha": "111ec31",
+   "who": "github-actions[bot]",
+   "when": "2026-08-21T06:46:56Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "9aa066e",
    "who": "alistaircranfield",
