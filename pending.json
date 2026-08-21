@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-20T12:10:38.241268+00:00",
- "build": "f550f81",
- "liveBuild": "89a14ce",
- "count": 285,
+ "generated": "2026-08-21T06:28:47.790870+00:00",
+ "build": "5e5e283",
+ "liveBuild": "3ae9bf9",
+ "count": 287,
  "changes": [
+  {
+   "sha": "5e5e283",
+   "who": "alistaircranfield",
+   "when": "2026-08-21T07:28:37+01:00",
+   "msg": "Remove Fix Week and Fix Ahead functionality"
+  },
+  {
+   "sha": "ae9740c",
+   "who": "github-actions[bot]",
+   "when": "2026-08-20T12:10:38Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "f550f81",
    "who": "alistaircranfield",
