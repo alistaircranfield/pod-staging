@@ -71,16 +71,17 @@
       if (!ids.length) continue;
       led.days[di].staffed = true;
 
-      var size = {}, ld = {}, air = {}, tr = {}, accp = {}, phTrained = {}, allNew = {};
+      var size = {}, ld = {}, air = {}, ldAir = {}, tr = {}, accp = {}, phTrained = {}, allNew = {};
       for (var pi = 0; pi < PODS.length; pi++) {
         var p = PODS[pi], list = byPod[p] || [];
-        size[p] = list.length; ld[p] = false; air[p] = false; tr[p] = false;
+        size[p] = list.length; ld[p] = false; air[p] = false; ldAir[p] = 0; tr[p] = false;
         accp[p] = 0; phTrained[p] = false; allNew[p] = list.length > 0;
 
         for (var li = 0; li < list.length; li++) {
           var id = list[li], s = S(id);
           if (m[id] === "LD") ld[p] = true;
           if (s.airway) air[p] = true;
+          if (s.airway && m[id] === "LD") ldAir[p]++;
           if (s.transfer) tr[p] = true;
           if (s.phoneHolder || s.phone) phTrained[p] = true;
           if (s.grade === "ACCP") accp[p]++;
@@ -116,6 +117,12 @@
         if (size[p] > 0 && allNew[p]) charge(led, di, p, cfg.allNewPod, "allNewPod");
         if (accp[p] >= 2) charge(led, di, p, cfg.accpStack * (accp[p] - 1), "accpStack");
       }
+      /* ONE AIRWAY LONG DAY EACH SIDE, mirroring Planner.weekCost exactly. Charged to the day,
+         like spread, because no single pod is at fault -- the unit split its airway long days
+         onto one side and left the other bare. */
+      var abLdAir = (ldAir.A || 0) + (ldAir.B || 0), cdLdAir = (ldAir.C || 0) + (ldAir.D || 0);
+      if (abLdAir === 0 && cdLdAir >= 2) chargeDay(led, di, cfg.airwayLDPairGap, "airwayLDPairGap");
+      else if (cdLdAir === 0 && abLdAir >= 2) chargeDay(led, di, cfg.airwayLDPairGap, "airwayLDPairGap");
 
       var mx = -Infinity, mn = Infinity;
       for (var z = 0; z < PODS.length; z++) {
