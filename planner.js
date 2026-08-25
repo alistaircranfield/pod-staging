@@ -982,9 +982,18 @@
     opts = opts || {};
     var map = staffMap(staff), cfg = Object.assign({}, CFG, opts.cfg || {});
     var iso = addDays(wk.key || opts.weekKey, di), r = (wk.roster || {})[iso] || {};
+    /* THE ROSTER SAYS WHO ALLOCATE EXPECTS ON; day.removed SAYS WHO A HUMAN HAS TAKEN OFF THIS
+       DAY — 26.08.25, found live: Dave Garwood taken off sick, Fix this day put him straight back
+       in Pod D. The roster still (rightly) shows him on SD, because Allocate doesn't know he's
+       sick — only the board does, via takeOffDay(). Every other read of "who's actually on today"
+       (poolFor, in index.html) already deletes day.removed ids from its map; this one didn't, so
+       a manual removal survived until the next repair undid it. Same fault as the airway/red
+       history: one rule, enforced in one code path and not the other. */
+    var removedToday = {};
+    ((wk.days && wk.days[di] && wk.days[di].removed) || []).forEach(function (id) { removedToday[id] = true; });
     var on = {};
     for (var id in r) {
-      if (r[id].kind !== "day" || (map[id] || {}).supernum) continue;
+      if (r[id].kind !== "day" || (map[id] || {}).supernum || removedToday[id]) continue;
       on[id] = String(r[id].code || "").toUpperCase().indexOf("LD") === 0 ? "LD" : "SD";
     }
     var podsThisWeek = {}, movesThisWeek = {}, last = {};
