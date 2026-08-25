@@ -1,9 +1,21 @@
 {
- "generated": "2026-08-21T15:22:34.810417+00:00",
- "build": "98d107c",
- "liveBuild": "3ae9bf9",
- "count": 293,
+ "generated": "2026-08-25T06:56:16.477968+00:00",
+ "build": "88faa62",
+ "liveBuild": "eef2b25",
+ "count": 295,
  "changes": [
+  {
+   "sha": "88faa62",
+   "who": "alistaircranfield",
+   "when": "2026-08-25T07:56:06+01:00",
+   "msg": "Fix day no longer re-adds someone manually taken off sick (26.08.25)"
+  },
+  {
+   "sha": "fc26940",
+   "who": "github-actions[bot]",
+   "when": "2026-08-21T15:22:34Z",
+   "msg": "What is pending: regenerated from git, not typed"
+  },
   {
    "sha": "98d107c",
    "who": "Alistair Cranfield",
