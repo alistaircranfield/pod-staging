@@ -81,6 +81,12 @@
     allNewPod: 300,           // a pod carried entirely by people in their first weeks
     noPhoneTrained: 40,       // an A-D pod with nobody phone-trained
     airwayOnE: 420,           // airway does a lower share of Pod E — 140 left it there on 16% of days
+    airwayLDPairGap: 200,     // one side of the unit (A/B or C/D) has no airway long day while the
+                              // other has one to spare — Ali, 26.08.25, after a 7-LD day left C/D
+                              // bare: "aim to have 1 airway LD on A/B and C/D". Only charged when
+                              // the day genuinely has enough airway long days to split (2+); a day
+                              // with one airway long day on the whole unit cannot be fixed by
+                              // moving anybody and is not charged for it.
     eUnfair: 2,               // per day of Pod E already carried recently
     neuroOffCD: 14,           // the 60-70% band, per person
     accpStack: 25,
@@ -263,15 +269,16 @@
       var byPod = plan[di], m = on[di];
       var ids = Object.keys(m);
       if (!ids.length) continue;
-      var size = {}, ld = {}, air = {}, tr = {}, accp = {}, phTrained = {}, allNew = {};
+      var size = {}, ld = {}, air = {}, ldAir = {}, tr = {}, accp = {}, phTrained = {}, allNew = {};
       for (var pi = 0; pi < PODS.length; pi++) {
         var p = PODS[pi], list = byPod[p] || [];
-        size[p] = list.length; ld[p] = false; air[p] = false; tr[p] = false;
+        size[p] = list.length; ld[p] = false; air[p] = false; ldAir[p] = 0; tr[p] = false;
         accp[p] = 0; phTrained[p] = false; allNew[p] = list.length > 0;
         for (var li = 0; li < list.length; li++) {
           var id = list[li], s = S(id);
           if (m[id] === "LD") ld[p] = true;
           if (s.airway) air[p] = true;
+          if (s.airway && m[id] === "LD") ldAir[p]++;
           if (s.transfer) tr[p] = true;
           if (s.phoneHolder || s.phone) phTrained[p] = true;
           if (s.grade === "ACCP") accp[p]++;
@@ -299,6 +306,12 @@
         if (size[p] > 0 && allNew[p]) cost += cfg.allNewPod;
         if (accp[p] >= 2) cost += cfg.accpStack * (accp[p] - 1);
       }
+      /* ONE AIRWAY LONG DAY EACH SIDE — A&B and C&D — mirroring the night-team split below.
+         Only charged when the day has two or more airway long days to work with; one airway
+         long day on the whole unit cannot be split and is not the allocator's fault. */
+      var abLdAir = (ldAir.A || 0) + (ldAir.B || 0), cdLdAir = (ldAir.C || 0) + (ldAir.D || 0);
+      if (abLdAir === 0 && cdLdAir >= 2) cost += cfg.airwayLDPairGap;
+      else if (cdLdAir === 0 && abLdAir >= 2) cost += cfg.airwayLDPairGap;
       var mx = -Infinity, mn = Infinity;
       for (var z = 0; z < PODS.length; z++) {
         var v = size[PODS[z]];
@@ -801,14 +814,15 @@
        illegal if it gives somebody a third pod this week, takes them past the move cap, empties a
        pod below its minimum, or breaks a rule ranked above the one being fixed. */
     function state() {
-      var st = { size: {}, ld: {}, cover: {}, air: {} };
+      var st = { size: {}, ld: {}, cover: {}, air: {}, ldAir: {} };
       for (var pi = 0; pi < PODS.length; pi++) {
         var p = PODS[pi], list = byPod[p];
-        st.size[p] = list.length; st.ld[p] = false; st.cover[p] = false; st.air[p] = false;
+        st.size[p] = list.length; st.ld[p] = false; st.cover[p] = false; st.air[p] = false; st.ldAir[p] = 0;
         for (var k = 0; k < list.length; k++) {
           if (on[list[k]] === "LD") st.ld[p] = true;
           if (S(list[k]).airway) { st.air[p] = true; st.cover[p] = true; }
           else if (S(list[k]).transfer) st.cover[p] = true;
+          if (S(list[k]).airway && on[list[k]] === "LD") st.ldAir[p]++;
         }
       }
       return st;
@@ -826,6 +840,15 @@
       if (st.size.E === mx && st.size.E > mn) out.push({ rank: 5, pod: "E", kind: "eBiggest" });
       if (st.ld.E) for (var b = 0; b < AD.length; b++)
         if (st.size[AD[b]] > 0 && !st.ld[AD[b]]) { out.push({ rank: 5, pod: "E", kind: "eLongDayEarly" }); break; }
+      /* ONE AIRWAY LONG DAY EACH SIDE, rank 6 — below every hard rule above, so it never
+         disturbs a fix already made for cover, a long day, or Pod E. Only raised when the day
+         has an airway long day to spare (2+ on the fuller side): one airway long day on the
+         whole unit cannot be split and is not a breach. Ali, 26.08.25. */
+      var abLdAir = (st.ldAir.A || 0) + (st.ldAir.B || 0), cdLdAir = (st.ldAir.C || 0) + (st.ldAir.D || 0);
+      if (abLdAir === 0 && cdLdAir >= 2)
+        out.push({ rank: 6, pod: (st.size.A <= st.size.B ? "A" : "B"), pair: "AB", donor: "CD", kind: "airwayLDPairGap" });
+      else if (cdLdAir === 0 && abLdAir >= 2)
+        out.push({ rank: 6, pod: (st.size.C <= st.size.D ? "C" : "D"), pair: "CD", donor: "AB", kind: "airwayLDPairGap" });
       out.sort(function (x, y) { return x.rank - y.rank; });
       return out;
     }
@@ -861,6 +884,8 @@
           if (!legal(who, want.pod)) continue;
           if (want.kind === "noLongDay" && on[who] !== "LD") continue;
           if (want.kind === "noCover" && !(S(who).airway || S(who).transfer)) continue;
+          if (want.kind === "airwayLDPairGap" &&
+              !(on[who] === "LD" && S(who).airway && want.donor.indexOf(from2) >= 0)) continue;
           if (want.kind === "eBiggest") continue;                       // fixed by taking OFF E
           cands.push({ id: who, from: from2 });
         }
